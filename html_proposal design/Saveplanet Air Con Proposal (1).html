@@ -1,0 +1,2487 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>SavePlanet — Space Heating &amp; Cooling Upgrade Proposal</title>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700;800;900&family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+:root{
+  --g:#1f7a3e;
+  --g-dark:#155029;
+  --g2:#28a84f;
+  --g3:#34d066;
+  --gpale:#e9f5ee;
+  --gdim:#c5e0cf;
+  --gline:#d6e8dc;
+  --amber:#d97706;
+  --amber-bg:#fffbeb;
+  --orange:#ea580c;
+  --blue:#2563eb;
+  --blue-bg:#eff6ff;
+  --rose:#e11d48;
+  --rose-bg:#fff1f2;
+  --purple:#7c3aed;
+  --purple-bg:#f5f3ff;
+  --slate-50:#f8fafc;
+  --slate-100:#f1f5f9;
+  --slate-200:#e2e8f0;
+  --slate-300:#cbd5e1;
+  --slate-400:#94a3b8;
+  --slate-500:#64748b;
+  --slate-600:#475569;
+  --slate-700:#334155;
+  --slate-800:#1e293b;
+  --slate-900:#0f172a;
+  --text:#0f1f17;
+  --muted:#475569;
+  --border:#dde7e1;
+}
+body{
+  font-family:'DM Sans',sans-serif;
+  font-size:13.5px;
+  line-height:1.65;
+  color:var(--text);
+  background:#dde6df;
+  -webkit-print-color-adjust:exact;
+  print-color-adjust:exact;
+}
+h1,h2,h3,h4,h5,h6{font-family:'Sora',sans-serif;}
+.mono{font-family:'JetBrains Mono',monospace;}
+
+.book{max-width:1024px;margin:0 auto;}
+
+/* ── PAGE FRAME ── */
+.page{
+  background:#fff;
+  position:relative;
+  overflow:hidden;
+  min-height:1330px;
+  margin-bottom:14px;
+  box-shadow:0 4px 30px rgba(15,30,20,0.12);
+  border-radius:4px;
+  page-break-after:always;
+}
+.page-num{
+  position:absolute;
+  bottom:18px;right:24px;
+  font-family:'JetBrains Mono',monospace;
+  font-size:10px;
+  font-weight:700;
+  color:var(--slate-400);
+  letter-spacing:1px;
+}
+.page-foot-brand{
+  position:absolute;
+  bottom:18px;left:24px;
+  font-size:10px;
+  font-weight:600;
+  color:var(--slate-400);
+  letter-spacing:0.5px;
+}
+.page-foot-brand span{color:var(--g);font-weight:700;}
+
+/* Section headers (used on most pages) */
+.sec-eyebrow{
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  font-size:10px;
+  font-weight:700;
+  text-transform:uppercase;
+  letter-spacing:2px;
+  color:var(--g);
+  background:var(--gpale);
+  padding:5px 10px;
+  border-radius:20px;
+  margin-bottom:14px;
+}
+.sec-eyebrow i{width:12px;height:12px;}
+.sec-h1{
+  font-size:36px;
+  font-weight:800;
+  letter-spacing:-1px;
+  color:var(--text);
+  line-height:1.1;
+  margin-bottom:10px;
+}
+.sec-h1 em{color:var(--g);font-style:normal;}
+.sec-rule{
+  width:48px;
+  height:4px;
+  border-radius:2px;
+  background:var(--g);
+  margin:14px 0 28px;
+}
+.sec-lead{
+  font-size:14px;
+  color:var(--muted);
+  max-width:680px;
+  margin-bottom:24px;
+}
+
+/* ═══════════════ PAGE 1: COVER ═══════════════ */
+.cover{
+  min-height:1330px;
+  display:flex;
+  flex-direction:column;
+  background:#0a1f12;
+  position:relative;
+  color:#fff;
+  overflow:hidden;
+}
+.cov-grid-bg{
+  position:absolute;
+  inset:0;
+  background-image:
+    linear-gradient(rgba(40,168,79,0.06) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(40,168,79,0.06) 1px,transparent 1px);
+  background-size:40px 40px;
+  pointer-events:none;
+}
+.cov-glow1{
+  position:absolute;
+  top:-200px;right:-200px;
+  width:600px;height:600px;
+  background:radial-gradient(circle,rgba(40,168,79,0.25) 0%,transparent 70%);
+  pointer-events:none;
+}
+.cov-glow2{
+  position:absolute;
+  bottom:-150px;left:-150px;
+  width:500px;height:500px;
+  background:radial-gradient(circle,rgba(52,208,102,0.15) 0%,transparent 70%);
+  pointer-events:none;
+}
+.cov-nav{
+  padding:32px 48px;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  position:relative;
+  z-index:2;
+}
+.cov-logo{
+  background:#fff;
+  padding:10px 18px;
+  border-radius:10px;
+  box-shadow:0 4px 24px rgba(0,0,0,0.3);
+}
+.cov-logo img{height:48px;width:auto;display:block;}
+.cov-tag{
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+  background:rgba(255,255,255,0.08);
+  border:1px solid rgba(40,168,79,0.4);
+  padding:8px 14px;
+  border-radius:30px;
+  font-size:11px;
+  font-weight:700;
+  letter-spacing:1.5px;
+  text-transform:uppercase;
+  color:#34d066;
+}
+.cov-tag i{width:13px;height:13px;}
+
+.cov-main{
+  flex:1;
+  padding:48px 48px 40px;
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+  position:relative;
+  z-index:2;
+}
+.cov-eyebrow{
+  font-size:11px;
+  letter-spacing:3px;
+  text-transform:uppercase;
+  color:#34d066;
+  margin-bottom:20px;
+  font-weight:700;
+}
+.cov-title{
+  font-family:'Sora',sans-serif;
+  font-size:68px;
+  font-weight:900;
+  letter-spacing:-3px;
+  line-height:1;
+  color:#fff;
+  margin-bottom:24px;
+}
+.cov-title em{
+  font-style:normal;
+  color:#34d066;
+  display:block;
+}
+.cov-desc{
+  font-size:16px;
+  color:rgba(255,255,255,0.7);
+  max-width:520px;
+  margin-bottom:36px;
+  line-height:1.6;
+}
+
+/* Cover stats strip */
+.cov-stats{
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+  gap:12px;
+  margin-bottom:36px;
+}
+.cov-stat{
+  background:rgba(255,255,255,0.04);
+  border:1px solid rgba(255,255,255,0.1);
+  border-radius:14px;
+  padding:18px;
+  position:relative;
+  overflow:hidden;
+}
+.cov-stat::before{
+  content:'';
+  position:absolute;
+  top:0;left:0;
+  width:4px;height:100%;
+  background:#34d066;
+}
+.cov-stat-icon{
+  width:32px;height:32px;
+  background:rgba(52,208,102,0.15);
+  border-radius:8px;
+  display:flex;align-items:center;justify-content:center;
+  margin-bottom:12px;
+  color:#34d066;
+}
+.cov-stat-icon i{width:16px;height:16px;}
+.cov-stat-num{
+  font-family:'Sora',sans-serif;
+  font-size:24px;
+  font-weight:800;
+  color:#fff;
+  line-height:1;
+}
+.cov-stat-lbl{
+  font-size:10px;
+  color:rgba(255,255,255,0.6);
+  text-transform:uppercase;
+  letter-spacing:1px;
+  margin-top:4px;
+}
+
+/* Cover CTA card */
+.cov-card{
+  background:linear-gradient(135deg,#1a4a2a 0%,#0f3320 100%);
+  border:1px solid rgba(52,208,102,0.3);
+  border-radius:16px;
+  padding:24px 28px;
+  display:grid;
+  grid-template-columns:1fr 1fr 1fr;
+  gap:20px;
+  margin-bottom:36px;
+}
+.cov-card-item label{
+  font-size:10px;
+  letter-spacing:1.5px;
+  text-transform:uppercase;
+  color:rgba(255,255,255,0.5);
+  display:block;
+  margin-bottom:6px;
+}
+.cov-card-item span{
+  font-family:'Sora',sans-serif;
+  font-weight:700;
+  color:#fff;
+  font-size:14px;
+}
+
+.cov-foot{
+  border-top:1px solid rgba(255,255,255,0.1);
+  padding:24px 48px;
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+  gap:16px;
+  position:relative;
+  z-index:2;
+}
+.cov-fc{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  font-size:12.5px;
+  color:rgba(255,255,255,0.85);
+}
+.cov-fc i{width:16px;height:16px;color:#34d066;flex-shrink:0;}
+
+/* ═══════════════ PAGE 2: TABLE OF CONTENTS ═══════════════ */
+.toc-wrap{padding:64px 56px;}
+.toc-grid{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:14px;
+  margin-top:32px;
+}
+.toc-item{
+  display:grid;
+  grid-template-columns:48px 1fr 40px;
+  align-items:center;
+  gap:14px;
+  padding:16px 18px;
+  background:var(--slate-50);
+  border:1px solid var(--border);
+  border-radius:12px;
+  transition:transform 0.2s;
+}
+.toc-num{
+  width:36px;height:36px;
+  border-radius:8px;
+  background:var(--g);
+  color:#fff;
+  display:flex;align-items:center;justify-content:center;
+  font-family:'JetBrains Mono',monospace;
+  font-weight:700;
+  font-size:13px;
+}
+.toc-item-body h4{
+  font-size:14px;
+  font-weight:700;
+  color:var(--text);
+  margin-bottom:2px;
+}
+.toc-item-body p{
+  font-size:11px;
+  color:var(--slate-500);
+}
+.toc-page{
+  font-family:'JetBrains Mono',monospace;
+  font-size:12px;
+  font-weight:700;
+  color:var(--g);
+  text-align:right;
+}
+
+/* ═══════════════ PAGE 3: ABOUT US ═══════════════ */
+.about-pad{padding:64px 56px;}
+.about-grid{
+  display:grid;
+  grid-template-columns:1.4fr 1fr;
+  gap:36px;
+  margin-bottom:32px;
+}
+.about-text p{
+  color:var(--muted);
+  margin-bottom:14px;
+  font-size:13.5px;
+  text-align:justify;
+}
+.about-side{
+  background:linear-gradient(160deg,var(--g) 0%,var(--g-dark) 100%);
+  border-radius:18px;
+  padding:28px;
+  color:#fff;
+  position:relative;
+  overflow:hidden;
+}
+.about-side::before{
+  content:'';
+  position:absolute;
+  top:-40px;right:-40px;
+  width:160px;height:160px;
+  background:radial-gradient(circle,rgba(255,255,255,0.1) 0%,transparent 70%);
+}
+.about-side h4{
+  font-size:11px;
+  letter-spacing:2px;
+  text-transform:uppercase;
+  color:rgba(255,255,255,0.6);
+  margin-bottom:14px;
+}
+.about-side ul{list-style:none;}
+.about-side li{
+  display:flex;
+  align-items:flex-start;
+  gap:10px;
+  padding:10px 0;
+  border-bottom:1px solid rgba(255,255,255,0.1);
+  font-size:13px;
+}
+.about-side li:last-child{border-bottom:none;}
+.about-side li i{
+  width:16px;height:16px;
+  color:#34d066;
+  flex-shrink:0;
+  margin-top:2px;
+}
+
+.about-pillars{
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:14px;
+}
+.pillar{
+  border:1px solid var(--border);
+  border-radius:14px;
+  padding:18px;
+  background:#fff;
+  position:relative;
+  overflow:hidden;
+}
+.pillar::before{
+  content:'';
+  position:absolute;
+  top:0;left:0;
+  width:100%;height:4px;
+  background:linear-gradient(90deg,var(--g),var(--g3));
+}
+.pillar-icon{
+  width:40px;height:40px;
+  border-radius:10px;
+  background:var(--gpale);
+  color:var(--g);
+  display:flex;align-items:center;justify-content:center;
+  margin-bottom:12px;
+}
+.pillar-icon i{width:20px;height:20px;}
+.pillar h4{font-size:13.5px;font-weight:700;margin-bottom:6px;}
+.pillar p{font-size:12px;color:var(--muted);line-height:1.6;}
+
+/* ═══════════════ PAGE 4: WHY VEU + STATS ═══════════════ */
+.veu-pad{padding:64px 56px;}
+.veu-stats{
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+  gap:14px;
+  margin-bottom:32px;
+}
+.veu-stat{
+  background:linear-gradient(180deg,#fff 0%,var(--gpale) 100%);
+  border:1px solid var(--gdim);
+  border-radius:14px;
+  padding:20px;
+  text-align:center;
+  position:relative;
+}
+.veu-stat-icon{
+  width:36px;height:36px;
+  background:var(--g);
+  color:#fff;
+  border-radius:10px;
+  display:flex;align-items:center;justify-content:center;
+  margin:0 auto 12px;
+}
+.veu-stat-icon i{width:18px;height:18px;}
+.veu-stat-num{
+  font-family:'Sora',sans-serif;
+  font-size:30px;
+  font-weight:800;
+  color:var(--g);
+  line-height:1;
+}
+.veu-stat-lbl{
+  font-size:10.5px;
+  color:var(--slate-600);
+  text-transform:uppercase;
+  letter-spacing:1px;
+  font-weight:600;
+  margin-top:6px;
+}
+
+/* Cost comparison bar chart */
+.compare-card{
+  background:#fff;
+  border:1px solid var(--border);
+  border-radius:16px;
+  padding:24px 28px;
+  margin-bottom:24px;
+}
+.compare-title{
+  font-size:16px;
+  font-weight:700;
+  color:var(--text);
+  margin-bottom:4px;
+}
+.compare-sub{
+  font-size:12px;
+  color:var(--muted);
+  margin-bottom:20px;
+}
+.bar-row{
+  display:grid;
+  grid-template-columns:120px 1fr 70px;
+  gap:14px;
+  align-items:center;
+  margin-bottom:12px;
+}
+.bar-lbl{
+  font-size:12px;
+  font-weight:600;
+  color:var(--text);
+}
+.bar-track{
+  height:24px;
+  background:var(--slate-100);
+  border-radius:6px;
+  overflow:hidden;
+  position:relative;
+}
+.bar-fill{
+  height:100%;
+  border-radius:6px;
+  display:flex;
+  align-items:center;
+  justify-content:flex-end;
+  padding-right:8px;
+  font-size:11px;
+  font-weight:700;
+  color:#fff;
+}
+.bar-fill.old{background:linear-gradient(90deg,#cbd5e1,#94a3b8);}
+.bar-fill.new{background:linear-gradient(90deg,var(--g2),var(--g));}
+.bar-val{
+  font-family:'JetBrains Mono',monospace;
+  font-size:12px;
+  font-weight:700;
+  text-align:right;
+  color:var(--text);
+}
+
+/* Eligibility checklist */
+.elig-grid{
+  display:grid;
+  grid-template-columns:repeat(2,1fr);
+  gap:14px;
+}
+.elig-card{
+  background:#fff;
+  border:1px solid var(--border);
+  border-radius:14px;
+  padding:18px 20px;
+  display:flex;
+  align-items:flex-start;
+  gap:14px;
+}
+.elig-check{
+  width:32px;height:32px;
+  background:var(--g);
+  color:#fff;
+  border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  flex-shrink:0;
+}
+.elig-check i{width:16px;height:16px;}
+.elig-card h4{font-size:13.5px;font-weight:700;margin-bottom:3px;}
+.elig-card p{font-size:11.5px;color:var(--muted);line-height:1.55;}
+
+/* ═══════════════ PAGE 5: SCOPE OF WORK ═══════════════ */
+.scope-pad{padding:64px 56px;}
+.scope-grid{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:14px;
+}
+.scope-card{
+  background:#fff;
+  border:1px solid var(--border);
+  border-radius:14px;
+  padding:22px;
+  position:relative;
+  overflow:hidden;
+}
+.scope-card-num{
+  position:absolute;
+  top:14px;right:18px;
+  font-family:'Sora',sans-serif;
+  font-size:48px;
+  font-weight:900;
+  color:var(--gpale);
+  line-height:1;
+}
+.scope-card-top{
+  display:flex;align-items:center;gap:12px;
+  margin-bottom:12px;
+}
+.scope-icon-box{
+  width:42px;height:42px;
+  border-radius:10px;
+  background:var(--g);
+  color:#fff;
+  display:flex;align-items:center;justify-content:center;
+}
+.scope-icon-box i{width:20px;height:20px;}
+.scope-card h4{font-size:15px;font-weight:700;color:var(--text);}
+.scope-card p{font-size:12.5px;color:var(--muted);line-height:1.65;}
+
+.scope-checklist{
+  margin-top:24px;
+  background:linear-gradient(135deg,var(--g) 0%,var(--g-dark) 100%);
+  border-radius:16px;
+  padding:24px 28px;
+  color:#fff;
+}
+.scope-checklist h4{
+  font-size:14px;
+  font-weight:700;
+  margin-bottom:14px;
+  display:flex;align-items:center;gap:8px;
+}
+.scope-checklist h4 i{width:16px;height:16px;color:#34d066;}
+.scope-checklist ul{
+  list-style:none;
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:8px 24px;
+}
+.scope-checklist li{
+  font-size:12.5px;
+  color:rgba(255,255,255,0.85);
+  display:flex;align-items:center;gap:8px;
+}
+.scope-checklist li i{width:14px;height:14px;color:#34d066;flex-shrink:0;}
+
+/* ═══════════════ PAGE 6: SYSTEM SPECS ═══════════════ */
+.spec-pad{padding:64px 56px;}
+.spec-tabs{
+  display:flex;
+  gap:8px;
+  margin-bottom:18px;
+}
+.spec-tab{
+  flex:1;
+  padding:10px 14px;
+  border:1px solid var(--border);
+  border-radius:10px;
+  background:#fff;
+  text-align:center;
+  font-size:12px;
+  font-weight:600;
+  color:var(--slate-600);
+}
+.spec-tab.active{
+  background:var(--g);
+  border-color:var(--g);
+  color:#fff;
+}
+.spec-table{
+  width:100%;
+  border-collapse:collapse;
+  background:#fff;
+  border:1px solid var(--border);
+  border-radius:14px;
+  overflow:hidden;
+  margin-bottom:24px;
+}
+.spec-table thead{background:var(--slate-50);}
+.spec-table th{
+  font-family:'Sora',sans-serif;
+  font-size:10.5px;
+  font-weight:700;
+  text-transform:uppercase;
+  letter-spacing:1px;
+  color:var(--slate-700);
+  padding:12px 16px;
+  text-align:left;
+  border-bottom:1px solid var(--border);
+}
+.spec-table th.r,.spec-table td.r{text-align:right;}
+.spec-table th.c,.spec-table td.c{text-align:center;}
+.spec-table td{
+  padding:12px 16px;
+  font-size:12.5px;
+  color:var(--text);
+  border-bottom:1px solid var(--border);
+}
+.spec-table td.lbl{
+  color:var(--slate-600);
+  font-weight:500;
+  background:var(--slate-50);
+  width:35%;
+}
+.spec-table tbody tr:last-child td{border-bottom:none;}
+.spec-rating-pill{
+  display:inline-flex;
+  align-items:center;
+  gap:4px;
+  background:var(--gpale);
+  color:var(--g);
+  padding:3px 10px;
+  border-radius:20px;
+  font-size:11px;
+  font-weight:700;
+}
+.spec-rating-pill i{width:11px;height:11px;}
+
+/* Energy stars */
+.star-row{display:inline-flex;gap:2px;}
+.star-row i{width:14px;height:14px;color:#f59e0b;fill:#f59e0b;}
+
+/* Two-up boxes */
+.spec-two{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:14px;
+}
+.spec-info{
+  background:#fff;
+  border:1px solid var(--border);
+  border-radius:14px;
+  padding:20px;
+}
+.spec-info h5{
+  font-size:11px;
+  letter-spacing:1.5px;
+  text-transform:uppercase;
+  color:var(--g);
+  margin-bottom:10px;
+  font-weight:700;
+}
+.spec-info ul{list-style:none;}
+.spec-info li{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  font-size:12.5px;
+  color:var(--slate-700);
+  padding:7px 0;
+  border-bottom:1px dashed var(--border);
+}
+.spec-info li:last-child{border-bottom:none;}
+.spec-info li i{width:14px;height:14px;color:var(--g);flex-shrink:0;}
+
+
+/* ═══════════════ PAGE 7: PROCESS / TIMELINE ═══════════════ */
+.proc-pad{padding:64px 56px;}
+.proc-timeline{
+  position:relative;
+  margin-top:24px;
+}
+.proc-timeline::before{
+  content:'';
+  position:absolute;
+  left:32px;
+  top:32px;
+  bottom:32px;
+  width:3px;
+  background:linear-gradient(to bottom,var(--g) 0%,var(--g3) 100%);
+  border-radius:3px;
+}
+.proc-step-row{
+  display:grid;
+  grid-template-columns:68px 1fr 180px;
+  gap:20px;
+  align-items:flex-start;
+  margin-bottom:18px;
+  position:relative;
+}
+.proc-bubble{
+  width:64px;height:64px;
+  border-radius:50%;
+  background:#fff;
+  border:4px solid var(--g);
+  display:flex;align-items:center;justify-content:center;
+  position:relative;
+  z-index:2;
+  box-shadow:0 6px 20px rgba(31,122,62,0.25);
+}
+.proc-bubble i{width:24px;height:24px;color:var(--g);}
+.proc-card{
+  background:#fff;
+  border:1px solid var(--border);
+  border-radius:14px;
+  padding:18px 22px;
+  position:relative;
+}
+.proc-card::before{
+  content:'';
+  position:absolute;
+  top:24px;
+  left:-7px;
+  width:14px;height:14px;
+  background:#fff;
+  border-left:1px solid var(--border);
+  border-bottom:1px solid var(--border);
+  transform:rotate(45deg);
+}
+.proc-card-step{
+  font-family:'JetBrains Mono',monospace;
+  font-size:10px;
+  font-weight:700;
+  letter-spacing:2px;
+  color:var(--g);
+  text-transform:uppercase;
+}
+.proc-card h4{
+  font-size:15px;
+  font-weight:700;
+  color:var(--text);
+  margin:2px 0 6px;
+}
+.proc-card p{font-size:12px;color:var(--muted);line-height:1.6;}
+.proc-side{
+  background:var(--gpale);
+  border:1px dashed var(--gdim);
+  border-radius:12px;
+  padding:14px;
+  margin-top:8px;
+}
+.proc-side-row{
+  display:flex;align-items:center;gap:8px;
+  font-size:11px;
+  color:var(--slate-700);
+  margin-bottom:6px;
+}
+.proc-side-row:last-child{margin-bottom:0;}
+.proc-side-row i{width:13px;height:13px;color:var(--g);}
+.proc-side-row strong{color:var(--text);font-weight:700;}
+
+/* ═══════════════ PAGE 8: QUOTATION ═══════════════ */
+.quot-pad{padding:48px 52px;}
+.quot-head{
+  display:grid;
+  grid-template-columns:1fr auto;
+  gap:24px;
+  align-items:start;
+  padding-bottom:20px;
+  border-bottom:2px solid var(--g);
+  margin-bottom:24px;
+}
+.quot-from-card{
+  background:var(--slate-50);
+  border-left:4px solid var(--g);
+  padding:14px 18px;
+  border-radius:0 8px 8px 0;
+}
+.quot-from-card h5{
+  font-size:14px;
+  font-weight:800;
+  color:var(--g);
+  margin-bottom:6px;
+}
+.quot-from-card p{font-size:11.5px;color:var(--slate-600);line-height:1.6;}
+.quot-title-side{text-align:right;}
+.quot-title-side h2{
+  font-size:42px;
+  font-weight:900;
+  color:var(--g);
+  letter-spacing:-2px;
+  line-height:1;
+}
+.quot-title-side .qd{
+  margin-top:10px;
+  font-size:11px;
+  color:var(--slate-500);
+}
+.quot-title-side .qd strong{color:var(--text);font-size:13px;}
+
+.quot-to-bar{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:14px;
+  margin-bottom:20px;
+}
+.quot-to-card{
+  border:1px solid var(--border);
+  border-radius:10px;
+  padding:14px 18px;
+}
+.quot-to-card label{
+  font-size:10px;
+  letter-spacing:1.5px;
+  text-transform:uppercase;
+  color:var(--g);
+  font-weight:700;
+}
+.quot-to-card .name{
+  font-family:'Sora',sans-serif;
+  font-size:16px;
+  font-weight:700;
+  color:var(--text);
+  margin:4px 0 2px;
+}
+.quot-to-card p{font-size:11.5px;color:var(--muted);line-height:1.6;}
+
+.quot-meta{
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+  background:var(--g);
+  border-radius:8px 8px 0 0;
+  overflow:hidden;
+}
+.quot-meta-item{
+  padding:10px 14px;
+  border-right:1px solid rgba(255,255,255,0.15);
+}
+.quot-meta-item:last-child{border-right:none;}
+.qm-l{
+  font-size:10px;
+  letter-spacing:1px;
+  text-transform:uppercase;
+  color:rgba(255,255,255,0.75);
+  margin-bottom:3px;
+  font-weight:600;
+}
+.qm-v{font-family:'Sora',sans-serif;font-size:12.5px;font-weight:700;color:#fff;}
+
+table.qt{
+  width:100%;
+  border-collapse:collapse;
+  background:#fff;
+  border:1px solid var(--border);
+  border-top:none;
+}
+.qt thead th{
+  background:var(--slate-100);
+  font-family:'Sora',sans-serif;
+  font-size:10px;
+  text-transform:uppercase;
+  letter-spacing:1px;
+  font-weight:700;
+  color:var(--slate-700);
+  padding:10px 12px;
+  text-align:left;
+  border-bottom:1px solid var(--border);
+}
+.qt thead th.c{text-align:center;}
+.qt thead th.r{text-align:right;}
+.qt tbody td{
+  padding:10px 12px;
+  font-size:12px;
+  color:var(--text);
+  border-bottom:1px solid var(--border);
+  vertical-align:middle;
+}
+.qt tbody tr:nth-child(even){background:var(--slate-50);}
+.qt td.c{text-align:center;font-weight:700;color:var(--g);}
+.qt td.r{text-align:right;font-family:'JetBrains Mono',monospace;}
+.qt td .desc-sub{
+  display:block;
+  font-size:10.5px;
+  color:var(--slate-500);
+  margin-top:2px;
+}
+
+.quot-bottom{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:20px;
+  margin-top:20px;
+}
+.quot-bank-card{
+  background:linear-gradient(135deg,var(--gpale) 0%,#fff 100%);
+  border:1px solid var(--gdim);
+  border-radius:12px;
+  padding:18px 20px;
+}
+.quot-bank-card h5{
+  font-size:11px;
+  letter-spacing:1.5px;
+  text-transform:uppercase;
+  color:var(--g);
+  font-weight:700;
+  margin-bottom:10px;
+  display:flex;align-items:center;gap:6px;
+}
+.quot-bank-card h5 i{width:14px;height:14px;}
+.bank-row{
+  display:flex;justify-content:space-between;
+  padding:7px 0;
+  border-bottom:1px dashed var(--gdim);
+  font-size:12px;
+}
+.bank-row:last-child{border-bottom:none;}
+.bank-row .l{color:var(--slate-600);}
+.bank-row .v{font-family:'JetBrains Mono',monospace;font-weight:700;color:var(--text);}
+
+.totals-block{
+  border:1px solid var(--border);
+  border-radius:12px;
+  overflow:hidden;
+}
+.tot-line{
+  display:flex;justify-content:space-between;align-items:center;
+  padding:9px 16px;
+  font-size:12.5px;
+  border-bottom:1px solid var(--border);
+}
+.tot-line:last-child{border-bottom:none;}
+.tot-line .l{color:var(--slate-600);}
+.tot-line .v{
+  font-family:'JetBrains Mono',monospace;
+  font-weight:700;
+  color:var(--text);
+  background:var(--slate-50);
+  padding:3px 12px;
+  border-radius:6px;
+  min-width:90px;
+  text-align:center;
+  font-size:11.5px;
+}
+.tot-line.veec{background:var(--gpale);}
+.tot-line.veec .l{color:var(--g);font-weight:700;}
+.tot-line.veec .v{color:var(--g);background:#fff;border:1px solid var(--g);}
+.tot-line.due{background:var(--g);}
+.tot-line.due .l{color:#fff;font-weight:700;font-size:14px;}
+.tot-line.due .v{
+  color:#fff;
+  background:rgba(255,255,255,0.15);
+  border:1px solid rgba(255,255,255,0.3);
+  font-size:14px;
+}
+
+/* ═══════════════ PAGE 9: PAYMENT ROADMAP ═══════════════ */
+.pay-pad{padding:64px 56px;}
+.pay-roadmap{
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:14px;
+  margin-bottom:28px;
+  position:relative;
+}
+.pay-stage{
+  border:1px solid var(--border);
+  border-radius:14px;
+  padding:20px 22px;
+  background:#fff;
+  position:relative;
+}
+.pay-stage::after{
+  content:'';
+  position:absolute;
+  top:50%;right:-10px;
+  width:0;height:0;
+  border:8px solid transparent;
+  border-left-color:var(--gdim);
+  transform:translateY(-50%);
+}
+.pay-stage:last-child::after{display:none;}
+.pay-stage-pct{
+  display:inline-block;
+  background:var(--g);
+  color:#fff;
+  font-family:'Sora',sans-serif;
+  font-size:24px;
+  font-weight:800;
+  padding:6px 14px;
+  border-radius:8px;
+  margin-bottom:10px;
+}
+.pay-stage-pct.amber{background:var(--amber);}
+.pay-stage-pct.blue{background:var(--blue);}
+.pay-stage h4{font-size:14px;font-weight:700;margin-bottom:4px;}
+.pay-stage p{font-size:11.5px;color:var(--muted);line-height:1.6;}
+
+.pay-cards-grid{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:14px;
+  margin-bottom:24px;
+}
+.pay-info-card{
+  background:#fff;
+  border:1px solid var(--border);
+  border-radius:14px;
+  padding:20px 22px;
+  position:relative;
+  overflow:hidden;
+}
+.pay-info-card.warn{background:var(--amber-bg);border-color:#fde68a;}
+.pay-info-card.cool{background:var(--blue-bg);border-color:#bfdbfe;}
+.pay-info-icon{
+  width:36px;height:36px;
+  border-radius:10px;
+  display:flex;align-items:center;justify-content:center;
+  margin-bottom:12px;
+}
+.pay-info-icon.green{background:var(--g);color:#fff;}
+.pay-info-icon.amber{background:var(--amber);color:#fff;}
+.pay-info-icon.blue{background:var(--blue);color:#fff;}
+.pay-info-icon.purple{background:var(--purple);color:#fff;}
+.pay-info-icon i{width:18px;height:18px;}
+.pay-info-card h4{font-size:14px;font-weight:700;margin-bottom:6px;}
+.pay-info-card p{font-size:12px;color:var(--muted);line-height:1.6;}
+
+.pay-methods{
+  background:linear-gradient(135deg,#0a1f12 0%,#0f3320 100%);
+  border-radius:16px;
+  padding:24px 28px;
+  color:#fff;
+}
+.pay-methods h4{
+  font-size:13px;
+  letter-spacing:1.5px;
+  text-transform:uppercase;
+  color:#34d066;
+  margin-bottom:16px;
+  display:flex;align-items:center;gap:8px;
+}
+.pay-methods h4 i{width:14px;height:14px;}
+.pay-methods-grid{
+  display:grid;
+  grid-template-columns:repeat(6,1fr);
+  gap:8px;
+}
+.pay-method{
+  background:rgba(255,255,255,0.06);
+  border:1px solid rgba(255,255,255,0.1);
+  border-radius:10px;
+  padding:12px 8px;
+  text-align:center;
+}
+.pay-method i{width:20px;height:20px;color:#34d066;display:block;margin:0 auto 6px;}
+.pay-method span{
+  font-size:10.5px;
+  color:rgba(255,255,255,0.85);
+  font-weight:600;
+}
+
+/* ═══════════════ PAGE 10: GUARANTEES ═══════════════ */
+.gu-pad{padding:64px 56px;}
+.gu-grid{
+  display:grid;
+  grid-template-columns:repeat(2,1fr);
+  gap:14px;
+  margin-bottom:24px;
+}
+.gu-card{
+  border:1px solid var(--border);
+  border-radius:14px;
+  padding:22px 24px;
+  background:#fff;
+  position:relative;
+  overflow:hidden;
+}
+.gu-card-shield{
+  position:absolute;
+  top:-15px;right:-15px;
+  width:80px;height:80px;
+  background:var(--gpale);
+  border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+}
+.gu-card-shield i{width:30px;height:30px;color:var(--g);}
+.gu-num{
+  font-family:'JetBrains Mono',monospace;
+  font-size:11px;
+  font-weight:700;
+  color:var(--g);
+  letter-spacing:1.5px;
+  margin-bottom:6px;
+}
+.gu-card h4{font-size:15px;font-weight:700;margin-bottom:6px;}
+.gu-card p{font-size:12px;color:var(--muted);line-height:1.65;}
+
+.gu-warranty-band{
+  background:linear-gradient(135deg,var(--g) 0%,var(--g-dark) 100%);
+  border-radius:18px;
+  padding:28px 32px;
+  color:#fff;
+  display:grid;
+  grid-template-columns:1fr 2fr;
+  gap:24px;
+  align-items:center;
+}
+.gu-band-num{
+  font-family:'Sora',sans-serif;
+  font-size:64px;
+  font-weight:900;
+  color:#34d066;
+  line-height:1;
+  letter-spacing:-3px;
+}
+.gu-band-num small{
+  font-size:18px;
+  display:block;
+  font-weight:700;
+  color:rgba(255,255,255,0.7);
+  letter-spacing:0;
+  margin-top:4px;
+}
+.gu-band-text h4{
+  font-size:18px;
+  font-weight:800;
+  margin-bottom:8px;
+}
+.gu-band-text p{
+  font-size:13px;
+  color:rgba(255,255,255,0.8);
+  line-height:1.6;
+}
+
+/* ═══════════════ PAGE 11: COMPLAINTS ═══════════════ */
+.comp-pad{padding:64px 56px;}
+.comp-flow{
+  display:grid;
+  grid-template-columns:1fr 1fr 1fr;
+  gap:14px;
+  margin-bottom:24px;
+}
+.comp-flow-step{
+  background:#fff;
+  border:1px solid var(--border);
+  border-radius:14px;
+  padding:20px;
+  text-align:center;
+  position:relative;
+}
+.comp-flow-step::after{
+  content:'';
+  position:absolute;
+  top:50%;right:-10px;
+  width:0;height:0;
+  border:8px solid transparent;
+  border-left-color:var(--gdim);
+  transform:translateY(-50%);
+}
+.comp-flow-step:last-child::after{display:none;}
+.comp-flow-icon{
+  width:48px;height:48px;
+  background:var(--g);
+  color:#fff;
+  border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  margin:0 auto 12px;
+}
+.comp-flow-icon i{width:22px;height:22px;}
+.comp-flow-step h4{font-size:14px;font-weight:700;margin-bottom:4px;}
+.comp-flow-step p{font-size:11.5px;color:var(--muted);}
+.comp-flow-step .timing{
+  margin-top:10px;
+  display:inline-block;
+  background:var(--gpale);
+  color:var(--g);
+  padding:3px 10px;
+  border-radius:20px;
+  font-size:10.5px;
+  font-weight:700;
+}
+
+.comp-escalate{
+  background:var(--amber-bg);
+  border:1px solid #fde68a;
+  border-radius:14px;
+  padding:24px 28px;
+  margin-bottom:20px;
+}
+.comp-escalate h4{
+  font-size:14px;
+  font-weight:700;
+  color:var(--amber);
+  margin-bottom:8px;
+  display:flex;align-items:center;gap:8px;
+}
+.comp-escalate h4 i{width:16px;height:16px;}
+.comp-escalate p{font-size:12px;color:var(--slate-700);margin-bottom:10px;}
+.comp-escalate-actions{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:10px;
+}
+.comp-action{
+  background:#fff;
+  border:1px solid #fde68a;
+  border-radius:10px;
+  padding:10px 14px;
+  display:flex;align-items:center;gap:10px;
+  font-size:12px;
+}
+.comp-action i{width:16px;height:16px;color:var(--amber);}
+.comp-action strong{color:var(--text);}
+
+.comp-docs{
+  background:#fff;
+  border:1px solid var(--border);
+  border-radius:14px;
+  padding:22px 24px;
+}
+.comp-docs h4{
+  font-size:13px;
+  letter-spacing:1px;
+  text-transform:uppercase;
+  color:var(--g);
+  margin-bottom:14px;
+  font-weight:700;
+}
+.comp-docs-grid{
+  display:grid;
+  grid-template-columns:repeat(5,1fr);
+  gap:10px;
+}
+.doc-pill{
+  border:1px solid var(--border);
+  border-radius:10px;
+  padding:12px 10px;
+  text-align:center;
+}
+.doc-pill i{width:20px;height:20px;color:var(--g);display:block;margin:0 auto 6px;}
+.doc-pill span{font-size:10.5px;color:var(--slate-700);font-weight:600;line-height:1.3;display:block;}
+
+/* ═══════════════ PAGE 12: ACCEPTANCE ═══════════════ */
+.acc-pad{padding:64px 56px;}
+.ack-list-card{
+  background:#fff;
+  border:1px solid var(--border);
+  border-radius:14px;
+  padding:24px 28px;
+  margin-bottom:20px;
+}
+.ack-list-card h4{
+  font-size:14px;
+  font-weight:700;
+  margin-bottom:14px;
+  display:flex;align-items:center;gap:8px;
+}
+.ack-list-card h4 i{width:16px;height:16px;color:var(--g);}
+.ack-list{list-style:none;}
+.ack-list li{
+  display:grid;
+  grid-template-columns:24px 1fr;
+  gap:10px;
+  font-size:12px;
+  color:var(--muted);
+  padding:8px 0;
+  border-bottom:1px dashed var(--border);
+  line-height:1.6;
+  text-align:justify;
+}
+.ack-list li:last-child{border-bottom:none;}
+.ack-list li::before{
+  content:'';
+  width:18px;height:18px;
+  margin-top:2px;
+  background:var(--g);
+  border-radius:4px;
+  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='white'><path d='M9 16.17L4.83 12l-1.42 1.41L9 19l12-12-1.41-1.41z'/></svg>");
+  background-size:14px;
+  background-position:center;
+  background-repeat:no-repeat;
+}
+
+.sig-zone{
+  background:linear-gradient(135deg,var(--gpale) 0%,#fff 100%);
+  border:2px dashed var(--g);
+  border-radius:16px;
+  padding:32px;
+  margin-top:24px;
+}
+.sig-zone-head{
+  display:flex;align-items:center;gap:10px;
+  margin-bottom:24px;
+}
+.sig-zone-head i{width:22px;height:22px;color:var(--g);}
+.sig-zone-head h4{font-size:18px;font-weight:800;color:var(--text);}
+.sig-grid{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:24px;
+}
+.sig-fld label{
+  font-size:10px;
+  letter-spacing:1.5px;
+  text-transform:uppercase;
+  color:var(--g);
+  font-weight:700;
+  display:block;
+  margin-bottom:50px;
+}
+.sig-line{height:2px;background:var(--g);}
+.sig-fld.full{grid-column:1/-1;}
+
+/* ═══════════════ PAGES 13-14: T&C ═══════════════ */
+.tc-pad{padding:48px 52px;}
+.tc-title{
+  font-size:24px;
+  font-weight:800;
+  text-align:center;
+  margin-bottom:8px;
+}
+.tc-sub{
+  text-align:center;
+  font-size:11px;
+  color:var(--slate-500);
+  letter-spacing:2px;
+  text-transform:uppercase;
+  margin-bottom:24px;
+}
+.tc-3col{
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:16px;
+}
+.tc-col h4{
+  font-size:11px;
+  font-weight:800;
+  color:var(--g);
+  text-transform:uppercase;
+  letter-spacing:1px;
+  border-left:3px solid var(--g);
+  padding-left:8px;
+  margin:14px 0 8px;
+}
+.tc-col h4:first-child{margin-top:0;}
+.tc-col p{
+  font-size:10.5px;
+  color:var(--muted);
+  line-height:1.7;
+  margin-bottom:8px;
+  text-align:justify;
+}
+.tc-col strong{color:var(--text);font-weight:700;}
+.tc-col ul{padding-left:14px;margin-bottom:8px;}
+.tc-col li{
+  font-size:10.5px;
+  color:var(--muted);
+  line-height:1.6;
+  margin-bottom:4px;
+}
+
+/* ═══════════════ PAGE 15: THANK YOU ═══════════════ */
+.ty-page{
+  min-height:1330px;
+  background:linear-gradient(135deg,#0a1f12 0%,#0f3320 50%,#0a1f12 100%);
+  padding:64px 56px;
+  color:#fff;
+  position:relative;
+  overflow:hidden;
+  display:flex;
+  flex-direction:column;
+  justify-content:space-between;
+}
+.ty-grid-bg{
+  position:absolute;inset:0;
+  background-image:
+    linear-gradient(rgba(40,168,79,0.05) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(40,168,79,0.05) 1px,transparent 1px);
+  background-size:50px 50px;
+  pointer-events:none;
+}
+.ty-glow{
+  position:absolute;
+  top:50%;left:50%;
+  transform:translate(-50%,-50%);
+  width:700px;height:700px;
+  background:radial-gradient(circle,rgba(40,168,79,0.15) 0%,transparent 70%);
+  pointer-events:none;
+}
+.ty-top{position:relative;z-index:2;text-align:center;}
+.ty-logo-card{
+  display:inline-block;
+  background:#fff;
+  padding:14px 28px;
+  border-radius:14px;
+  box-shadow:0 10px 40px rgba(0,0,0,0.4);
+  margin-bottom:50px;
+}
+.ty-logo-card img{height:60px;width:auto;display:block;}
+.ty-big{
+  font-family:'Sora',sans-serif;
+  font-size:120px;
+  font-weight:900;
+  line-height:0.9;
+  letter-spacing:-6px;
+  margin-bottom:20px;
+}
+.ty-big em{
+  font-style:normal;
+  background:linear-gradient(135deg,#34d066 0%,#28a84f 100%);
+  -webkit-background-clip:text;
+  -webkit-text-fill-color:transparent;
+  background-clip:text;
+  display:block;
+}
+.ty-divider{
+  width:80px;height:5px;
+  background:#34d066;
+  border-radius:3px;
+  margin:0 auto 24px;
+}
+.ty-msg{
+  font-size:18px;
+  color:rgba(255,255,255,0.8);
+  max-width:540px;
+  margin:0 auto;
+  line-height:1.6;
+}
+
+.ty-mid{
+  position:relative;z-index:2;
+  margin:60px 0;
+}
+.ty-cta-card{
+  background:rgba(255,255,255,0.05);
+  border:1px solid rgba(52,208,102,0.3);
+  border-radius:18px;
+  padding:36px 40px;
+  backdrop-filter:blur(10px);
+  text-align:center;
+}
+.ty-cta-card h3{
+  font-size:24px;
+  font-weight:800;
+  margin-bottom:10px;
+}
+.ty-cta-card p{
+  color:rgba(255,255,255,0.7);
+  margin-bottom:24px;
+  font-size:14px;
+}
+.ty-contacts-row{
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+  gap:12px;
+}
+.ty-cc{
+  background:rgba(255,255,255,0.05);
+  border:1px solid rgba(255,255,255,0.1);
+  border-radius:12px;
+  padding:18px 14px;
+  text-align:center;
+  transition:all 0.2s;
+}
+.ty-cc-icon{
+  width:36px;height:36px;
+  background:rgba(52,208,102,0.15);
+  border-radius:10px;
+  display:flex;align-items:center;justify-content:center;
+  margin:0 auto 10px;
+}
+.ty-cc-icon i{width:18px;height:18px;color:#34d066;}
+.ty-cc-lbl{
+  font-size:9.5px;
+  letter-spacing:1.5px;
+  text-transform:uppercase;
+  color:rgba(255,255,255,0.5);
+  margin-bottom:4px;
+}
+.ty-cc-val{
+  font-family:'Sora',sans-serif;
+  font-size:12.5px;
+  font-weight:700;
+  color:#fff;
+}
+
+.ty-bot{
+  position:relative;z-index:2;
+  text-align:center;
+  padding-top:32px;
+  border-top:1px solid rgba(255,255,255,0.1);
+}
+.ty-bot p{
+  font-size:11px;
+  color:rgba(255,255,255,0.4);
+  letter-spacing:1.5px;
+  text-transform:uppercase;
+}
+.ty-bot p strong{color:#34d066;}
+
+@media print{
+  body{background:#fff;}
+  .book{max-width:100%;}
+  .page,.cover,.ty-page{box-shadow:none;page-break-after:always;}
+}
+</style>
+</head>
+<body>
+<div class="book">
+
+<!-- ════════════════ PAGE 1 — COVER ════════════════ -->
+<div class="cover">
+  <div class="cov-grid-bg"></div>
+  <div class="cov-glow1"></div>
+  <div class="cov-glow2"></div>
+
+  <div class="cov-nav">
+    <div class="cov-logo">
+      <img src="data:image/png;base64,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" alt="SavePlanet">
+    </div>
+    <div class="cov-tag">
+      <i data-lucide="badge-check"></i>
+      VEU Activity 6 · Victoria
+    </div>
+  </div>
+
+  <div class="cov-main">
+    <div class="cov-eyebrow">SAVEPLANET PTY LTD · ENERGY EFFICIENT SOLUTIONS</div>
+    <h1 class="cov-title">Space Heating<br>&amp; Cooling<br><em>Upgrade Proposal</em></h1>
+    <p class="cov-desc">A government-subsidised split system upgrade under the Victorian Energy Upgrades program. Delivered, installed, and certified by SavePlanet — your trusted accredited partner.</p>
+
+    <div class="cov-stats">
+      <div class="cov-stat">
+        <div class="cov-stat-icon"><i data-lucide="zap"></i></div>
+        <div class="cov-stat-num">100%</div>
+        <div class="cov-stat-lbl">VEU Compliant</div>
+      </div>
+      <div class="cov-stat">
+        <div class="cov-stat-icon"><i data-lucide="users"></i></div>
+        <div class="cov-stat-num">500+</div>
+        <div class="cov-stat-lbl">Happy Clients</div>
+      </div>
+      <div class="cov-stat">
+        <div class="cov-stat-icon"><i data-lucide="shield-check"></i></div>
+        <div class="cov-stat-num">5★</div>
+        <div class="cov-stat-lbl">Trust Rating</div>
+      </div>
+      <div class="cov-stat">
+        <div class="cov-stat-icon"><i data-lucide="leaf"></i></div>
+        <div class="cov-stat-num">CO₂ −2T</div>
+        <div class="cov-stat-lbl">Avg. Per Install</div>
+      </div>
+    </div>
+
+    <div class="cov-card">
+      <div class="cov-card-item"><label>Prepared For</label><span>____________________</span></div>
+      <div class="cov-card-item"><label>Quote No.</label><span>SP-_______</span></div>
+      <div class="cov-card-item"><label>Valid Until</label><span>30 days from issue</span></div>
+    </div>
+  </div>
+
+  <div class="cov-foot">
+    <div class="cov-fc"><i data-lucide="phone"></i> 1300 362 724</div>
+    <div class="cov-fc"><i data-lucide="mail"></i> info@saveplanet.com.au</div>
+    <div class="cov-fc"><i data-lucide="globe"></i> saveplanet.com.au</div>
+    <div class="cov-fc"><i data-lucide="map-pin"></i> Harkness, Melton VIC</div>
+  </div>
+</div>
+
+<!-- ════════════════ PAGE 2 — TABLE OF CONTENTS ════════════════ -->
+<div class="page">
+  <div class="toc-wrap">
+    <div class="sec-eyebrow"><i data-lucide="book-open"></i> Index</div>
+    <h1 class="sec-h1">Table of <em>Contents</em></h1>
+    <div class="sec-rule"></div>
+    <p class="sec-lead">A guided walkthrough of your upgrade proposal — from program eligibility and scope of work to pricing, installation timeline, payment, guarantees, and full terms.</p>
+
+    <div class="toc-grid">
+      <div class="toc-item"><div class="toc-num">01</div><div class="toc-item-body"><h4>Cover &amp; Overview</h4><p>Proposal headline &amp; key metrics</p></div><div class="toc-page">P. 01</div></div>
+      <div class="toc-item"><div class="toc-num">02</div><div class="toc-item-body"><h4>Table of Contents</h4><p>This page</p></div><div class="toc-page">P. 02</div></div>
+      <div class="toc-item"><div class="toc-num">03</div><div class="toc-item-body"><h4>About SavePlanet</h4><p>Who we are &amp; why us</p></div><div class="toc-page">P. 03</div></div>
+      <div class="toc-item"><div class="toc-num">04</div><div class="toc-item-body"><h4>Why VEU &amp; Eligibility</h4><p>Program benefits &amp; savings</p></div><div class="toc-page">P. 04</div></div>
+      <div class="toc-item"><div class="toc-num">05</div><div class="toc-item-body"><h4>Scope of Work</h4><p>Detailed deliverables</p></div><div class="toc-page">P. 05</div></div>
+      <div class="toc-item"><div class="toc-num">06</div><div class="toc-item-body"><h4>System Specifications</h4><p>Technical details &amp; ratings</p></div><div class="toc-page">P. 06</div></div>
+      <div class="toc-item"><div class="toc-num">07</div><div class="toc-item-body"><h4>Installation Process</h4><p>Step-by-step timeline</p></div><div class="toc-page">P. 07</div></div>
+      <div class="toc-item"><div class="toc-num">08</div><div class="toc-item-body"><h4>Quotation &amp; Pricing</h4><p>Itemised cost breakdown</p></div><div class="toc-page">P. 08</div></div>
+      <div class="toc-item"><div class="toc-num">09</div><div class="toc-item-body"><h4>Payment Terms</h4><p>Schedule &amp; methods</p></div><div class="toc-page">P. 09</div></div>
+      <div class="toc-item"><div class="toc-num">10</div><div class="toc-item-body"><h4>Warranty &amp; Guarantees</h4><p>Workmanship coverage</p></div><div class="toc-page">P. 10</div></div>
+      <div class="toc-item"><div class="toc-num">11</div><div class="toc-item-body"><h4>Customer Support</h4><p>Complaints &amp; resolution</p></div><div class="toc-page">P. 11</div></div>
+      <div class="toc-item"><div class="toc-num">12</div><div class="toc-item-body"><h4>Acceptance &amp; Sign-off</h4><p>Customer authorisation</p></div><div class="toc-page">P. 12</div></div>
+      <div class="toc-item"><div class="toc-num">13</div><div class="toc-item-body"><h4>Terms &amp; Conditions I</h4><p>Clauses 1–8</p></div><div class="toc-page">P. 13</div></div>
+      <div class="toc-item"><div class="toc-num">14</div><div class="toc-item-body"><h4>Terms &amp; Conditions II</h4><p>Clauses 9–17</p></div><div class="toc-page">P. 14</div></div>
+      <div class="toc-item"><div class="toc-num">15</div><div class="toc-item-body"><h4>Thank You &amp; Contact</h4><p>Next steps &amp; reach out</p></div><div class="toc-page">P. 15</div></div>
+    </div>
+  </div>
+  <div class="page-foot-brand"><span>SavePlanet</span> · Space Heating &amp; Cooling Upgrade</div>
+  <div class="page-num">02 / 15</div>
+</div>
+
+<!-- ════════════════ PAGE 3 — ABOUT US ════════════════ -->
+<div class="page">
+  <div class="about-pad">
+    <div class="sec-eyebrow"><i data-lucide="building-2"></i> Who We Are</div>
+    <h1 class="sec-h1">About <em>SavePlanet</em></h1>
+    <div class="sec-rule"></div>
+
+    <div class="about-grid">
+      <div class="about-text">
+        <p>SavePlanet is a leading provider of energy-efficient solutions for lighting, hot water systems, solar, batteries and comprehensive energy-saving technologies across NSW and Victoria.</p>
+        <p>Operating as an authorised representative under the <strong style="color:var(--g);">Victorian Energy Upgrades program</strong>, we ensure all activities meet stringent VEU compliance requirements. We manage VEEC certificate creation, registration with the VEU Registry, and regulatory compliance oversight, while also conducting installations to provide additional quality assurance and verification of compliance.</p>
+        <p>With specialised expertise in innovative technologies, we have established ourselves as industry experts delivering cutting-edge, cost-effective solutions that maximise energy efficiency. Our team of dedicated professionals is committed to creating meaningful environmental impact while helping customers achieve substantial energy savings.</p>
+        <p>Serving hundreds of satisfied clients, we take pride in delivering tangible savings directly to our customers while making measurable contributions to carbon reduction.</p>
+      </div>
+      <div class="about-side">
+        <h4>At a Glance</h4>
+        <ul>
+          <li><i data-lucide="check-circle-2"></i><div><strong style="display:block;">VEU Accredited</strong><span style="font-size:11.5px;color:rgba(255,255,255,0.7);">Authorised under VEU Program</span></div></li>
+          <li><i data-lucide="check-circle-2"></i><div><strong style="display:block;">Licensed Installers</strong><span style="font-size:11.5px;color:rgba(255,255,255,0.7);">ARC Tick · Electrical Worker</span></div></li>
+          <li><i data-lucide="check-circle-2"></i><div><strong style="display:block;">VIC + NSW Coverage</strong><span style="font-size:11.5px;color:rgba(255,255,255,0.7);">State-wide service network</span></div></li>
+          <li><i data-lucide="check-circle-2"></i><div><strong style="display:block;">Compliance First</strong><span style="font-size:11.5px;color:rgba(255,255,255,0.7);">AS/NZS 3000 + 60335 Series</span></div></li>
+          <li><i data-lucide="check-circle-2"></i><div><strong style="display:block;">End-to-End Service</strong><span style="font-size:11.5px;color:rgba(255,255,255,0.7);">From audit to commissioning</span></div></li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="about-pillars">
+      <div class="pillar">
+        <div class="pillar-icon"><i data-lucide="leaf"></i></div>
+        <h4>Environmental Impact</h4>
+        <p>Every install reduces greenhouse gas emissions through verified VEEC abatement.</p>
+      </div>
+      <div class="pillar">
+        <div class="pillar-icon"><i data-lucide="wallet"></i></div>
+        <h4>Substantial Savings</h4>
+        <p>Government rebates plus long-term reductions in your household energy bills.</p>
+      </div>
+      <div class="pillar">
+        <div class="pillar-icon"><i data-lucide="award"></i></div>
+        <h4>Technical Excellence</h4>
+        <p>Industry experts delivering cutting-edge, cost-effective energy upgrades.</p>
+      </div>
+    </div>
+  </div>
+  <div class="page-foot-brand"><span>SavePlanet</span> · About Us</div>
+  <div class="page-num">03 / 15</div>
+</div>
+
+<!-- ════════════════ PAGE 4 — WHY VEU ════════════════ -->
+<div class="page">
+  <div class="veu-pad">
+    <div class="sec-eyebrow"><i data-lucide="badge-percent"></i> Government Program</div>
+    <h1 class="sec-h1">Why <em>Victorian Energy Upgrades</em></h1>
+    <div class="sec-rule"></div>
+    <p class="sec-lead">The VEU program is a Victorian Government initiative to help households and businesses reduce energy use, lower bills, and cut carbon emissions through subsidised upgrades.</p>
+
+    <div class="veu-stats">
+      <div class="veu-stat">
+        <div class="veu-stat-icon"><i data-lucide="trending-down"></i></div>
+        <div class="veu-stat-num">Up to 30%</div>
+        <div class="veu-stat-lbl">Energy Bill Reduction</div>
+      </div>
+      <div class="veu-stat">
+        <div class="veu-stat-icon"><i data-lucide="cloud-off"></i></div>
+        <div class="veu-stat-num">~2 t</div>
+        <div class="veu-stat-lbl">CO₂ Saved Per Year</div>
+      </div>
+      <div class="veu-stat">
+        <div class="veu-stat-icon"><i data-lucide="thermometer"></i></div>
+        <div class="veu-stat-num">5★</div>
+        <div class="veu-stat-lbl">Energy Efficiency</div>
+      </div>
+      <div class="veu-stat">
+        <div class="veu-stat-icon"><i data-lucide="clock-4"></i></div>
+        <div class="veu-stat-num">15+ yrs</div>
+        <div class="veu-stat-lbl">Average Lifespan</div>
+      </div>
+    </div>
+
+    <div class="compare-card">
+      <h4 class="compare-title">Old vs New System — Annual Running Cost</h4>
+      <p class="compare-sub">Indicative comparison · 10 hrs/day average usage · electricity rate $0.30/kWh</p>
+      <div class="bar-row">
+        <div class="bar-lbl">Old Heater</div>
+        <div class="bar-track"><div class="bar-fill old" style="width:95%;">Inefficient</div></div>
+        <div class="bar-val">$1,850</div>
+      </div>
+      <div class="bar-row">
+        <div class="bar-lbl">Old AC</div>
+        <div class="bar-track"><div class="bar-fill old" style="width:78%;">High Draw</div></div>
+        <div class="bar-val">$1,520</div>
+      </div>
+      <div class="bar-row">
+        <div class="bar-lbl">New Inverter</div>
+        <div class="bar-track"><div class="bar-fill new" style="width:42%;">Efficient</div></div>
+        <div class="bar-val">$820</div>
+      </div>
+      <div class="bar-row">
+        <div class="bar-lbl">Net Savings</div>
+        <div class="bar-track"><div class="bar-fill new" style="width:53%;background:linear-gradient(90deg,#34d066,#1f7a3e);">Per Year</div></div>
+        <div class="bar-val" style="color:var(--g);">$1,030</div>
+      </div>
+    </div>
+
+    <h3 style="font-family:'Sora';font-size:16px;font-weight:800;margin-bottom:12px;display:flex;align-items:center;gap:8px;"><i data-lucide="check-circle-2" style="width:18px;height:18px;color:var(--g);"></i> Eligibility Checklist</h3>
+    <div class="elig-grid">
+      <div class="elig-card">
+        <div class="elig-check"><i data-lucide="map-pin"></i></div>
+        <div><h4>Property in Victoria</h4><p>Residential or small business address within VIC.</p></div>
+      </div>
+      <div class="elig-card">
+        <div class="elig-check"><i data-lucide="home"></i></div>
+        <div><h4>Existing Heater/Cooler</h4><p>An old unit at premises being replaced or upgraded.</p></div>
+      </div>
+      <div class="elig-card">
+        <div class="elig-check"><i data-lucide="user-check"></i></div>
+        <div><h4>Owner Authorisation</h4><p>Signed agreement from property owner or tenant w/ permission.</p></div>
+      </div>
+      <div class="elig-card">
+        <div class="elig-check"><i data-lucide="file-check"></i></div>
+        <div><h4>No Prior VEEC Claim</h4><p>No existing VEECs created against this site for the same activity.</p></div>
+      </div>
+    </div>
+  </div>
+  <div class="page-foot-brand"><span>SavePlanet</span> · VEU Program Benefits</div>
+  <div class="page-num">04 / 15</div>
+</div>
+
+<!-- ════════════════ PAGE 5 — SCOPE OF WORK ════════════════ -->
+<div class="page">
+  <div class="scope-pad">
+    <div class="sec-eyebrow"><i data-lucide="clipboard-list"></i> What We Deliver</div>
+    <h1 class="sec-h1">Scope of <em>Work</em></h1>
+    <div class="sec-rule"></div>
+    <p class="sec-lead">The proposed space heating and cooling upgrade includes the following four-stage delivery, executed by accredited installers under VEU compliance protocols.</p>
+
+    <div class="scope-grid">
+      <div class="scope-card">
+        <div class="scope-card-num">01</div>
+        <div class="scope-card-top">
+          <div class="scope-icon-box"><i data-lucide="search"></i></div>
+          <h4>Pre-Installation Assessment</h4>
+        </div>
+        <p>Our qualified team conducts a thorough site assessment to calculate load, verify suitability, suggest the appropriate heating/cooling system, assess electrical supply adequacy, and confirm compliance with all applicable standards and building regulations before commencement.</p>
+      </div>
+      <div class="scope-card">
+        <div class="scope-card-num">02</div>
+        <div class="scope-card-top">
+          <div class="scope-icon-box"><i data-lucide="wrench"></i></div>
+          <h4>Professional Installation</h4>
+        </div>
+        <p>Our expert technicians install the new space heating and cooling system at your premises, ensuring it meets all safety and efficiency standards. All workmanship is carried out by licensed, accredited installers under AS/NZS 3000.</p>
+      </div>
+      <div class="scope-card">
+        <div class="scope-card-num">03</div>
+        <div class="scope-card-top">
+          <div class="scope-icon-box"><i data-lucide="trash-2"></i></div>
+          <h4>Decommissioning &amp; Removal</h4>
+        </div>
+        <p>We safely decommission and remove the old heating/cooling unit. Where the old product is not safe or practical to remove, the heating element/burner/electrical component is rendered inoperable per VEU regulations before the new install proceeds.</p>
+      </div>
+      <div class="scope-card">
+        <div class="scope-card-num">04</div>
+        <div class="scope-card-top">
+          <div class="scope-icon-box"><i data-lucide="check-circle"></i></div>
+          <h4>System Commissioning</h4>
+        </div>
+        <p>Following installation, we fully commission the heating-cooling system — including performance testing, temperature verification, and operational checks — to ensure optimal efficiency and functionality before handover.</p>
+      </div>
+    </div>
+
+    <div class="scope-checklist">
+      <h4><i data-lucide="check-circle-2"></i> Everything Included — No Hidden Surprises</h4>
+      <ul>
+        <li><i data-lucide="check"></i>Site survey &amp; load calculation</li>
+        <li><i data-lucide="check"></i>Wall bracket &amp; mounting hardware</li>
+        <li><i data-lucide="check"></i>Indoor unit installation</li>
+        <li><i data-lucide="check"></i>Outdoor unit installation</li>
+        <li><i data-lucide="check"></i>Refrigerant piping (up to 3m)</li>
+        <li><i data-lucide="check"></i>Electrical isolator &amp; wiring</li>
+        <li><i data-lucide="check"></i>Drainage line setup</li>
+        <li><i data-lucide="check"></i>Old unit decommission &amp; disposal</li>
+        <li><i data-lucide="check"></i>Performance &amp; temperature testing</li>
+        <li><i data-lucide="check"></i>Certificate of Electrical Safety</li>
+        <li><i data-lucide="check"></i>Remote &amp; user training</li>
+        <li><i data-lucide="check"></i>VEEC certificate processing</li>
+      </ul>
+    </div>
+  </div>
+  <div class="page-foot-brand"><span>SavePlanet</span> · Scope of Work</div>
+  <div class="page-num">05 / 15</div>
+</div>
+
+<!-- ════════════════ PAGE 6 — SYSTEM SPECS ════════════════ -->
+<div class="page">
+  <div class="spec-pad">
+    <div class="sec-eyebrow"><i data-lucide="cpu"></i> Technical Datasheet</div>
+    <h1 class="sec-h1">System <em>Specifications</em></h1>
+    <div class="sec-rule"></div>
+    <p class="sec-lead">A detailed technical breakdown of your proposed reverse-cycle split system — energy ratings, capacity, and compliance certifications.</p>
+
+    <div class="spec-tabs">
+      <div class="spec-tab active"><i data-lucide="snowflake" style="width:13px;height:13px;display:inline;vertical-align:middle;margin-right:5px;"></i>Indoor Unit</div>
+      <div class="spec-tab"><i data-lucide="fan" style="width:13px;height:13px;display:inline;vertical-align:middle;margin-right:5px;"></i>Outdoor Unit</div>
+      <div class="spec-tab"><i data-lucide="zap" style="width:13px;height:13px;display:inline;vertical-align:middle;margin-right:5px;"></i>Energy Ratings</div>
+    </div>
+
+    <table class="spec-table">
+      <thead>
+        <tr><th colspan="2">Reverse Cycle Split System — Technical Specs</th></tr>
+      </thead>
+      <tbody>
+        <tr><td class="lbl">Brand &amp; Model</td><td>______________________</td></tr>
+        <tr><td class="lbl">System Type</td><td>Reverse Cycle Inverter Split System</td></tr>
+        <tr><td class="lbl">Cooling Capacity</td><td>____ kW (rated) / ____ kW (max)</td></tr>
+        <tr><td class="lbl">Heating Capacity</td><td>____ kW (rated) / ____ kW (max)</td></tr>
+        <tr><td class="lbl">Refrigerant</td><td>R32 · GWP 675 · Low-impact</td></tr>
+        <tr><td class="lbl">Cooling Energy Rating</td><td><span class="star-row"><i data-lucide="star"></i><i data-lucide="star"></i><i data-lucide="star"></i><i data-lucide="star"></i><i data-lucide="star"></i></span> &nbsp;<span class="spec-rating-pill"><i data-lucide="zap"></i> 5.0★</span></td></tr>
+        <tr><td class="lbl">Heating Energy Rating</td><td><span class="star-row"><i data-lucide="star"></i><i data-lucide="star"></i><i data-lucide="star"></i><i data-lucide="star"></i><i data-lucide="star"></i></span> &nbsp;<span class="spec-rating-pill"><i data-lucide="flame"></i> 5.0★</span></td></tr>
+        <tr><td class="lbl">Sound Level (Indoor)</td><td>≤ 26 dB(A) — whisper quiet</td></tr>
+        <tr><td class="lbl">Connectivity</td><td>Wi-Fi enabled · App control compatible</td></tr>
+        <tr><td class="lbl">Power Supply</td><td>240V · 50Hz · Single phase</td></tr>
+      </tbody>
+    </table>
+
+    <div class="spec-two">
+      <div class="spec-info">
+        <h5><i data-lucide="layers" style="width:13px;height:13px;display:inline;vertical-align:middle;margin-right:4px;"></i> Smart Features</h5>
+        <ul>
+          <li><i data-lucide="wifi"></i> Wi-Fi remote control via mobile app</li>
+          <li><i data-lucide="moon"></i> Sleep &amp; eco mode</li>
+          <li><i data-lucide="filter"></i> Anti-bacterial air filter</li>
+          <li><i data-lucide="timer"></i> 24-hour programmable timer</li>
+          <li><i data-lucide="droplets"></i> Auto dehumidification</li>
+          <li><i data-lucide="thermometer-sun"></i> Auto-restart after power loss</li>
+        </ul>
+      </div>
+      <div class="spec-info">
+        <h5><i data-lucide="badge-check" style="width:13px;height:13px;display:inline;vertical-align:middle;margin-right:4px;"></i> Compliance &amp; Certs</h5>
+        <ul>
+          <li><i data-lucide="shield-check"></i> AS/NZS 3000:2018 — Wiring Rules</li>
+          <li><i data-lucide="shield-check"></i> AS/NZS 60335 series — Safety</li>
+          <li><i data-lucide="shield-check"></i> GEMS regulator approved</li>
+          <li><i data-lucide="shield-check"></i> ARCtick licensed handling</li>
+          <li><i data-lucide="shield-check"></i> Australian Energy Label rated</li>
+          <li><i data-lucide="shield-check"></i> Electricity Safety Act 1998 (Vic)</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+  <div class="page-foot-brand"><span>SavePlanet</span> · System Specifications</div>
+  <div class="page-num">06 / 15</div>
+</div>
+
+<!-- ════════════════ PAGE 7 — INSTALLATION PROCESS ════════════════ -->
+<div class="page">
+  <div class="proc-pad">
+    <div class="sec-eyebrow"><i data-lucide="git-branch"></i> Step-By-Step</div>
+    <h1 class="sec-h1">Installation <em>Process</em></h1>
+    <div class="sec-rule"></div>
+    <p class="sec-lead">Our streamlined 5-stage process — from your first phone call to the final commissioning — keeps you informed every step of the way.</p>
+
+    <div class="proc-timeline">
+      <div class="proc-step-row">
+        <div class="proc-bubble"><i data-lucide="phone"></i></div>
+        <div class="proc-card">
+          <div class="proc-card-step">Step 01 · Day 0</div>
+          <h4>Contact Us</h4>
+          <p>Reach out to discuss your air conditioning needs. Our expert team will promptly arrange a convenient time for your complimentary property assessment and consultation.</p>
+        </div>
+        <div class="proc-side">
+          <div class="proc-side-row"><i data-lucide="clock"></i><span><strong>Response:</strong> Within 24 hrs</span></div>
+          <div class="proc-side-row"><i data-lucide="dollar-sign"></i><span><strong>Cost:</strong> Free</span></div>
+        </div>
+      </div>
+
+      <div class="proc-step-row">
+        <div class="proc-bubble"><i data-lucide="clipboard-check"></i></div>
+        <div class="proc-card">
+          <div class="proc-card-step">Step 02 · Day 1–3</div>
+          <h4>Technical Assessment</h4>
+          <p>Our accredited team assesses your property and existing systems, recommends optimal AC solutions including available government rebates, and provides a comprehensive written quote detailing equipment, installation, and costs.</p>
+        </div>
+        <div class="proc-side">
+          <div class="proc-side-row"><i data-lucide="home"></i><span><strong>On-site:</strong> 30–45 min</span></div>
+          <div class="proc-side-row"><i data-lucide="file-text"></i><span><strong>Quote:</strong> Same day</span></div>
+        </div>
+      </div>
+
+      <div class="proc-step-row">
+        <div class="proc-bubble"><i data-lucide="banknote"></i></div>
+        <div class="proc-card">
+          <div class="proc-card-step">Step 03 · Day 4–7</div>
+          <h4>Deposit &amp; Finance</h4>
+          <p>A 10% deposit is required after quote approval. If opting for finance, the customer must complete the application and obtain approval from the finance company before scheduling.</p>
+        </div>
+        <div class="proc-side">
+          <div class="proc-side-row"><i data-lucide="percent"></i><span><strong>Deposit:</strong> 10%</span></div>
+          <div class="proc-side-row"><i data-lucide="credit-card"></i><span><strong>Methods:</strong> 6 options</span></div>
+        </div>
+      </div>
+
+      <div class="proc-step-row">
+        <div class="proc-bubble"><i data-lucide="truck"></i></div>
+        <div class="proc-card">
+          <div class="proc-card-step">Step 04 · Week 2–4</div>
+          <h4>Delivery &amp; Installation</h4>
+          <p>Upon receipt of your deposit, our installation team will contact you to schedule a convenient installation date — typically within 2-4 weeks. Your equipment will be delivered to the site several days prior to the scheduled installation date.</p>
+        </div>
+        <div class="proc-side">
+          <div class="proc-side-row"><i data-lucide="calendar"></i><span><strong>Schedule:</strong> 2–4 weeks</span></div>
+          <div class="proc-side-row"><i data-lucide="hourglass"></i><span><strong>Install:</strong> 4–6 hrs</span></div>
+        </div>
+      </div>
+
+      <div class="proc-step-row">
+        <div class="proc-bubble"><i data-lucide="star"></i></div>
+        <div class="proc-card">
+          <div class="proc-card-step">Step 05 · Post-Install</div>
+          <h4>Feedback &amp; Referrals</h4>
+          <p>We value your feedback! Reach out for any assistance — we're here to help. <strong style="color:var(--g);">Refer a friend for an aircon installation, and you'll receive a gift voucher.</strong></p>
+        </div>
+        <div class="proc-side">
+          <div class="proc-side-row"><i data-lucide="gift"></i><span><strong>Referral:</strong> Voucher</span></div>
+          <div class="proc-side-row"><i data-lucide="message-circle"></i><span><strong>Support:</strong> 24/7</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="page-foot-brand"><span>SavePlanet</span> · Installation Process</div>
+  <div class="page-num">07 / 15</div>
+</div>
+
+<!-- ════════════════ PAGE 8 — QUOTATION ════════════════ -->
+<div class="page">
+  <div class="quot-pad">
+    <div class="quot-head">
+      <div class="quot-from-card">
+        <h5>SavePlanet Pty Ltd</h5>
+        <p>22 Wallangara Boulevard<br>Harkness, Melton VIC 3337<br>Ph: 1300 362 724<br>Email: info@saveplanet.com.au</p>
+      </div>
+      <div class="quot-title-side">
+        <h2>Quotation</h2>
+        <div class="qd">Date: <strong id="qd1"></strong></div>
+        <div class="qd">Quote #: <strong>SP-_________</strong></div>
+      </div>
+    </div>
+
+    <div class="quot-to-bar">
+      <div class="quot-to-card">
+        <label>Bill To</label>
+        <div class="name">Customer Name</div>
+        <p>Phone: ________________<br>Address: ________________</p>
+      </div>
+      <div class="quot-to-card">
+        <label>Installation Address</label>
+        <div class="name">Same as billing</div>
+        <p>Property type: ____________<br>Access notes: ____________</p>
+      </div>
+    </div>
+
+    <div class="quot-meta">
+      <div class="quot-meta-item"><div class="qm-l">Job</div><div class="qm-v">SP-_______</div></div>
+      <div class="quot-meta-item"><div class="qm-l">Sales Person</div><div class="qm-v">__________</div></div>
+      <div class="quot-meta-item"><div class="qm-l">Payment Terms</div><div class="qm-v">10% Deposit</div></div>
+      <div class="quot-meta-item"><div class="qm-l">Due Date</div><div class="qm-v">Day of Install</div></div>
+    </div>
+
+    <table class="qt">
+      <thead>
+        <tr>
+          <th class="c" style="width:50px;">Qty</th>
+          <th>Description</th>
+          <th class="r" style="width:100px;">Unit Price</th>
+          <th class="r" style="width:100px;">Total</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td class="c">1</td><td>Reverse Cycle Split System AC <span class="desc-sub">Brand/Model: ___ · Capacity: ___ kW</span></td><td class="r">$0.00</td><td class="r">$0.00</td></tr>
+        <tr><td class="c">1</td><td>Indoor Unit Installation Labour <span class="desc-sub">Wall mount, drainage, wiring</span></td><td class="r">$0.00</td><td class="r">$0.00</td></tr>
+        <tr><td class="c">1</td><td>Outdoor Unit Installation Labour <span class="desc-sub">Bracket, refrigerant lines</span></td><td class="r">$0.00</td><td class="r">$0.00</td></tr>
+        <tr><td class="c">1</td><td>Refrigerant Piping (up to 3m) <span class="desc-sub">Per metre charge if longer</span></td><td class="r">$0.00</td><td class="r">$0.00</td></tr>
+        <tr><td class="c">1</td><td>Electrical Connection &amp; Isolator <span class="desc-sub">Dedicated circuit, AS/NZS 3000</span></td><td class="r">$0.00</td><td class="r">$0.00</td></tr>
+        <tr><td class="c">1</td><td>Decommission &amp; Disposal of Old Unit <span class="desc-sub">VEU compliant removal</span></td><td class="r">$0.00</td><td class="r">$0.00</td></tr>
+        <tr><td class="c">1</td><td>System Commissioning &amp; Testing <span class="desc-sub">Performance + temperature check</span></td><td class="r">Included</td><td class="r">—</td></tr>
+        <tr><td class="c">1</td><td>Certificate of Electrical Safety (CoES) <span class="desc-sub">Statutory compliance document</span></td><td class="r">Included</td><td class="r">—</td></tr>
+      </tbody>
+    </table>
+
+    <div class="quot-bottom">
+      <div class="quot-bank-card">
+        <h5><i data-lucide="landmark"></i> Bank Transfer Details</h5>
+        <div class="bank-row"><span class="l">Account Name</span><span class="v">SavePlanet Pty Ltd</span></div>
+        <div class="bank-row"><span class="l">BSB</span><span class="v">___ – ___</span></div>
+        <div class="bank-row"><span class="l">Account No.</span><span class="v">___________</span></div>
+        <div class="bank-row"><span class="l">Reference</span><span class="v">Quote # SP-_____</span></div>
+      </div>
+      <div class="totals-block">
+        <div class="tot-line"><span class="l">Subtotal</span><span class="v">$0.00</span></div>
+        <div class="tot-line"><span class="l">GST (10%)</span><span class="v">$0.00</span></div>
+        <div class="tot-line"><span class="l">Total</span><span class="v">$0.00</span></div>
+        <div class="tot-line veec"><span class="l">VEEC Certificate Discount</span><span class="v">−$0.00</span></div>
+        <div class="tot-line"><span class="l">Total Net</span><span class="v">$0.00</span></div>
+        <div class="tot-line"><span class="l">Amount Paid</span><span class="v">$0.00</span></div>
+        <div class="tot-line due"><span class="l">Amount Due</span><span class="v">$0.00</span></div>
+      </div>
+    </div>
+  </div>
+  <div class="page-foot-brand"><span>SavePlanet</span> · Quotation</div>
+  <div class="page-num">08 / 15</div>
+</div>
+
+<!-- ════════════════ PAGE 9 — PAYMENT TERMS ════════════════ -->
+<div class="page">
+  <div class="pay-pad">
+    <div class="sec-eyebrow"><i data-lucide="credit-card"></i> Financials</div>
+    <h1 class="sec-h1">Payment <em>Terms</em></h1>
+    <div class="sec-rule"></div>
+    <p class="sec-lead">Transparent, simple payment structure with multiple methods accepted. Ten percent on approval, balance on installation day.</p>
+
+    <div class="pay-roadmap">
+      <div class="pay-stage">
+        <div class="pay-stage-pct">10%</div>
+        <h4>Deposit</h4>
+        <p>Paid in advance on quote approval to lock in your installation slot and equipment supply.</p>
+      </div>
+      <div class="pay-stage">
+        <div class="pay-stage-pct amber">90%</div>
+        <h4>Balance on Install</h4>
+        <p>Remaining balance settled on the day of installation, after system commissioning is complete.</p>
+      </div>
+      <div class="pay-stage">
+        <div class="pay-stage-pct blue">$0</div>
+        <h4>VEEC Discount</h4>
+        <p>Government VEEC rebate applied upfront to reduce out-of-pocket cost — no claim paperwork.</p>
+      </div>
+    </div>
+
+    <div class="pay-cards-grid">
+      <div class="pay-info-card">
+        <div class="pay-info-icon green"><i data-lucide="receipt"></i></div>
+        <h4>Additional Charges</h4>
+        <p>Any additional charges, such as additional material or labour, will be included in the quotation. In rare cases where further charges are identified during installation, this will be discussed on-site and a new quotation shared. You may opt to accept or decline — any advance payment is fully refunded if declined.</p>
+      </div>
+      <div class="pay-info-card warn">
+        <div class="pay-info-icon amber"><i data-lucide="alert-triangle"></i></div>
+        <h4>Late Payment Fees</h4>
+        <p>Overdue invoice balances will be subject to a late payment fee of <strong>2% per month</strong>, charged monthly until paid. If you are unable to make payment due to reasonable circumstances out of your control, contact us at 1300 362 724 for alternative options.</p>
+      </div>
+      <div class="pay-info-card cool">
+        <div class="pay-info-icon blue"><i data-lucide="timer"></i></div>
+        <h4>Cooling-Off Period</h4>
+        <p>You have a cooling-off period of <strong>10 business days</strong> from the date of receiving this proposal. During this period, you have the right to cancel without incurring any charges. If you request installation earlier than this, the cooling-off period does not apply.</p>
+      </div>
+      <div class="pay-info-card">
+        <div class="pay-info-icon purple"><i data-lucide="shield"></i></div>
+        <h4>Title &amp; Ownership</h4>
+        <p>The supplied system remains the property of SavePlanet Pty Ltd until the full purchase price has been received. Title and ownership transfer to the customer only upon receipt of full payment, including deposit and any outstanding amounts.</p>
+      </div>
+    </div>
+
+    <div class="pay-methods">
+      <h4><i data-lucide="wallet"></i> Accepted Payment Methods</h4>
+      <div class="pay-methods-grid">
+        <div class="pay-method"><i data-lucide="landmark"></i><span>Bank Transfer</span></div>
+        <div class="pay-method"><i data-lucide="credit-card"></i><span>Credit Card</span></div>
+        <div class="pay-method"><i data-lucide="square"></i><span>Debit Card</span></div>
+        <div class="pay-method"><i data-lucide="banknote"></i><span>Cash</span></div>
+        <div class="pay-method"><i data-lucide="file-text"></i><span>Money Order</span></div>
+        <div class="pay-method"><i data-lucide="zap"></i><span>EFT</span></div>
+      </div>
+    </div>
+  </div>
+  <div class="page-foot-brand"><span>SavePlanet</span> · Payment Terms</div>
+  <div class="page-num">09 / 15</div>
+</div>
+
+<!-- ════════════════ PAGE 10 — WARRANTY ════════════════ -->
+<div class="page">
+  <div class="gu-pad">
+    <div class="sec-eyebrow"><i data-lucide="shield-check"></i> Peace of Mind</div>
+    <h1 class="sec-h1">Warranty &amp; <em>Guarantees</em></h1>
+    <div class="sec-rule"></div>
+    <p class="sec-lead">Every installation is backed by our workmanship guarantee plus the manufacturer's product warranty — protecting your investment for years to come.</p>
+
+    <div class="gu-grid">
+      <div class="gu-card">
+        <div class="gu-card-shield"><i data-lucide="shield"></i></div>
+        <div class="gu-num">14.1 · WORKMANSHIP</div>
+        <h4>Workmanship Guarantee</h4>
+        <p>All installation workmanship by SavePlanet or our authorised contractors is guaranteed free from faults or defects for the warranty period stated in your warranty card. Any reported issue is rectified at no cost.</p>
+      </div>
+      <div class="gu-card">
+        <div class="gu-card-shield"><i data-lucide="zap"></i></div>
+        <div class="gu-num">14.1 · PERFORMANCE</div>
+        <h4>System Performance</h4>
+        <p>The operation and performance of the System will be free from faults during the warranty period. If any defect is reported, we repair, rectify, or replace as required at no cost to you.</p>
+      </div>
+      <div class="gu-card">
+        <div class="gu-card-shield"><i data-lucide="package"></i></div>
+        <div class="gu-num">14.3 · MANUFACTURER</div>
+        <h4>Manufacturer Warranty</h4>
+        <p>Operates in addition to our guarantee. Note: manufacturer warranties may not cover labour, travel, or delivery costs. Where applicable, we notify you in advance and outline any charges payable.</p>
+      </div>
+      <div class="gu-card">
+        <div class="gu-card-shield"><i data-lucide="users"></i></div>
+        <div class="gu-num">14.4 · SUPPORT</div>
+        <h4>Warranty Support</h4>
+        <p>During the Warranty Period, SavePlanet provides reasonable assistance with manufacturer warranty claims, acting as a liaison between you and the manufacturer where appropriate.</p>
+      </div>
+      <div class="gu-card">
+        <div class="gu-card-shield"><i data-lucide="x-octagon"></i></div>
+        <div class="gu-num">14.2 · EXCLUSIONS</div>
+        <h4>What's Not Covered</h4>
+        <p>Faults from misuse, neglect, accidental damage, third-party repairs, extreme weather events, or failure to maintain the System per provided documentation are excluded.</p>
+      </div>
+      <div class="gu-card">
+        <div class="gu-card-shield"><i data-lucide="scale"></i></div>
+        <div class="gu-num">14.3 · CONSUMER LAW</div>
+        <h4>Australian Consumer Law</h4>
+        <p>Your rights under applicable laws, including the Australian Consumer Law (ACL), are preserved and operate alongside our guarantees and the manufacturer warranty.</p>
+      </div>
+    </div>
+
+    <div class="gu-warranty-band">
+      <div class="gu-band-num">100<span style="font-size:24px;">%</span><small>Compliance &amp; Coverage</small></div>
+      <div class="gu-band-text">
+        <h4>End-to-End Protection</h4>
+        <p>From installation workmanship to system performance, manufacturer support, and statutory ACL rights — your upgrade is protected on every level. A single phone call or email is all it takes for any claim or query.</p>
+      </div>
+    </div>
+  </div>
+  <div class="page-foot-brand"><span>SavePlanet</span> · Warranty &amp; Guarantees</div>
+  <div class="page-num">10 / 15</div>
+</div>
+
+<!-- ════════════════ PAGE 11 — COMPLAINTS ════════════════ -->
+<div class="page">
+  <div class="comp-pad">
+    <div class="sec-eyebrow"><i data-lucide="message-circle"></i> Customer Support</div>
+    <h1 class="sec-h1">Customer <em>Complaints</em></h1>
+    <div class="sec-rule"></div>
+    <p class="sec-lead">At SavePlanet, we value your feedback and are committed to resolving any concerns promptly and efficiently. Every complaint is thoroughly investigated and addressed.</p>
+
+    <div class="comp-flow">
+      <div class="comp-flow-step">
+        <div class="comp-flow-icon"><i data-lucide="phone-call"></i></div>
+        <h4>Step 01 — Lodge</h4>
+        <p>Call 1300 362 724 to register your complaint.</p>
+        <span class="timing">Anytime</span>
+      </div>
+      <div class="comp-flow-step">
+        <div class="comp-flow-icon"><i data-lucide="user-check"></i></div>
+        <h4>Step 02 — Respond</h4>
+        <p>One of our team installers will be in touch.</p>
+        <span class="timing">Within 24 hours</span>
+      </div>
+      <div class="comp-flow-step">
+        <div class="comp-flow-icon"><i data-lucide="check-circle-2"></i></div>
+        <h4>Step 03 — Resolve</h4>
+        <p>Investigation and appropriate corrective action.</p>
+        <span class="timing">As fast as possible</span>
+      </div>
+    </div>
+
+    <div class="comp-escalate">
+      <h4><i data-lucide="alert-circle"></i> Escalation Path · Australian Competition &amp; Consumer Commission (ACCC)</h4>
+      <p>If you are not satisfied with the resolution of your complaint, you can escalate the issue to the ACCC. We will work with you and provide as much information as required to resolve your issue.</p>
+      <div class="comp-escalate-actions">
+        <div class="comp-action">
+          <i data-lucide="phone"></i>
+          <div><strong>Call: 1300 302 502</strong><br><span style="font-size:11px;color:var(--slate-500);">Mon–Fri · 9am–5pm AEST/AEDT</span></div>
+        </div>
+        <div class="comp-action">
+          <i data-lucide="globe"></i>
+          <div><strong>accc.gov.au/consumers/complaints-problems</strong><br><span style="font-size:11px;color:var(--slate-500);">Make an Enquiry · Report a Consumer Issue</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="comp-docs">
+      <h4><i data-lucide="folder-open" style="width:13px;height:13px;display:inline;vertical-align:middle;margin-right:5px;"></i> Reference Documents Attached</h4>
+      <div class="comp-docs-grid">
+        <div class="doc-pill"><i data-lucide="file-text"></i><span>VEU Space Heating &amp; Cooling Fact Sheet</span></div>
+        <div class="doc-pill"><i data-lucide="file-text"></i><span>Consumer Fact Sheet</span></div>
+        <div class="doc-pill"><i data-lucide="file-badge"></i><span>VEU Statement of Rights</span></div>
+        <div class="doc-pill"><i data-lucide="book-open"></i><span>Product Manual</span></div>
+        <div class="doc-pill"><i data-lucide="file-spreadsheet"></i><span>Specification Sheet</span></div>
+      </div>
+    </div>
+  </div>
+  <div class="page-foot-brand"><span>SavePlanet</span> · Customer Support</div>
+  <div class="page-num">11 / 15</div>
+</div>
+
+<!-- ════════════════ PAGE 12 — ACCEPTANCE ════════════════ -->
+<div class="page">
+  <div class="acc-pad">
+    <div class="sec-eyebrow"><i data-lucide="pen-tool"></i> Sign-Off</div>
+    <h1 class="sec-h1">Acceptance &amp; <em>Acknowledgements</em></h1>
+    <div class="sec-rule"></div>
+    <p class="sec-lead">By accepting this quotation, you authorise SavePlanet Pty Ltd (and its authorised partners) to facilitate the creation of Victorian Energy Efficiency Certificates (VEECs) on your behalf, where applicable, and agree to assign and transfer any associated VEECs to the nominated accredited provider, trustee, or authorised entity engaged by SavePlanet for this purpose.</p>
+
+    <div class="ack-list-card">
+      <h4><i data-lucide="check-square"></i> Acknowledgements &amp; Consents — By proceeding, you confirm that:</h4>
+      <ul class="ack-list">
+        <li>The terms and conditions of this agreement have been clearly explained to you and that you have understood and accepted them in full.</li>
+        <li>The statutory cooling-off period may not apply where the system installation is scheduled to commence within 10 days of accepting this quotation, in accordance with applicable consumer laws.</li>
+        <li>You consent to SavePlanet Pty Ltd collecting, storing, using, and disclosing your personal information in accordance with the Privacy Act 1988 (Cth) for the purposes of fulfilling this agreement and, where applicable, marketing related energy-efficiency products and services for up to 12 months.</li>
+        <li>SavePlanet Pty Ltd reserves the right to decline, reschedule, or postpone installation where technical, safety, compliance, site, or operational issues arise that may impact system performance, installation standards, or regulatory requirements.</li>
+        <li>If unforeseen additional costs arise during assessment or installation and such costs are not approved and paid by the customer, SavePlanet Pty Ltd reserves the right to cancel or refuse to proceed.</li>
+        <li>Where applicable, you agree to assign all VEECs associated with the supplied system to the nominated accredited provider engaged by SavePlanet. Significant changes in VEEC market pricing may result in additional out-of-pocket charges payable by the customer.</li>
+        <li>The quoted system price does not include any switchboard upgrade. If a switchboard upgrade is required, it will be quoted separately and must be approved and paid prior to proceeding.</li>
+        <li>This quotation constitutes a formal offer; acceptance (signature, electronic approval, or written confirmation) forms a legally binding agreement subject to these terms and conditions.</li>
+        <li>All required installation documentation, compliance certificates, and relevant records will be provided following successful installation and commissioning of the system.</li>
+      </ul>
+    </div>
+
+    <div class="sig-zone">
+      <div class="sig-zone-head">
+        <i data-lucide="pen-line"></i>
+        <h4>Customer Authorisation</h4>
+      </div>
+      <div class="sig-grid">
+        <div class="sig-fld"><label>Customer Full Name</label><div class="sig-line"></div></div>
+        <div class="sig-fld"><label>Date</label><div class="sig-line"></div></div>
+        <div class="sig-fld full"><label>Customer Signature</label><div class="sig-line" style="margin-top:60px;"></div></div>
+      </div>
+    </div>
+  </div>
+  <div class="page-foot-brand"><span>SavePlanet</span> · Acceptance &amp; Sign-Off</div>
+  <div class="page-num">12 / 15</div>
+</div>
+
+<!-- ════════════════ PAGE 13 — T&C PART I ════════════════ -->
+<div class="page">
+  <div class="tc-pad">
+    <h2 class="tc-title">Terms and Conditions</h2>
+    <div class="tc-sub">Part 1 of 2 · Clauses 1–8</div>
+    <div class="tc-3col">
+      <div class="tc-col">
+        <h4>1. Definitions &amp; Interpretation</h4>
+        <p><strong>Parties:</strong> This Agreement is between SavePlanet Pty Ltd (including authorised partners, contractors, subcontractors), referred to as "the Supplier", "SavePlanet", "we", "us", or "our"; and the customer identified in the accepted Quotation, referred to as "the Customer", "you", or "your".</p>
+        <p><strong>Subject Matter:</strong> Governs your acquisition of the air conditioning system and ancillary equipment (the "System") as specified in the Quotation; and the supply, delivery, installation, and commissioning at your premises.</p>
+        <p><strong>Constituent Documents:</strong> These Terms and Conditions plus the accepted Quotation. Together, they constitute the entire agreement and supersede all prior discussions, written or oral.</p>
+        <p><strong>Governing Law:</strong> Governed by all applicable Commonwealth and State laws — Australian Consumer Law, VBA requirements, Electrical Safety Act 1998 (Vic), and other relevant legislation.</p>
+        <p><strong>Formation:</strong> This Agreement is formed and becomes legally binding upon your acceptance via signature (in person/post), electronic confirmation, or verbal acceptance by phone using the contact in the Quotation.</p>
+        <h4>1.1 Conditions Precedent</h4>
+        <p>Acquisition becomes unconditional only once the required deposit has been received by SavePlanet and all necessary finance approvals (if applicable) have been obtained. Until met, SavePlanet reserves the right to defer scheduling.</p>
+        <h4>1.2 Joint &amp; Several Liability</h4>
+        <p>Where more than one person is identified as the Customer, each shall be jointly and severally liable for the full Contract Price.</p>
+        <h4>1.3 Variation of Terms</h4>
+        <p>Following expiry of the 10 business day cooling-off period, these Terms become irrevocable and may only be varied with prior written consent of SavePlanet Pty Ltd.</p>
+      </div>
+
+      <div class="tc-col">
+        <h4>2. Sale of the System</h4>
+        <p>Subject to clause 1.1, SavePlanet undertakes to supply, and the Customer undertakes to purchase, the System in strict accordance with this Agreement.</p>
+        <h4>3. Payment Terms</h4>
+        <p><strong>3.1 Initial Deposit:</strong> The Customer shall remit the requisite deposit upon acceptance of the Quotation.</p>
+        <p><strong>3.2 Outstanding Balance:</strong> The remaining balance shall be paid upon installation on the same day. Title and ownership vest in the Customer only upon receipt of full payment.</p>
+        <p><strong>3.3 Authorised Methods:</strong> Bank cheque · Money order · Cash · Debit card · Credit card · Electronic funds transfer.</p>
+        <p><strong>3.4 Receipt:</strong> Payment is deemed made on the date cleared funds are credited to SavePlanet's nominated bank account.</p>
+        <h4>4. System Documentation &amp; Maintenance</h4>
+        <p><strong>4.1 Documentation:</strong> SavePlanet provides all relevant product manuals, compliance certificates, and maintenance documentation post-install.</p>
+        <p><strong>4.2 Ongoing Maintenance:</strong> You are responsible for maintaining the System per the manufacturer's instructions to ensure safe operation, performance, and warranty validity.</p>
+        <h4>5. VEEC Incentives &amp; Assignment</h4>
+        <p><strong>5.1 Calculation:</strong> The VEEC incentive applied has been calculated based on the maximum number of VEECs eligible for the System under applicable legislation, including site-specific performance estimate. The estimated monetary value is deducted as an upfront discount.</p>
+        <p><strong>5.2 Assignment:</strong> You assign to SavePlanet (or nominated trustee) all present and future rights, title, and interest in any VEECs created or capable of being created in relation to the System.</p>
+        <p><strong>5.3 Customer Warranty:</strong> You warrant you have not previously created, claimed, or assigned any VEECs relating to the System or any other AC unit at the premises.</p>
+      </div>
+
+      <div class="tc-col">
+        <h4>5.4 Adjustment of VEEC Incentive</h4>
+        <p>If you take any action that prevents or interferes with VEEC assignment, reduces VEECs creatable, or makes the System ineligible — SavePlanet may increase the total price by the value of the VEEC incentive previously applied. Payable within 10 business days of invoice. Not considered a general price increase.</p>
+        <h4>5.5 Regulatory Compliance</h4>
+        <p>All VEEC-related activities are undertaken in accordance with VEU program rules and applicable legislation. Responsibility for VEEC creation, submission, and compliance rests with the nominated accredited provider once VEEC assignment is completed.</p>
+        <h4>6. Price Adjustments</h4>
+        <p><strong>6.1:</strong> Subject to clause 6.2, SavePlanet may adjust the price of the System, installation services, or any item in the Quote to reflect new or increased costs.</p>
+        <p><strong>6.2 Conditions:</strong> A price increase only applies where (a) reasonable, (b) permitted by law, and (c) you receive at least 7 days' written notice before the scheduled installation date.</p>
+        <p><strong>6.3 Termination Right:</strong> If notified of a price increase you don't accept, you may terminate per clause 6.4. Refund processed per clause 10.1(b).</p>
+        <p><strong>6.4 How to End:</strong> Terminate by phone (number in Quote) or written notice via registered post or email before the original/revised Target Date. If no notice given, you accept the increase.</p>
+        <h4>7. Approvals</h4>
+        <p>You are responsible for applying for and obtaining any additional approvals, permits, or consents required for the installation. Sale, delivery, and installation are not conditional upon such approvals.</p>
+        <h4>8. GST</h4>
+        <p>All prices and amounts stated in the proposal and Quote are inclusive of GST, unless expressly stated otherwise.</p>
+      </div>
+    </div>
+  </div>
+  <div class="page-foot-brand"><span>SavePlanet</span> · Terms &amp; Conditions (Part 1)</div>
+  <div class="page-num">13 / 15</div>
+</div>
+
+<!-- ════════════════ PAGE 14 — T&C PART II ════════════════ -->
+<div class="page">
+  <div class="tc-pad">
+    <h2 class="tc-title">Terms and Conditions</h2>
+    <div class="tc-sub">Part 2 of 2 · Clauses 9–17</div>
+    <div class="tc-3col">
+      <div class="tc-col">
+        <h4>9. Delivery &amp; Installation</h4>
+        <p><strong>9.1 Delivery:</strong> Once 1.1 conditions are met, SavePlanet arranges delivery. Risk of loss, theft, or damage transfers to you upon delivery to the premises.</p>
+        <p><strong>9.2 Prerequisites:</strong> If property cannot safely support the System's load-bearing requirements, this agreement ends and refund is per clause 10.1(c).</p>
+        <p><strong>9.3 Target Date:</strong> Estimate only — not a guaranteed deadline. SavePlanet not liable for delays beyond reasonable control. If install does not occur within 4 weeks of original Target Date, you may terminate and receive refund per 10.1(a).</p>
+        <p><strong>9.4 Standards:</strong> SavePlanet ensures the installer is appropriately accredited and installation complies with all Design, Installation Guidelines, and regulatory requirements. All legally required electrical safety certificates provided post-install.</p>
+        <p><strong>9.5 Limitations:</strong> SavePlanet is not responsible for the structural integrity of the building, the building's load-capacity, impact on existing building warranties, or damage to walls/property not caused by our negligence or breach.</p>
+        <h4>10. Refund Policy</h4>
+        <p><strong>10.1 Eligibility:</strong> Full refund if agreement ends because: (a) no install within 4 weeks of target date; (b) price increase declined; (c) force majeure; (d) equipment unavailable, no substitute agreed; (e) install cannot proceed due solely to customer issues — customer covers inspection &amp; transport costs payable in 7 days.</p>
+        <p><strong>10.2 Credit Card Fees:</strong> Where payments were made via credit card, merchant or processing fees are non-refundable.</p>
+        <h4>11. Cancellation Policy</h4>
+        <p><strong>11.1 Cooling-Off:</strong> 10 business days from signing — cancel without penalty or fees.</p>
+        <p><strong>11.2 After Cooling-Off:</strong> 25% termination fee within first 5 days; 50% thereafter, based on actual out-of-pocket costs incurred.</p>
+        <p><strong>11.3 Process:</strong> Submit written request via email with full name, contract/quote number, and reason for cancellation.</p>
+      </div>
+
+      <div class="tc-col">
+        <h4>12. Access to Premises</h4>
+        <p><strong>12.1 Right of Access:</strong> You grant SavePlanet and authorised contractors permission to enter the premises at reasonable times for inspections and to deliver, install, and commission the System. Minimum 1 business day notice provided.</p>
+        <p><strong>12.2 Presence:</strong> You or an authorised representative must be present during any site inspection and throughout delivery and installation.</p>
+        <p><strong>12.3 Customer Responsibilities:</strong> Ensure safe, clear, convenient access to all required areas; access not obstructed; premises (roofing, structural supports, existing electrical wiring) structurally sound and suitable.</p>
+        <h4>13. Failure to Perform Obligations</h4>
+        <p><strong>13.1:</strong> If you fail to make payment when due or meet your obligations (including access/installation), SavePlanet may immediately suspend performance and issue a written notice for rectification. If unresolved within 7 days, SavePlanet may terminate by written notice.</p>
+        <p><strong>13.2 Costs Upon Termination:</strong> You agree to pay any costs reasonably incurred by SavePlanet as a result, plus any costs already incurred for delivery, preparation, or installation.</p>
+        <h4>14. System Guarantees</h4>
+        <p><strong>14.1 Workmanship &amp; Performance:</strong> All workmanship and System performance guaranteed free from faults for the warranty period in your warranty card. Faults rectified at no cost — repair or replacement as required.</p>
+        <p><strong>14.2 Exclusions:</strong> Does not cover faults from third-party actions, post-install events beyond human control (extreme weather), misuse, neglect, accidental damage, failure to maintain per docs, or repairs/modifications by non-approved technicians.</p>
+        <p><strong>14.3 Additional Warranties:</strong> Operates alongside any manufacturer warranty and your rights under Australian Consumer Law. Manufacturer warranties may not cover labour/travel/delivery — we notify you in advance.</p>
+        <p><strong>14.4 Manufacturer Support:</strong> During the Warranty Period, SavePlanet provides reasonable assistance with manufacturer warranty claims, acting as liaison between you and the manufacturer.</p>
+      </div>
+
+      <div class="tc-col">
+        <h4>15. General</h4>
+        <p><strong>15.1:</strong> This agreement constitutes the entire agreement between the parties and supersedes any prior discussions or representations.</p>
+        <p><strong>15.2:</strong> If any provision is found invalid or unenforceable, the remaining provisions continue in full force and effect.</p>
+        <p><strong>15.3 Assignment &amp; Novation:</strong> Neither party may assign rights or novate obligations without prior written consent of the other party (not unreasonably withheld or delayed).</p>
+        <p><strong>15.4 Sub-Contracting:</strong> SavePlanet may sub-contract any part of its obligations provided: sub-contractor is suitably qualified; SavePlanet remains fully responsible to you; SavePlanet is liable for sub-contractor acts/omissions as if its own; design/installation only sub-contracted to an Accredited Installer.</p>
+        <h4>16. Privacy</h4>
+        <p>SavePlanet complies with all applicable privacy laws relating to the collection, storage, use, and disclosure of your personal information. For privacy questions, contact us by phone (number in Quote) or written request via email or registered post.</p>
+        <h4>17. Definitions Glossary</h4>
+        <p><strong>ACL:</strong> Australian Consumer Law (Schedule 2, Competition and Consumer Act 2010 Cth).</p>
+        <p><strong>Accredited Installer:</strong> Holds Victorian Electrical Worker Licence + ARC Refrigerant Handling Licence; competent to AS/NZS 3000 + 60335 series + manufacturer specs.</p>
+        <p><strong>Business Day:</strong> Any day other than Saturday, Sunday, or VIC public holiday.</p>
+        <p><strong>CoES:</strong> Certificate of Electrical Safety per s.54 Electricity Safety Act 1998 (Vic).</p>
+        <p><strong>VEEC:</strong> Victorian Energy Efficiency Certificate — created under Part 3 of the Victorian Energy Upgrades Act 2024, representing one tonne of greenhouse gas abatement.</p>
+        <p><strong>VEU Program:</strong> Victorian Energy Upgrades program established under the Victorian Energy Upgrades Act 2024 and administered by the Essential Services Commission.</p>
+        <p><strong>Inconsistency:</strong> Terms prevail over Quotation unless Quotation provides more favourable terms under ACL.</p>
+      </div>
+    </div>
+  </div>
+  <div class="page-foot-brand"><span>SavePlanet</span> · Terms &amp; Conditions (Part 2)</div>
+  <div class="page-num">14 / 15</div>
+</div>
+
+<!-- ════════════════ PAGE 15 — THANK YOU ════════════════ -->
+<div class="ty-page">
+  <div class="ty-grid-bg"></div>
+  <div class="ty-glow"></div>
+
+  <div class="ty-top">
+    <div class="ty-logo-card">
+      <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAYAAAADLCAIAAADoTdPzAABiUklEQVR42u2dd5wcZ5H3q+p5uids3pV2pV2tsqxoyXLO2RicMGBjMPjI+YhHTgdH5khnou84OILJBmMbY4Mzlm05KNnKWSttzhO7+3mq3j96Nmi1K60tmfDyfD/zMWh2pqenp/vXVfVUQBEBh8Ph+FtA7hA4HA4nQA6HwwmQw+FwOAFyOBxOgBwOh8MJkMPhcALkcDgcToAcDocTIIfD4XAC5HA4nAA5HA6HEyCHw+EEyOFwOJwAORwOJ0AOh8PhBMjhcDgBcjgcToAcDofDCZDD4XAC5HA4HE6AHA6HEyCHw+FwAuRwOJwAORwOhxMgh8PhBMjhcDicADkcDidADofD4QTI4XA4AXI4HA4nQA6HwwmQw+FwOAFyOBxOgBwOhxMgh8PhcALkcDicADkcDocTIIfD4QTI4XA4nAA5HA4nQA6Hw+EEyOFwOAFyOBwOJ0AOh8MJkMPhcDgBcjgcToAcDofDCZDD4XAC5HA4nAA5HA6HEyCHw+EEyOFwOP4K6H/M3RYRQSQAYDYsBpFYrOVIwCKAACj0ERUiIhChRkQRFhAAJHSy63A4AXqWogOAAMLC+aCnr7g7k+/Kh7390W6hHAtbkzeQDWzWQARMaV2fVOUACDZR7s30dUVVemrCq64rW5DSFYQaABBRRAABAY+VLrIwotM4h2NSoIj8ne8iiyVUAJAtdu7pemh75x2dwTOJcj8wOSMchFaRQmAFSMCRtUYsAIBFJNRKR5H1Uwlm62uPyBscDNI0o7ni1IX1FzXWLClP1Q1/CgLicxUOFkYAy+bP63/6ohNf704sh+MfW4BEBBEMRwcGntw3sKorv7F3cCfq0NogtIGQBQABAUIWRpbYomHm2D1DVMwswkolDDMCEgADFawB0QgeGEJJpMsby+uaG5Nzjksvr/Xn1pTPRCBEAMDS9uPDdLCJNPr5+AAOFHue2nv3qp23TC2f87bzviogx8qqcjicC/ZX9rUYABFxc9e9j++5UfzuXK4PFLEwWBYRIAawwxJAglISrJFrnkEsEiAJsKAICAMwCgJZZrYFRgEs5Ab7+/JbOz1/l59E8SSY0lhz4szqE+ZNPaU6WT+RJzUsLiy2K9Oyasev17T+ccD0hdaes+AVhwqWw+H4B7CA4p3JRZ07B1Zt6rm9L7tBiQk5ZGsZMQ7ZIAoAAHL8FkUkgswCAERoSwqFEahYj0Rk+DsKkGFrGdgCACFiFFlNfjqRiKLImshYJF0WGunPF6prmisqGhqr5iUwPQsWlKkKBGTNBV1ss3syQf9gsb2/a/dA3wGlKTBRZExFsul95/1ganmTiwE5HP9gAiTCiLiz60+PtX8lG/ZEtsgmJBIGIe0bw1r7URRppSyX1EcQ2IIFEWFmYebY7UKkUEQrX0SstSMfgcAiAARCAMSWhxMRgiBARGFkILYCoIg8RLQImkgxaFKe0kbYIhSiwFPKWosoImysBdFa+5fOeecLl73eqY/D8Y/kgokIgAzkW9a1fn9r/x0hBMjCYoGICAg4iiJQOrIGCCO2AGAMh2EUWQb0hm0cFiFEAMUIQmSNFRYAUIpYhC2LiNJKGEVYWEQQhuWXlBEBIhIQtAqQ0AIqDYzMjBiJjUwYv1yhGGsYmWJ3C0GRbqxaeNGiVx+qPsZEWnvuVHM4/h4FSIQBYHvnXU+1fnfA7o+kyMREggDWgkVCIQbLVgwbFhFGrbUVFCBAZCQQEpA4DMSIAMACBMQiAsIiKCQsiABohUEYRUAEhYcCRghAGhmQBQU0KgAUFiQLVDIRRWjY9RMEgPjfHEuQ9tQpjVckvOShX3D9zlXHzz3d04nRISqHw/G3FyARLkYDj+/55u7c7ZkgDyQCLMKhiIiYkK0gIxKi56nYFBEABgWIqJWyAKBig4aAQKGm0jdCJInzcsSGJorX1wlRABBBAAUElQKg2AtjBAQQA5ZtxAEqItJKgRHDyBQnIQEAMCMMO25KDAKGTI1l809sunQoWQksGzW8J97AHetufOHyt6X8cqdBDsffiwAJ8IHMusdbvttVWGO4IMQIJOgZa4OoaCyjVSyImlD7mpJKmJF8LK/UDb4q93SqNj0PQCOqpC5P+zUglPIq4m2zCIAgUiEaKJqsQs9CFNmClQhECDQiCUA27MmF/cYGmWKfUpizXQxRPhyMbBRFNuIIjBmSGx617wwj61xUXVZ76fx3VqXqh5880P10dXl9ZbpJhJunLl3V9qPfry285MT3J7y00yCH428vQCLcml93776PZvKdhgMRK8gglC8aw2JFIWNFqi6pK0nStanZTRXHV6eap1csrkhOPcxlHNmiAIuIlTCyIYsRAREJTC4XDSCAFZMJOgt2IB/2ISpfpzUlu7L7IghzxWzeDlgJi0HeCFtjYn2h2AfDkgYRMA9ZQIi+R8nzZ715WdN5o3ejN9jx5P5vXr3yvwnVlPK5UxLzd/b/6cm9i86cdw2icqedw/E3EyABEZH1Xb/f0PHdTLE9Hxa18ozRQZAXQMBkQlXNrDyhuWpFQ8WCmlRTZbIhodOANJxcI8KRKYY235ffF9niYNCSizqsGMOmr9hiJLLCeZMthnnDgbUcWciHmUxxAERELCpQSmul4qA1i1hjkLQIs7FxLcWo/R1t/hAAg1CcDoCiBOW4mrPPnHPdsPMlIgLcW9w6CDvaM89MqziekJZOv3j7wH0Pt327IlW7YsYl7rRzOP5mAoQAO/sfeaL9a4VirwAqL5HNRIVCVJ6qrfBmnT7rVSfNvFqRgrg8AhEEWCxzmCm29xR27e9Zlwla2gfXRpjx0goRTRQKRKCoGEbCGFkRVECarUQRm8hGlgGViEFEpUjEWhNYCyJCioSFGRTECURAQ3FxEQEhRD549wmAEVGsIOGUVPPLV34u5VcOO1+IaGzYGz5TMAO7e+9prFwBAHPrTiH2M0HvPXv+a3rlgikVM91SvcPxNxAgEd7ceusTnd+0mI2sDUIbFmVW1SnHzbl4bt1ZDZXzEZFQCUgY5XoLuzpyT3dnthW4oy+/Kx92R2xUwmO2EYUokSlIXHghaMGAFQTRSitjIuFIkEgDikUQayPlaWusZQtDZagiIixIiMLxQv7orEUAAGQYx9ejuHy1Ltl4/YovlSWrx/iDLf2PZKLdYk3r4GOGQ0V+ebKmoXLB/vzajD1wx+Yvv+rErya8lDv5HI6/tgC1DTz5ROd/9Ye9RZZinitU04uP/9CS6S8gVJajeOVooND6dNstT3f82k8XQy5aKzYSARBmJkORiax4ShEgG2MRGIAAEZEALYiwISQjLGiJlO9rVBJFNrJMKs6BLqVcl2TIxtIzVNuBh7iMQxGfeFFNKwWiUkq/fNmnZ9WtGGPLiPAT+24CERDsGNjaltkwo/IkQJxeu6glv4ajoB2eemTnz89b+FpnBDkcfz0BEpDW/MaH9n2ur9Abia3AeWfOvurEGS9LJ2pE2LLpL+xt6Vt9IPPovt5VyleWgkyhCMAMCEjWiiJt2AZB3opK+omkUqgJxBAAAFkrQBivfIkAIsaSJYxsWViEWQQBcLw2bHzYfS8lTCNiQieRqExVXrX4w4saz4KxNV+yt/fPg3YPRyEhoa/Xt98yo+pkAGgqX5JQvpGiscGGnlvndp0+c+pityLmcAL014DF9gT77t73kVyxeyAfntn05nPmvzmhy+KcnO7ctkf3fqM72GBsnoUjFUaGLFilwIKAMIhoIuaQFKbLy3O5MJMrDIqkUqlEwicABIUEAhEiDyUOEgAKs2UwBq0RAYyfLKUQjolLTaRByCA0rEHWWgV0zYpPL5527hj1EeHI5rf03WIkJERCVTTFlv4HQpvzKFWbaE5QuYXImqCX99+z/ftvqP+aO/8cToD+CnEfMTZct+9/Mn0dCWl+1fKvzJt6BoAYDvb1rdrVd/fevsciyBkJLBsBJu2JoFiIYCggg4AiqDQiAFB5Op3yJVfI53O5XFZIKa08IiKFIgZACYMVZGZrwbAQqrhJx/Ba1bPZ+5JakSCRV1+x8IolH1g09bRD691ZeO3+m/f2PQXIxhrfTyIBqqgru6Wx8oSaVJMHlRF3AXGhOLg1fODhbbedteBKZwQ5nAA9vyDi2v0/2d33yHHlLz57wZvTfjUidud2PrLvK225tcYWjTCDWLRAYNnjSBnDzIAEAOh5nucrARDLAIACNowUQmXSh3QqtCaTK+TzBUEi0gBgS/GdUrqNIDLDKN3h8SSIqVTDgSISNxuKhceKUoAeaWBpSCy44aSvTymbcaj6iPC+3r/syv4agMWG5GkLESmwGHVkNzdVnZT0KjVUWWZGAx4YDv+y9+bFjafVlE11wSCHE6DnMfSzp/vhlsxDy6f8yylzbgDAQtS7uePWtW0/CCVjQVisIAQmKgTFMDCGS3XqLGKiKF4pJyI/kSKl0omkJvC1BwJIgoga/OrqhGUIQ5PNFhkIQQRIRu3B5CI+PCo2RKXXCHmoxCpPla2YfcVLlnxYK29c9enN7lx94JuDUQ9wpIAYQESiKCKBrvxWZuvp5Kya5V28qRjlBARR7c/uWdf26EULrnZnocMJ0POF5Wjj3j+cNe8j9ZXHEaoDg+uebP2vztwzARcErQAyMwNp5VdWJLEShY0CZGYAYBYT2SCIiiFns6GQymZCrcn3PSL0PO0p8hSiAIJKeL5fk7Qs1ljDkM0Xnp1QxmEgQQAkIRDNxApQo1eTbrpk/ruXNJ87kfpkip337vqPgWg3c4hih/u6IoIIDIYthgMPk83Vy5/o/AVbiqIIFLYPZm9f/+vz516plMuNdjgBeh5g4XV77jxl3uvqqxZEXHi64/dPdd5UNL1sAsHY4hAiIlSM8ao4oAACK+LYLUp4Xnk6GVlVEUIxMtl83lpjjLUghTASsZ5CBYiEIGQkDhjH/tezi60wwrCfhqIYicDTkpiZXv6SFR9prF0gMn6X1XzQ/dCeT/eZrSJWIMKRNXtmZkQJOGM59FWqoXyBhD6SAZFCYAdyhWK4/c4Nv73ihGtcJMjhBOj5cMDk+OZLfJ2KbPHBPZ/f3nd3JDkrAYJVoAAgXhdnZiEEIQQk0sBWWABREQCwZSHklI+ehlQiZRlCY/PFUBgZkQUsITABAAHFEiHy7K5nJIlzEUUpYGUFlNJpXX35/Pec1PwiTyfiSNah3qWxxVV7Prd/cLXBgMTSkPTIiARLYDMsFpFqUo0qqjGSBe0VC5HyPPHgtq2/PmfhxZWpKhcJcjgBOsYQKQ+Tgcn+YfN7O6J1kRQth3ETMBEBsIAEAgAqimxoImuMrz1NoDR5njY8HKwRy1YRklIMOpFIpFNpYzhXCCKBwESEBCwcV7g/V2uNAMUSIpWnameVnXnNCR+uTNUOpRSNg7HBQ7u+un9wlUAIEEGcEinD2iuIaK3JF/oKUaY8MSXhp8qSU/OmPWK2VgBBJOq3Hev3P3nugovduehwAnTsTaDIFh7a/YVefiayRctFBCAhEQQckYpMJhNZCYy1hoUoCkNETKaSnvbiCLQm1EiIqEgJgYhFRAL2fW2NIYtiDRERjFg+Mumhr4hIQgSkPY2YWFBzzpmzXjVnyomaPJhAfGJxWdv2w339d0YmQDJAbBGQCXBEg+JpiIZtxCELI2Bl9ZS2LoOkRMRHtGLDaHBdy+rzjrtkTFN9h8MJ0FG6X1w0mVs3vXEg3BFJyDaMry9hRNGCjCTxGlVlVbmgQlRAikFZa4qFsBBExhprrLAREV1KICzGPQmZGRGB0IJGUoCIXJpFQUPdeqTkjolQ/HxpYWtEekBB3KWMuTJdWyUzr1jx8dlTlgPA4bVAwD6576bt/T8OoowFRhrpUQ1SCidx3OQMUREBCCIiYKVf55NiQLGMpMGaEHjDgdVhFPqe705HhxOgYwaLeXjXl3JmTxjlgQQZAEGREgRFnrUQtyskYk0QcQjkkSAgaM/3lVdZicaabL6YGSwAoGGkWDskHpARf0Scw4wIQ70OY/UhAQAEsAyMaMUiCoEQIBEgahBrGUknAKDCq1hYe+6KxhfNqTvZ16kjq4/wto5bN3XfnI8yFg0iWpEh20tsvOwvYuNCEAGxQqLiFMgGbzYbAi3aV6YQMSUsmA7bduu6X1x7yg1umI/DCdAx47Gd396XuafIWUGjRPtewrL1vWQxF5Ulpgj4RZOzXlH5AGgUUGh1IQxzuXyxEJIiKyJg2YIVpUgzIONQZGm0QOAo62Mk2RCRRDieHy+K4ubxgoLGgE8kApXpKjEVJ8+4+sw5L61ON0xyZrwId2U2Prbv8wXIR2KRRoYUjuzGkJkUaxki0pA/6KEHgixMRIIgCAwUQXj3rt9edcK1SVci73ACdAxsH7ab229/pu9XBTugFWjwwOLU9JIZ1efWly2vL1/s6SShZjGByfcW9rQPbmzpf+bp9nU7OrYm/VQiUW4KIYAhUqQVIRqG0QmFclAEZ5z/TwDMAKSGUpxL2cxEmEyUTymb11R2/PypZ8ydsjLplw0rxSTURzoGn3mo5SMZHpRJvQOIlOcl/KGO9FVlNYyCVjyFFpAFlQIR6Cq0be/YvLTpBLcW5nACdLQMFFqeavt2wfYrRR76uqxuZdPbF1e/IEkVgCPjjBUkfF1Wlpgys/qUlU3BxfMzB/r2PLXvwbX7H0Dd7fmmWMiJAassACARSqlVWGl2MiEASFxnURKD0nB3AUBCFiZUCjDlJ9CkZ5adMm/KiYsbz6hKN/g6TYgAiJMeYiogiPhE+7c7C7uERsfQD2cuEWFloiHhlYswAKYS1eXl1X2DnZpUKT7FRKSy2fz6fWuPn3GiOyMdToCOimKU+cuezxdMhxJO65rG1Fknz37H1NTc0ePSRxsPsZpo5Velp1SXTV3SdPL1/O4dnRu2d61uHdzebzoKtn+w0AViTRRo7Q8PQSVCZmEWIiEiRLTWgoBC7elkmV+TVlVVqYZpZQtm1iyZXrmwtrxxlAmFYwwYFkuH7dYccfBo63cPDD4OCEQkZnwFinsMcalRGgGAVgmgoTRHhYZDEvaUBjZAvgUEpmJgtrVsg0MGTDscToCejfMlds2+H7ZlnjKWfV1+dtOn5k+9SJEHRxqXTiPlC6iVd9y0lQunn2itCUwhNPnQ5CITtfftGyj0iDCL7cu3BrZgjVUKU35lebK6LFEFgjVlDTXl03ydSOhUQqc9nVSkmQ0ijbqwcbRdUzSZbQdu7yxsPnXm26vSjRPt4c6uB7a0/9JIJMAgh3PTOB5IJsJsSftl3jRNibjxCBABxMv1JqG9PAMICaJl3LJ/szsdHU6Ajgbpz2/fm7sbgSr8GRct+Hxj1QnwnFZ2Yj1SpFN+edovj02JGXWLJrIRDn1SoDSssKft4cq6FZ5fMe4HWY7+tOuT3QOPJpOVRv5lIueraLLP9Pw4MjkDYZy8rRDH9cKYpaRBzEp5nqfL1HQF3kCuuzJVR0ISr8SBaE9JkQGBWSIbtUUHejM9tRV17qR0/PNwbEOeuK71v/oLrZV67gsXfq2xeuXBdsez3xwiIeEhcdkx8+yH2zkf9F5AAOzfczvtul2r5Ji/Dr91W+e9+/sfyUZ5C0ToiYxTKI+Af+78esfg05FEQ52kcWii4UEPQRp6AYsIIDLQjOrTiNT21jUCDKyigBi0kPY8Gp7Nam2Ut9lV2x6aYD8dDidAhzd+hFv67juQeWx6YumLj7+pvnLJ85TVgjg2fINDjNmjsH9LYt/PyquXIalxjSYR3th922BYGAjyxLUJXTnu99qee3h372+NGAALyAiMwMxiBeMHoBIgK2gtG2ELIgpAKSMQBunmqpMGCt07+p5BJEWJ/kEayIOIn0onCQxYJgDP08z2/m33OAFyOAF69uoDEnJhW/e9aXXcOfM/lUpU/42/lggUB2XNl2zvPmo6e1w3UED68m1tme1BZIHSzWUXpryaQ6wtEbHb226hvGExh4v7lCwfZGuNRIatYVGUWNn48pRX8Zcdtw8EfQDAwqi9fNGwUlopUohgQQiELMgTex4vhAWnQX8VWMIuGNwBfc9AvhUm/nEd/wAxIATsy7X0ZHZcdNxnasvm/q3FR5Aju/pz2P80V8xX1XMmCjMd6NuSCQZAdJ235IxZN+A4OTjYm9+5t//ByEREGE8Kg7GTwoBLXhcLMwEAkyVC8ZVUnlB/zWCx54Fdv1009SQAABSFEpooDMNEKq2wdOILIIIumuyOjm3LmperZzM9lYXbsl3t2c6ufE9Xrje04cihGBLeOFy1pH7hGU0r/8nPeAn6opafyIFblPE59DzlRVGoPJaKxVx3hjf3KtQTpoNGB1aFmZb4iNLUk1J1852C/F0IEADs73zqxOlvrSs/7m/+lRAg3HuP9DxiLCeaLphQpBA3tT4QmLA+vfClSz/jeYlx/a+n9v+PlSKRKEXGxDN9KD4DD/bmSnEfUgoQBD2ExNzqC6tT0/+89We9YbsFRoDIhlaKnuf19g82pssQEYCHFc2CdGQ6jp901GzvYOtNu397194HIlOMs6ImPCYCAPAKdeU/tQCJka0/wt23+4pBKg2K0kpYPOUBCA9s9wa3Qeutsux9OOWUcTfgdd5PHY/G50DoV4IToL8TAcoWepWUz59+wd/+HBPhYl/49JcgHFTa1/WnTRBIgv09Wzb33E0qde2yL0+tmDVBo9Vd+7J/MbbEqEASjc7HtsYMDxpjKzqRQFbKT50243WI9OcdN+dNDlBYhCViCYh0WCjm84HnecUIAEB7KsgXtFfW1tM+yWTon2669cZtPy9gQMAUd04aT4JImATiNml4hOlD/1+LT3afrPsiZfaVlB5BCQja2E5EYYrrCIM+eOrfec4r6LgbxvHceajjFCKCy1n/awuQAGBc+jTmcmXmZXMuPYwoAJbcDHg+6y2FmYOB4hOfkKjXI/HLp0mqAUQOHTbY3rfvtrX/ee6sN54y55ryVC1OECTa0Xt3xEFsoYgwoho3aoZEYRAAQCKRQGBrsTLVcNGsz1Ynp9/08MdaM/sEhgeuCiJaQWFVyAd6VPaTBYmMtPa0D2vZYb7p9zf84pu7fwajLgKe4OXx86VOAPDPGl2yBXzyPzDfDVjq9o0CQowj9iwMdQonEMLdv4CgE45//7i2pLhE0b+JAHUOrH+89avp6pPPbnizTwf5yRXpuokuGBEZKLQ92vbjBOJpTa8pS0x7/owfJDJbb8bOR8AUBSjCaj9ZO+5rFeg3nPdNXydL1RjjOV/GFluLTxkxAIA4KjRcOmVHLmYiSqfTACBiyfM8lVxU+bJ5tWf8efPNq1ruiqz4nhYYDvaQNWRZZbPFZLqMJBSLWmtrrULTXehi4cMbQasOPPW9Hb9APTJFWhAbUnXTklMO+RWG/2kBYEZ54z+p/mz8jiq0D6sPAELTRTh1JVTOhUQtDO6UgS3Sdi9mWkBI4t4tbQ9y+Xw15+oxh7PU4wX5n1fN/yYCtL3zgb/s/UIoXZLd2NW16gXzvlJTNnOURzPhTaEv33rL02/NY7tYs7/v/kvmfmVa9dLnq9pg7yO06+doixqRNPGUE1AlxhvuDlNrmg5vaCBSLurpGNxurEViUjSiQPGowlHRaEQ0UQQA2k8oSi6qfuXJTdevb7nnl2u/FVhjhaOIK/0phBSYgmVrBKwQGFYhCKMoQNLCaCMOOSwZjBPz6Y3fiRSDCAloqy+uP+t9J71harrWnc3jq0/fVtV+H6AAsABZvx5P+ICqXTzyitrlWLsc57ycN96ELbdDqZETwa6fQ/MLQKcPdgIAkHGS1YD/PxLsvMvf9j1AAwAw9XQ86eNHs7VJ+bHGhvduu7F9sK2/kO/ND3SavVu67puczya/OfDVtuL+3mwuZ6LuQtuTB37OYp+HlWaR7s285t8h6qWoCFGIqLDxnMPcpsZLHTpoz3f3PWqjDICwoGUAQgtiwVqwApYAkNEaRlSRtai18r1kovKkqW8/d+a7Htz5k+8/+dHeYp9hEUFPJ6aWzUDE/mJ3EAaGI4NihQwog2QJjLWICoRa+lsia2Ti3d7Yta2t2DH029EFdad/4ZwPOPU5HLt/BxYBWJBFJ+jUzxykPqMvhqVvgRkvHMqnEIoKsPe2sVa2ADLF0xP+SaNpKIA8dASO9ihMpgOOGBv2FrqC0BSNDZmLNiqY/CQ/oBs6QxQDELIN2ORsN4uVY2u+ioAJC1u/E0b70YYKEUkXdKOasgyec3cLgX2DTw71bBzKdZbSgwEYwFpRymeLnkp5OlFbNv+s6R+eU3XuL5/+2L0tP+kY6LbAAsIIKJRUSQDIBZmIJRRh0BY9w8iAzBK7dcw2YnN463DvwH6SkYDFxc1nOYU5HOGA6nxs5K4z56VU3nSYl+OSt1q/gYb0RToeGRsB+qdHUEZN1jvaAzIpF4yFc4Wc8slYBoAwtMyT/WC2pUVqY0xRuBAWj7nzLABm4/dV98NsQkZkRKC0arqQvLLnvMnAZlp7VofCdlTJ12jdNMLa12IAUSmVXFz7khXTrt3Uec9d27/ZU+wKQrTMsWYRAAHXpGoBYKDYFzIGlhg1AbBlLYiA0fCWj3RgQ3tQylxD+RR3SRyOng0gPHyvxebLj3RH1tx4idr9s5IXPLiLgwFKVLkDebAGDQUijjqWMikBQgTSXmAKTNZDYjt68MyRPHBrmQFE2AoCWMBjuxAmbM2+u9Xen5ggL2BEEFWKdUI1XXgUFpUM5tsFiogoPLLqwaPWP5AUi04nqmuTC5ZMfbGI/HTdOwZta74YRIC5okRWQAPGP5foaVWzAKAj2xFaMJZQEQMYhlLhvLAF8eIC18P6p9PL60fbrbsH969oWOwuiQl/yoGtpWVAAZtu0n71kZ2C2iW4e9QdNNfuBGi8I0vHwgCanACJQGTYKmJRSfKE1eRjOMIgxlpgRABUgnAMLSAR4WAgfOY7OsgqYCBERAaWsqmqcvZz3y5iZ2YnKhUFxhLKyKSdWIZEhFKJyimpBXX+ksGg65H9P2zPb2NrmS15gKyDqCCogDFC4ytKqdrKVC0A5IPIWK2UEiQWAAEhUYqKUZGtBfQ0HUGdZ1Y1WgQEICYA+P3+ey+fd4FHx7ityubuHS2Drd2F3nxUVEQnTlu2vH7x37BldWij9R2b2rNdvYV+I7bCLztn5qnTy+uP/M5i1/BNO0rOmsxhUqlaAAYoJaPbQreGhc/9FI3ypm87F/s4GARgStb6DSeiX/6cN2gH99pMqxR7QScpVa+r5zznrdlcmx3cx0GfREVCpapm6ylLYBJZ+EMBoGOQCTVJC4iMYGQFFQWGSWTyk/+YLUu8iI0WSQBZ5FiNIpYwU3jwX1V+L4ElIEsogIAgqenoV4owPqcYEALkTV/IJmLLIow0WoCEQUQKQbg3v3mf2hqYggXLHIEIg4QRFSKTLxqghCASIos0Vc5NeClm3t21KzQRoY4tSI57BCEwW0IkATlSquD08vrjKmdvH9wTH911A5s+8PgXv3jyB5I6cfTHszfo//GO392x//6uYu/BcVyoTFRe2XzRG+a/rG6CQr9L735je74jvjd+ctnbX3bcpUf8uNfc+YG1wbb4OHzk+De+at6Vh75mY8/2n+z5/X1tjwWjSkwAgLZ977jK2Zc3X/TKeVd45B0mBjTiNav0pE4qG6pRyT54mI0fFtPxlGq5FXqe0WIP+sMmkpolOOMF0Hj+5LfG2QO4+9fQ8ZjiIg3NyyupQMVsaL4Iml8Ek7wP2SLsvV1a76fsPhq5lyNpD4Sg4TSY81KonDepTXU+IXddJQiMTKUVQp1venHZ8tdN8ntN9vq0Fg2DYbBxneWkBUiEhYUFrLAIRgflEx+V8QNs7DPf0ZlNBAZAGAlJW1JIPk05k5SP8aePesDQM0cSTe7Jb7cSCqFhsEOP+AgYEcM2H+SKUSYbDERRFEWGmQwoxgRgqqenAJiwoqyxbBnBO3fB5QDQne3oznewsSRQCiSjAWRgsZEhJPQ06CP71e9Y+EqSuBs/AcCD7Y+//J53ru/adDSH04q9ccMPL73rtT/afktPoZ/iNpNDDwAaKORu3n77C+543U2bfhHxOKWbVzSfX6qqJfj9gSMvku7s37cxvwOBmYzScEXz2Kuxp9D/3gc+e8NDH/jDgQcKXGTkgx+wbXDPNzb+70v++Nb1nZsPZ4EPneoIanKXeutBV8izr6y2/bvyj34S1n0Gep4CieIRTSMPMdC7QTZ8xa7+MMeZ2Uc0APfdj49+AFsfQFsEW1qBGopNGsjsgE032VXvk6DvyN9u311w/+tg648ws2/0dojAhAWwRWh9EFa9m5/5NrA5TAxIEASHYxLDgkhCzy5DalICJCBRZIXRGmFLVp7F5HUrYAGEUQSLkVFKH7MkoH2Pmp2/AA4JhASMMYiKhIiUqlsmNhCxIBbFolhgA2KFI2AjfIQ8AES0EobC+TC0gMMCVvpfFgsScSQEhCBoh35CDZTK5DGwOjKolKc9rbSfpLJF9SsAYEfXtoBDpXV8pwBkwTj+g2IsCgmLkSNXS1w0/YyL6s8YGnBGALA3aH31ox9886Of2NC35TkcyPZc1zUPvPd/dv56jJUxcpYIWGYRMWRu2v7z1zz0of5gcMxrrpv9Ii2lFcI1A5v25VoP/6G/aflzpEx87p4/5ZSqgzvGbRrYee2D7/5z/+pI8bhnadwVBQBaw67XP/qxP+/5y4Q3qmdZgMJtjw1dVAyoVGXzwdHX0YbyeOy+hVa/NzX4pILi6EK/Q04ypv4N+OjbopYHjqA+e+7Wm76JnDNBAMxAdLAKgBADMuV2yWMfFFM43E1743dw03fEZIbeS8M7I2C1R6AIAAQJ998tqz8kNphYg3j0IaEhj+zZrhNOzgUDFCQAMgYMkFEQGTvJD4gEQosigoKep4tBEUSQjlaDpH0drPu0Jgtcsv18pdkCAUpUpDWfxdQ08VKMVoABiQUYDAOCSuZsunLlB/xU9bhSKMKRLQ6EfcWQlZewo1ad7HADfAGLJNYiMAko0lbIWogsdHVnGRIEBIYFCEAWzVhRlaq1bJ/pWAeegogZmIdyarXyORKOkK0wCWlvMvG1/zz9g295+NNrujcAgMW4pgAe7Vq/unP9WXUnvnPJDYtr503ySBZN8I5HPrOjsAeURmErAmDLVXpB5axZFTN99HZl92wf2DOIOUYREAbZ3L/z7X/51P9d8CVfjbgn9em6U6uWPZJbH5sZt+2951+X/Mthbmm37btHEVlARfKymQf5a3syB97wyMeyURYJWEijEohmpKbMqZw1q6yxNde5K9uyO9cOBARKrBXmj6/5r8pE+WnTVx76QYCAwpO819q21X73akAEZAHA2hWHFsfHqdLj/kp84H7c+qPSxRlP/0XE1Awoa4TUNCh2Qq4VcgdASjVoIAKbboy8tDft1InMMdz2fwhGhJWvBADIw6bzxasABOl7Bvo3De0SQ7FNtv4Ql759/K+28SZquTPWF4iniGOKKmdyqp5UQjK7sXAATBFQgaAgwMBO+9TnvVM/NUZqBYCRVWyDyzh2zLOKFU5uGZ65WIzQY/DIiLWCPOmPYInXegiFlY2rl45SfZijrNn2VbadZMLRWjZyUmR3ycBuACZgRoiDOAQg5FnPTy79aCJdcxi5NRIYLApgGBlN414/BCCMoAQYSAQFCCHR1tHDkGDQhIwChJRMJJY3nJLy08Uov7Z9dRCGB6mekBERiyayRAlmmJqaqpU+4k+oUH3rjI99Z+PPfrHnDit2OC2bBFb1rHlo1ZPn1J/8rkU3LK46sgx9esO3txX2DB06qvbLPrTszZfPHFtX/EDrY//xzHc6g974Frc5u+PGLf/3/qVvGv2ay2ad/8jmtbFp9oeW+w8jQI+1rh20ObDg+X4KvbOnnzT8p6zJv3X1p7JRfsiq59NqV3zyhLfPqDioiGdftu3j6/7r6b6tlq0iCjH80Nqv/K7mOzXJqnHNDQBSEB5BfbrWqw1fBIjie4NFn+ZcN4HbNp5dk92Lz3x39I/L9efRkjdDoubgwGU22Poz3XqXgiIAKCjyxi9zzffH9fVwy/c050q+Fvp25ksS818GXhqHbDDu3cDPfAWCTmJCAdj/B5h1OZTPGruhvXfQ/tsA49UrBpWUBa9Xsy6DoWB7aa7m3j/glh8ARHFkUvWt5R030/xXTxSKlvqT6cRPjXk+/Wwu5kndFoiU55WL1qFwwDYCy5N284SRbXyXEmOjo6zHFhE2Ye7prxc61loToB6xxkc/QKyVkDlkKYoU0YZgjbAwszfr2ooFLzly3EoYkXztseDwQxhjXxJY4ocVZUUVjUTgdfTmiwYFGdAYBIsQcYAEp825gIX78j2BFEirQ5Mwi2FgGGL/sdIvo8m5qEmdeN+K1916yXcvaTydgIlJc0mFFdMj7Wuuv//dH3j0C63ZzsNsZFvvrjtb7gMhBgKA6en6m8/72qHqAwDnN57+s3O+1pxsIImdE7p51137M20H+Yazz/YxwUiM1FrsWt85YVjq9633xwNumfnyGeePrn378Y7ftuU6SICACfjqmRfcdM6nx6gPAMwsn/6js79wdsNJpFUcFeoxma8/838TrxmzL9mJ16pyxY3/K2v+XSCIjX0QMlPOUVOWH7L8M3yWHXIJbPkRcjgsTzjn5WrlhzAx9laHfnny+DfzgtcOx03IFGXrj8YJYw/skZ51Q2YXyYLXJxffgN5BFzjVLtenfR2SU4fNM9n1y7HfzhRh249LzhEy6hSd8vlYfcbu26zL4bTPAiKCQTDEjLt/y/nOg2/QQiMhraNlskFohX5khQUDZsP8LEopLFgGtsQWEJUCHwGf80I8Apjdt3ktf0z5PuFEdyJgBCEBwnhhnoiUUqA01c73lr75iIUgLGLYGGN4OI1yNFxK1RdBFjSgUKf7c2F/NuCSRcnxPqTSqTNnXTatcqZC1Tq4vz/fh4f0rgaAYrEohCyCBMTPzjxsTNd/5dQP/+qcb5xRu3y0JRhHju/pePSqe9/+7V0/4QnOlf/bOHyyUrku/+8z/qO5bPpEnzUtNeW/z/hsuZeOrS3D8rOtdx506/NS504f6X9y5+4Hx3f6bPDnzlWKFJJ4ll7afMlof/CnO0eqH1ZWLv7Mie8d1x7sKw589KlvPNj2ONBIPOjOloe68j0H/5Z2OE6hJAQA2P5TWf1v8tj74dEPwqMflNX/xqveJve/wt9/S2ySlM4pvza57E2HWL5DciZjLxyb2Q9djwPEEWKS5qvwuNce5ofz514FM6+It4MC1HoPBL1jwxcda0fO/Iq5/twrxt9Woo6Oe+tIhKr7ybH7tudPYPIjC2fHfwCqxu/bZTuelA1fBbE4NPqFQ1PYfc8EYSD6KwkQIVngKIqsgIAG9JjtpD/AJ9ZB0VpLpgjI3tEEoU3vFtz1YxsWbFhEKTXS5PEeQApIIXgIHhAaQlUzh07+HPlVR9oBtGKKURYAAmOskeFHPIbMWmYWVNoKRAYs6v4C9w4ETJ4BFBGtydpIBGqT064/4e3xx23oWZcP89ZYPjjMTEA2jAhYwDKEM6ub6Nl38l9YO/d75/7Ht8/81Pyq2RaEsWSkMJAV892NP3/J42/JHVI9Y8U+1LvGDvVTe+Wcy2ceqVy+uXz6tbNfNKTE9vdt940x6F7cfCGy9UGB6Ls7V427Xnbn/gejMBKOROw8r3FR7UgLzfv2rMpGuaEjo//jpH87VH0iG/34md9cdfeb/tj2gNIUsRGEyNoVNQt+et6Xp6brxvG/hkL+ACCFFujfjH1boH+b9G+T/u2QbQERFAIYKvLSKVz5IfQrJzCm4sdBO2Y6140KbJSpha8/8t10wb+A0sMnHRwYe52b/p0jL2665HBXWf0ZosvjmDcGg5w5cNCf998RR51BCKadh/XjxJtspqWw+jO87otS6AQgAQ1AoFNq0avSi68dc8YSDPelob+GAAkCiBJWHGmJvDAAmnQZvQ49ExKAJ+yB+AlKHzoUcJLOlwQDwWOf4OwBIktEShFqGlkLOPjBsR2EJEgRapWslyUfTNQsPnIESsCyDaKCCIrgmFX8kdiNYRYlOtGfiXr6CiFrJk8IraAxrD0vmUidP/uq2nSpRcbTHeuYeczligLIXCiEbMGYEACqyqqes0CfWX/iry+48WsrPzLLbxQZLmEDz+o9bW2vf+SjuYOXSNb1bh6Ukip5lq6f6AZ7MK+YdZlnSyGnfs5uG9w7+q/nNJwyBSvZhATQZ/P3tD566Bb+sPfB4XrOq2YflLD+UMvjpZo7gPMaTp1ZMVYQf7f3T1fe+4av7/zBgGRE2Ngw0sWq6sS3zv7YT8/56qJDQ+8IfIjNiRw7WYBDqTRYymEhhmSx9jQ56ztQs/TZ3Rr7doxYBA1ngfIncW2Uc8N5I4ZJ/9hkApvvGvnHlBWHFTOi6mUj1vdoARrYportceDSYFLmv2rs+R70wYYvqFVvSfatHg6TWUyFs66T834A866bKBNKjkE8dxI6gojAMKt6WU1Yj9oiQjqRrkrUT042YL6/2K+KQAkS+IgN5cepZ5+2KyLAUbThxrQ9UORQEGxsWwMrpUetUtkx0WhGYFCo08UZ15dNP2MyxwsRgSU0ecNx243xXTwgLUI9A8VMjoGSyvMA2BjraV8siqg6Pe3ShS9DQATMh7kD3fuYhQ9ZZTcGCT1UGgG10rOnz7VsFT33VM2LZ515wczTfrbzDzdt/lUmymBcvi2wpW/HR5766o2njTRP2BlnMwoB8LLUnNrkpAoOppVNne83b7R74/jF1oE9C0clnSPgNXMu/d7OnylQBHBnywMvmnHOGNfpyZ7NJBRb1i+af1C8aWvfbo4ToRDOnnZQX9QNXVu+uOGmjbmtjAwEbIkEq6jyHSuuv67pCproVirEoBUgMg/10lAAGiTOKAVEwHhBGhVUzZO51ycbjjgge5w1NZvrGEoOZpw62RHbXHcqtd4PwCAE2QOHmCXBaKvqCNsqxbAJEDjoH3m+f9vw9KcgNcsrnzFybGwx2nW72vtrZTIgpfueIED9qbToTTrdMNEKpuBQJqA8DwIkMvY68bT/nos+L8BYaswlmnw7CS8MAW44+d12JBNUCIjFlq5qBBEgoiMu+iBAuPtB6HoEdNIDFMJ4pROB2TIKADIJWw4AeER9SgdU2emXlh3/mslXxrNwZA2LFWGOq38BBAgJS2XrQPnQDuQKhaICShoGhRaAtfZMyL6XmF7e/PkX3lRbNiU+Yvdsvmsg2x+bP8MDquPzNTuYB9GMpATDgp1ZN/Po/WqF6ob5V10x87x3rPv40x3bPatjUf5L22Nbe3YurCuZCYNRpnTFAExLPouGHjPLGjcOGT4DYWbMXy+bdfH3dv8cBFDgsa41mTBbMapW4LYdI17bKVNXjFm06ggHIBmnpcC0dKnOtiXX/p8bv39/++MkI3eQlE69ad61rz3upYnD2hoWBICktELoI0A07UKbXogwFIlUPiSrKTVFVc8B8tSRzsOJTaACDGXHYHKyFcJY1jjSWCrMjb0SbTiSVnNEu5i82KwDAY4yoxbd+nF4MSlZM3KVt9wOO3/phYMIDEgAYtCPqld6i27QVbP/akU3erzLzw4U+hmGMhql9PVFRECGihvyh/fYxtoUo2KvuWhwaFI6AggiVSbrjnDPRyzotJpzQygMgjK09I7CRMjWaDTFTf/tISNHKAzICpVhAeVRzSK99K34rCoVBGKBRwIbMhIiKCFlmECIkfIF096TA0oBEIEQKRACBLaoKJlUldcsfcPU8obOwfapFQ2WzcP77jcQMpZKeIUBRBARkQYH8tZqC9YYmVnR3Fw382jMn9HU+FU3n3rjW9Z+6Im9m2KrjYBvfuY3/3Heh0r3Qw4RPABAMr5+FmZpXboGsoiCJJKPxp4Js6tmLKpauL1/jyCEYu/a9dC1iy4btf51r0IBBQB45ayLDg5Ohzk/IgAUsAg++RmT+9bWm3+x649WLA7dwjxUV8+69F8X3VDrH9lkIyKJz12EIpWnALxpJ3vTTn6uq7ATXpjWhqU4CzCSP8ntUbJGRIBAEJALOK61PdkmsDgm9D5sm5Uq14F9DAHA9myQzd+lzB5EBRBXaTJWNsG8N6UaTp3UQbAKkBkB8WjLqvQY2ydbzPx49Xe29KxhDOK1Lox/RQBhiS9MLLkpltRQh12Q+LJBtkjiKSp5P/HFFpe3iYyuzFKgABFRCNUJ9edfc+K7Dr+jlbPORDhz9GIEDu81gO3dLlu+P9zLgoRIkVjUqQZY8Qk1YQsYGf+uFhvscY06gI0bcFo0jJGVwYGBQmAteMKS9DxGICAWtEyKvKSueNeZnzht1jnrW57a1r7xmpNv2Nu3a3f/ZqD4xs8AREqZKBLBKAyiiBkYNSqtz19ynqe8Y3h7QcDPLvngFQfePJzivGlgxyiFqh4JFNjBZxM4JACKV8oDHidZ9srmC7/W/4O4YOKP+x4YFqBn+rftLOwjIACuwPKLG88Y/a6k8itU2SAbQEHgwSizK7v/J7tvo9hGEAKAC6ee/r7jX998cGyoK9/ziWdunJGob0w31CenXNp09nB1brxkHreYtKifvzs5+uUSDPkNUWay78LS3RQRAaLxA7TIk460EByyMlzKA0AGIDK9AEC7b4FsiwBhvJbnV8r8V+HMF+qDPybaeZuX3SypekhOxZqlUDHnUJ07+gZJeszh+OPGW/+49Rbls7EhEcEhTUvjJ4cSzEv/JQBCFWcHELD2iKSUhI6gxm1+WjIxBAiwq39nXV3z+bOuPowvNvrtOOYvIrL/QUVFK8zABMAC1oJOVPDCdyamHD/RNvNBV1dmQ2RMQ+XJFekRs7k7sz8X5ATIMAoQAwEqizof2sFs3rIywAkf0qmkoD+YKVgUQh/IK9M1r17xprPmXvhM67pP/PF9n7nsa4j41IHH+gs9cHA7ISKNqHszA0YsAoGgRrr65KuO+YVRn5iysm7pI13rAYCY9tiu0EZxBvP0dMPQ70i7im3PyhBQHDe655DHye67qvmir23+P2YDwBtym/Zn22aUTweA2/fdHxdrAMILp511qPc0R09fH2YALAC35NounnbmlY3n37n/ARBeXrPwg0vfvKJ2nML0tR2bVrWvJQEQqvYrDi4rE47d3ufZqaBkFQxLcb4N6lZMztQGwFKUnIiAIyDvGO9ZcnopaYAYip0AgovfDI+8C8IAtA+zX4zzX45qHP9AHbgT8nviyDoufOOwAAHIcNYrHvN2HBs61rC2kQ2IIE4eIcDRaT8YCSlCFBFRCocNvnhhvpShZAmQiRmQlfLjagal9ejF+zhpLh6orsDes++XF8x6yXOyigVsIHvv4igcDj4LKuWno8bLkrMuiUeAHRrnOtD3yFOt3+4a2NZQvWx69amjX1Y0OWFkAMNCWkXGBmEUGCkGlkirhFdTXalQAFVnbz40rH0flNeQnPHusz58woyT79x462+f/tmCuuMWTVsmIg/vvt8wy6iMbWsMUQJEF/JFEhIEZKnwypY1Py/dshtSU4aCzZD3ixnO1alqAJiTnuFZihQDwIGwa09m/+yKGcfkE6v8inPrTr6v6zEAiBT/as8f3rfsjVb4rtaRBoOXzR4n3XFOeeP63i2xDftI55rXzXvZ+5a8btvg3nfMe8Vhej/et/+xWH0A4MQpy8YsghGwCOLz3EOeUnXYX0qNke612PzCyQYcAUREPW8CyeVzGJNaiiAEURb6N0H10qD5GraQnH85JirHf1tmF+X3lDLCIQl1p4w4L6iQCYgBAEzxaI/bmH+XJypMZIGBLcdF22IZR6UDM7JhE1lrxFhhC8aItWyNWBEWQlKlZDpGYCAjkSgRJUYiVIgKhUQIAeKuHoJaVELNoDnP0SsXNv07PWhXxMigQKGg76eCqhWpkz5CXno89eGB3N77tn2wJ7s1mUpNT52eTtSMflkYhMaYKLIAKohMGDEpSif8qdUV9TXlU8oSaIsW7GC+GEUAmBBWM9Ozv/iiby6bvuKXa378rdVfaund9a/nfSihE2v3P7m5fSuhLzLSaEx7CbZSyIf5fARCaCCJyZVNJ6aT6edjLvO2/l3ERAIWrE0Var1S6GR25Yz5XuPQZUC/3P3HSfsbEocAGCdciH1x00UABOKz+HccWCUgD3U80R+V6uynp6ae0LDk0HddOOu0YSf6qfaNGwd2NCTrfnf+Nw+jPgeyHQ/0PIaIbCJhc0njQZPghBGBlXreB6Il6k9EUCggLNL5mISZSR9MjtNqxD4/ylgxI6haOBSfIth1CwAkFr0ytfSVE6oPgOz5nSCBaAAKyxdRRfMo/UkD6DgbEws9x1KAROSc2ReVqUqNPmGSwY8fSMnhB4iPkED0FCaFlVgPwUNKDP+XQQsrBg2iERWCh7HwoIoLGABIGJFFIynyEP0piTlXLXnTc7v2EIkHNgsU4rGliJrIs/70xPIPII2/xodIWzt+F0EBEZNYP2/qZcPqEyfY7e5+mlCJiDVMpDxPa6W0JgRmE4opKkAUL5czAIkqf+qrV7zlS1d8ryfX/Zk/ffgHa74dBsXlTafMmTI/stEv1v1E+dpaGZ07a6JIKb+vb5DAA0YiDQLLm5c9H+ffUx1PbxnYVcrEY1maWjDaz71s1kgazm/33rOjb+9ktmmJGcdPCB7m3BmnlOvKOA+rI9+zumvDbS33GmPjPTm0+UbM2TNPrkqUDSX7wSfXf8sc9roUkU+uvTGAyEYhKar3ai5tOgf+FngNK0ElS4KCEm65eXJBOok7qzyvzabV9HNK6gMEXU+YzqeO8Pv2bpbWe4dTLtXBfYswGYcOCQUg3z6me8lRCRAinj73nM9d/u2FVSvzGents109YW+/7eqNhh+9vaavLxzo5/4BMzAIg1nJZimflWKRigUuFLmQs7mCLeRsIZBiIIWiKRR4+BEEGARoIrZRBBaTXH5h8/XvO/d/GqvnPCfvQwDR9mwIw0grzWGEAuQnZcEbvJoFE8WSwii3ve9uFkz6FSc3frC6vHn0XxExF/QM9aIHawybiI21UVRKAAYi9PJZq7BsWd2p33zJj6454dU/e/J/P3rXu/6y54HIWi9RdtH8yyzbnT3bdmS2hGFxyFcd8T4LhXwuW4zNQELwtbdi9nJ7rJolDfFo69qPrvm6RQsYEhgkvKr6oLrzyxdclPSSse9ctNFbHvn09r49h9ngrv4WEQm0Gb57ywSXjib9ohlnl0oNNP98920PtT6qCeK6rWtmv3Cid1096xIqyZzZOrDjw+u+MdEIAwH53Jpvr+vdIJY97QPADXNerMY29EP560zwIg+aLynVwYvotnuDjT8+7JnLPLi3lDArx6y0anzrrPFMpGR87gkybPyaHdg1ocuWaeG1XwSIU3wZvcpE89kH/Ua18wElXmsGjGTDlw/bA+RZxoAUqYXTlr71nA+84rvXdg72RFE0ZlFYE5BCIlCKRCwiKk2aQGssSyURBcEoVXqZJvBGpVZojzSpeI4wsUpo76QZF77mjI+y8LiO0pFzpgUAQfdvsZZIgUIfvbSdea2ee9W4WT8iEkSZh7Z/xjLPqz9nUe0106pPHvMRkQn39mw0YIWQSFtr4vVyQmILSiVZMKGmLp112mnNF1en6+7acsf9O+7siToDa0QrsNKYnnnm3HMVqbu23pELMkRgDsqZImEc6M8aIyCgQIlgZapy+dzjJ6M+j+xf88TgM4feSIfXBgVg0OQ6C927Bve35NpkpEUA1+rq6xYc1HWwLlXzuWXv+fCTX4mIGaHT9L/y0Q+/4/iXvbb5mjELAq25zp/v+cNPd9/25OW/sUPN7w6/qy9tvOjWHffEMaZ72x7xtcehJYKTqpZMS02d6F3vXPTqxw9s2JbfzQgocOfu+7py3Z8/8T1NB+fFtWY7vrLp+w+0P4YAQohIC6qa/2Xpy8aN844Zpf18cdxruWcjDW4DBAWh2nML5LfD0rdD+uDyOrHS8Qhu/zVNWQFzrx7qkR43bzmqJc+JJAz9SrPs/bLhKwqKgKxMNzz5QbvoWtX08oM8aDFw4M+09UcYZePf10ASl75bHzQZDVCnoGYp9G6Icw4oswUefiPMfSVMOxsm0XL7CAIUr90q8sv88qQ/6GlSCpTWikh7SiulNKEYRPA8jShIFOfaegpTvqc0oYRKk0JBtAqFlBq+7ceha8AIAFALKav88acD9mcPdA4+01R7SlkpdQoncsBsdi8P7PJJosiKlwjLFiUXvhYnfDn0Z3crO+XFy/6nLDHVU6kxW2bhgUL3AHewYoknehAyMzF7yk8mfDBlZ8+//pQZl3RmO361/ubdg7syxX5jQxHLnrIGEpj+wAWfqExVtfTu/dPWO0IbMhhAIFLWitLKGkb0BvpzABqAGFEJXbzogtryWqIjn4KPt677Ydut49yAh2Y/DFezkoAqLSAQCWlFnz3lfSkvOeaNF88887r2y36y/4+IzAiByX/56f/5790/eeGU8+q5wbPasn2i6+k1uS0hRQriXjg89HGlWOS4LJuyYGGiaZPZTawByBogIhD74hkXHeYL+sr78ukfuPb+9xjD5KEo82Tvhkv//KY5iabF6blzy2d4ROt7Nj0y8HSkDMdzbRVUJMq+cfrHDz2RSt1aWIYrPI4GGVHl8b42aVrxfnrs/WIyABYJoHst/OVNtnalrV5uwRMACDqx66FE2ItMMPWEUghI5DCJhs8p2Xjse/T004OeF9K+3yAwKg1RFjZ+L9j1XSlbDIkTyK9VppM67sdiFmBouURA5l7nNZwyzuYXvFIe3yDDLlTQJ5u/A5u/YyFZxOpo+mW1x1/z3AVIQGrKaubOmB925C1bUnH2MyMiUVxlRYhCCuPmRCKMiGxZRAhYAJCtkCBYAcGR+RmMBKUqW2TBON1sfLqy29b0fu3JNm9l0xsXTL1MT5jtKkHLrQkFQTFkIL+6iVa8j5LVEyc947TaFdNqV8T53OPqWltmNysTsTXIgoACiMrXyaayJdPL59eWzxwshB/5wzv6wqxhG9kQSQhFEK01Sb/swpmXLmpYHJjgxlX/WTTFuCEWAFsrsUOndVlH6yCRx5aISKtEyqq3XvSWyajPZLzpQzplEQBXeuWfO+n9ZzeMn4D3gVPfWOaV/WDHb0JtUEAbP9/Hv+27n0ea3QEqJIYx3hAdyaq4fNb5m3buLu2GACAnlL5k1rmHf9esysYfnf35j665ccvgDvIwrlTYXdy/J2iDvqE596pUAS8A9anq75/+uRnpaUdabjoGjlZ8Skz45/ImPuPr/PgnVdAqxLH7p3qeot6nPCHBOAWBS9uZxALZs1Odw/4ciaWvC3Ra7f01BllFRFHCF4L8XpAWlGF7tpTZZzBpZ708cdx142+r9niefwPuHNtCREFYJp0FeRY5ZXri2DwLWAEbp+wCighbZgVIigiBrUWKcwsJQCyzZWbwEMAKKuE4fcrGAo4cW8qlb4igZLSFDGPMkIp0fTHK5sPME11fCczgCTP+ZQI/OjL77gEOwU+AXynLPulNWTaZlA/E8acDIeD2jrWRZVAqMhERoVgF6PteT9DWHbT1thR7cjYfirAiJBb2lAbLBKBFVaiKlx5/jRW7vnXt013r4zuRxKN+BRAUgMrnCoODg8xEhAhkw+ichec2T50xbrrA+OclHnpZwERtPCpU6rLm896++NXVfuVhtvn2la9sLKv76tYfDnKORlkKJBCvIBkxqChJiUOO2+H2+aoFl9y4++aAiwDEQAT04pkvSHupI37HxXXzf3HhV7688X9/ued2GRJXQQNxmyAALk2H5HPqT/riSR+s8ioOv9I0epT2UZlAcXmZTKi9VDYNz/gSbPgS9G0YMV7iWBhTbF2UirO8sniTw/YPTmRzTcp2KyXWTdglA1Vi0fW24ST19Jch217aI4S4Az+O/givDJa9PzHttMMFtudfB+VNsv0nkDu4hE00HGVHREWU0H6557NlAI4rwpEoNoKsMUhenCesh5I4EYjZxk6soEYwDKTAxu14SuIYp2LErdSltAKg0BtXBWpSs8DWG8z1ZgZ30l2LGq5IejVjv5iIHdyXDrqLLNrzccY1fsOJR3V2iYQ22DuwuRiFBExaiWUPNUcyMJARDCxSNuR8pBg1g7ECylehjRQgifLJv2rhSxdOXRzZ8Pcbf23ZoFjGOPpDRBqEEFVPd7s1PNRA1yYTqYuPPw8mnlI/hmSUmJopH+/WPHSj04maZOWUdO1xtXOWTj3ujBkn+ZPLrr76uBdcMOuM7++45cctd9gwVKOuMM/SwsT8i2acce2SKxRSRTE5vA9lweFqXCoT5Z89/t0fX/+NAgYgdHzlwvcsecNkQ6fK/8Tyt72y+UU/3Pzr+zpW5zDO82NGim3wEyqWvO24V5zReLgfPUsNhnLxun4ENeVHpz8FnBKoGfHWEMuSEylBsgZO/WLU9XS041f+4MY48gJCpXl+SmztydD8Yj11pQT9/Wrk3lN98M0zRw3AJdukGtThz48CVEc0VEiIFRPtm6pZCOf8d7DnHtv6kMptVRLK0Bocox/4M3D6mYkFV42J+4zPtLNx2tlhx9qoY43p28HBwJCRWDX5iaA47uI3s/3Mb99/x467mQ0SSrwUioyICggRS5FpZBqasI4ICqWyqhzYILFCiyQKJA45xzer0mIQMgpo1MDqkgU3XH/iR8a9+e/rWf/bze/JFXpSybKXLP7anClnHCoYwc7feeu/IGKCuhPSp38NktVHk/HKwt25thsffkfbwHaLASOLCFnwyI8si0oUjNeTKRpQjBRHQ0pOClOCEsfXr/zsZV9NeMk/brnt249+LYjywnEOFTACMSmVHBzId3X1sQVrAEEldLK5Ytov3/nz+ur6o3bBjhlG7M5MS0uudWdmX5VfMa+8eV75zNpk9XPe4P5M+93tq2ZXNF047bTnNlwsYrN9cO+u7L6WXHu1XzWrbPqK2kVlOgV/90gwgNk9kNsn0aCUzcay6Vg+E57PopBntW+Q3SmZfcgBJqZy5YLR+T5/HcY/EESqecoc2AEgxGzjmhUQEjhcWUrcCocUqNgLY7Y0HANCQGQBQojNVzYixtSnZk50859Zt+LU6W95aNc3Bwazj+++tbnmZEWjJmrEQZzeJyNrdaIxecrnIFVztP49Unt2b3d2v43tPkCKTW4kIIosDxZCIB+QgC3jiNGhyE97ldccf33KT7cPtv7P498ITQGV2OGmAkIAZA339WaElXAcPEXF8PpzXtNQ04CIfz/XjEa1sHL2wsrZF08/85hscEbFtDdUvOxotuCRXlI9b0n1PPhHAxNVkFgBdSuO8UTgY7ZvJ2LdiQcFEf+60ES2wKKmlcIYrx3EjZBFEIRKHUnjhJiRYBkLKQAITSQiVoZizkBxh+BSH10RHhrhAIhJL1lT1nAYh+iUWS+5fPGnGiuW7+199Ok9d4wNGJnQ9m8NBWX5uyndcEwOx4Z9DxdMTthaYbQkTIA6FBBU+aIJTSSEJCXFZGQSVoKAeFbzuSc0nxTZ6Ja1NxeiHHFpqXp4aAkzd3f3GQMgWgQQSSm9oH7BtWe+HByOf1b0BOEsXDh9iWIdQai0zxLFsgMEFkABCytARiHAUoiQEAXIGKs9pVEECcRYECj10xEQZAJkRgIUIMHKiprqVD0L03hhM0T0dGJZ08WLp5/f2r9jU99fCmE25VeUjAVEyHUB53nh6/TsS45JrWGmMLB6152g0BgDAiwCQuQpywKoChGTSjMqI5GwkCISQEACNb/muH+78KNEtKVt45933AHALBEbEgIGikcmmUgymYINNSKBVdpTCvDas16WTqbdWej4p2V8CwgR68rrLl7yAl97xgRgEYWEFAOJSGksDyoGsYJxE2KJa1Et2NASaoB4EZ7ixu5x4+HYuIpNA61JgV+VOkLrJkRUpJtrF106/03pROVBLtieh8O6cyqXv/WYqI+IPLDt1wXotyYSQiEEElBiESKBwXwEKsVIFoSVgIqnZJBGry5V99bT3ikge3p2fv7+j2dsPrJskBgBUZMQogbR7Z2DUaSteGwRrEKrF0w57pLjL5a/Spquw/GPJEAxV654iYlMKbl8KM9SBGV4NrxQabAnlxYWmTHuux5PrxaWOOWhtAxp45k2gKAMS01qRk26no7UqDAuj8BDmnAMdu9JLXotHovW/IajgULXU213FUyeedjHRCvISEUDRQOhAYHRAXWtyE94yRcvfvnyppWRjX7wxHfbcgcYrAUe7gEuggiJ9s7+XD40TKXGC6i0Ve+/9L1NVY34dxcZcDj+DgRIRObXL1hYvxBAxcPnAZnADL+LR2vQqJAQM5sobhlLACQ8pFZQuvzi0BLpxEmzX/Sc5cNGgT71dX75dHiuWxg2PSyb3sKeB/b85ED/Tq0ICYXRSvxQxcAaw/H3Kh0yIQAQ5pTnXzj7RdeuvEGh+suue9e2PxFxyGKH63qYLWGitzvT35tnBhGLwgTik3fV8isuOuGCv6vYs8Px9xIDGvLCppw776Lt3TsitDAq00REhOPkf6Sh1TGOZ9UjcLwWRhoAQSELq5JmcUmPEEUwibVnz7ycnqt8KC+R0s968UhEBBgBEQkBLZuezI41rT86EK5fv+uAQQ6MAWAgFc/qE9D5YlFAswxFuQBEAEUpVHNqFr7+tLcrpG0dm7720GdCskyIpbIvAiEEL5stdnT0A/giJm4ZicLNUxrfdtmbmFkp5U5BhxOgCbli5dW/Xf+bjkKXZREEIkRQAGCtRUalaZQGiWVBAkQIipFW2teJKAw8XwtzPBcZgBGVIlTknTnzspRXdjS7fhj1kXgmOKJIqSPwkLETBaZ/MGzrMDu7gp2dnY9b2xdgsaW7fyCXi9AjFADFQgKovbJ8IbCiBBQiKU3CgoCESpNeUH3c+8/9RFWqunOw/ZurvhxxxCKATEqZyBISWwoDs29vK0FakyciCKwAPVL/ctYr5zXOdeaPw6EPf4U31c14z8Xv/9QfP56LDAsAIJX6qyoAZiukoKRB8TgNFgJComIxVFop5TEbIhIWQBFGQUH0qnTdeXOuHnf9K05KnHxdwui3ski8QYRSaCWIsvmgNxe19ud292Z2d+W2qFSBKduX6SQCFokAMxb2tbcbLGfkoQC5b4wUiqYYgoAPpZQCiLfsKTW3ZsGHz/3MzJrZls23Vn1lW+8Wi1KS4VK3eR8Aujp7hBVpNNZg3Kla0wsWX/Sq817pzjyH48gWkIhcsOTiB7c/cOfWPzFHDAIIJCDCIAgkbIEUMJR6SooIM3PESuPgQLa8PE06HokRJyIaYsXWntV8eWPNnHHUByQw2c7+TZrSU6sWeDo5Ga8q/tjQDmairv6ws5v39oetJpMpDnRnw31Mg8qznkbDUYSGs2CRFYCNpw16yX0HOoxK2aHaPxKw1iqV7BvMokqX6svjyl8SrbChoumNJ75zZu2cfJj/4RPfXdP1WACRYLy6F9eeYCEfHmjpNQYIfWYBEIWSTKQXTl3wsZd9xNe+M38cjiMLECImdOJt573zkR1PDMCA4SKCMCEJAbBwrEFMSokIUhzmicsvUASKxTBd5jNbhWAFkYFIL6k/7fLlbxo3/Gw5WtXyny1df0onyurazzhv0ScnqoMX4XgLxWhwZ/eD+/tXZc0eC/2RDBajwEjc/QPRR8tWjCHGuPu356eLRWMVkfbDwHR19eeKzOINFXOSQS2g8rmAMMWMUKqQYETytZ5fveg9Z39kTu18BLx70x13bvldQIHAUMGXEJAWlva2nnj6naAIWCIEJijwx6/6UGPtdKc+DsekBCi+jGdOmfnD1/zg/b/+t52D21kMAQrG86FNbBsIsyVAEIpnoGBszZCNDIWYTCgLgsaUeWVzqhe94dR/L0tUHGr7FMzAn3Z+sjv3KHNBwrBW+WqimbBis8X2zsGt27vv2z3wgNUFoFBMgERirFJ+7BsO9zNAJIHSNMQwymlPC/khqJ5CcKAnw5TwyAdrGIlBR0zFEEKjRUgrP7CBpzxRXkr5x9Uuef95n2iomG7ZPrZv1X8/fqOhIIoKSmkAYmZBLyxIW2t3IW+1ItRKmAURQZd55V94yb+fufh0pz4Ox7MQoFiD5jTM+ezVn/vELR/bldkJwiwsApoIAASY44bPgExAw50ukAAolyta1uWppO+np6Vmve2sz9RXNo31oRBYzD37v7i392GfTFKnqv2Zp817y6HKA4CDhban239+IP9gT34PKQkoQgARK2QQUYiBlAgL4HDTLMDSWF4GEpDIWKukdzCzv2PAiFag2TIjMVDEVLQSmLh3tbYWCLRCItCvWv76q4+/LqGTCPiXXQ98+4mvWc+KMIknDJ7nGcYw5Pa23qBoPe1HVsQaUKQooSL1pnNfd+WpL3InnMNxkLZMvhV8HF597//961/2PWARRFhTaVA0ACAhoiANN1clEEKURFLZMEgl/JNnnfHBC75QWz62F6exUS7qvm/f11tzq0yhUJlIVanpp8744IwpY4Y0SmTzO7vufGzvt4weMBLlw6KgEOnS3DESAGA2Sim2gADEQ5HjoR5vDGQAQacPdA109+UEE6FFjIdckTKWitaGEUUWSJKaPATlEU4rb3zvOR9Z1rhSQERkW+fmD9z+tjznbSkrCpRKsoUolP3724Oi1SpphdiysdbTvsb0VQtf8O23fsnZPg7HcxegWINyhdw9T9998+oft2T2IltGscCCLCBIgihIEI/iJtQASMKVyfJXnPSaF5/w8tryKYdehLsOPL696ydCg0BVNRXLassXNleemNDlI5MqQECgLfv0mpZvtWWfMDZkjCwwI0dWtPKMEUDWSkVsI8Pa8zhipRSOVKuXlMigzgWmqy+bK7KAH1hkjCdKeWwoNFI0wIJiSOuUB3paevrVy649a96FdeVT40D6qt0Pfnf1f3YMtgtaEy98CSpK57LFrs4ea0lE2KIVBBaNpCFx1QlXfva6j1aky50AORxHJUAwNOM9V8zd8vgvb33qV32mr2CzRRtpVAzG8zWhMCMIpZJptOr0xtPffvF7Z06ZPVHR6TjbH15FH0odXHvgV4+3/KdAYNgyR4IghAQMQkJKGC1YBhbSAwPFXC6aOqXB97WAtZaZLSIqUoVicWAw35c3oHwTYRAZ5SUYAbSyoqz1s5lQ+74JbVKnavyaFy64+iUnXu/rBDMn/ZRlu6V948f+9K5M2G/RWsMIHqIHonNZ09HeI4LCYJmFEQAUYFLohJkr//ftN1WVVf39tPtxOP6BBWi0DGXyg0/vXb9x/4an9q3e3LcxwjCyBSLlaU3kXbnkmpeuuG7e1AXDgaSJPbuRnTn4ZRKa4hMtN23t/lUu7GMUEQNAlgAAFDMKCZIVsWCsIJBvwd+9q80w+b5GRUoppVQURcxsjLGiLPqAnohYy0jaAjGRFR2GFBa5vnLGyqaTT5x2ytLpJ+SCwaf3P+lT4txFLyxLlP1h460/fOq7WR40HEVskQEhaQ20t/UVC0arRBgaY6zWSkQ0Km29Fyy56Auv/lR1ebWzfRyOYylAI+aJSHxv/9Av3rUuszqMCkOZeJTyy75w6TeXNi5X9Fz6v7Gw5ei3m97dmVsdmWKEBpFityrucaGEUYgFLbBhYwEtakEvVzSdXQPG+gx6eCx9qQwNFSptrRUbIRKI9hNlhbyeM+X45Y2nXXLcZdOrmjozHXdt+v3Du+8b4J6rFlz3qlPeyMI/Xn3Trzb+XxiFoIkBrGFEPwplz+4D1hKBp3UiDEOtdcShAir3ys6dfd533vJVT3tOfRyO50WARitRW++BL9/7yU09642YkreFOKdqwUcv+eycKQuefc2X9Bc67tt1467s3UFxUMSI1ojoIyJi3I1QMQCQYSsiRtiKRJYtYDJVOZgJ2jtzBn1hFCSxTKQFwDKTVoCc8hPJZHpqeXPC1Ff508qT1f2F/o5M+96+PT35Hq1oTs3865a/+pz5F2aKA99//Jv37bwziEJAtCICZIwUC6a9rcdaAtHCGBs+AgwCFamKl6548edf8SlEdOrjcDzvAgQAzNyb7f747e/Zk90R2NCIISSNVF/e8I7TP3TWggtAJtV3XYQBsSfbcvNT/9oZ7SI0GhlJRpdt4nDWtYgwMkciVkSU1kRaK4WUGsialrYei9qK0ugLo2EAQuWTYbAWEL3BXKB0ylhEVIqURmVspMi/auG1Lz/x1TVltbu6dvz7n97XVegITejpRGAMog5D09nRm88UQTSDBiFNFFlLHiJDgvQnrvzoK866NuWnnPo4HH8lAYoVoXOg/RsPffHJlkctWFaMgGC4Nj31Ped+5LTZZ3nqCCUIAtKdb93RvuqhXf/bH7aKMqzYx3hUmoGh7iGe1gBgwcbNiQAAyRINTbASAiDU6ZCppyc7kA2tUQxa2AOlLUHRsjVoGKwoy+LphIgkdHJW9ZzFdcdfufRls+rmZIPMX3bc/8PHv9dne6wYpXQUAVsc6M91d/eaCBWoeNQMABAhEYnwtKr6973gndef+QqY9JQLh8MJEBxDDRooDHzj3i+sannIoA1M5HuetVxbUXXZnCtff8bbldI0wdDkwWLfjzd9aTC/ua9vDxAwWSGLZD0QwtgCYownrFokT6NWipS1yGwAjUJRmlQcgBJC0ACKMEkq3T2QGcyYbD/mipBHNsoj7QljEAQkemnDkjPnXXB84wnTKpqqUtVEtLdnz40PfWXbwKZ8MAgEAoKQKORtZ3t/LhcIKxHUSIBs486HIVeUp1Y0LfvSKz47t36OItdkw+H4WwhQ7IsFJvj2/V+/a+cfDNqQDRF4JJ7SL5jzoutPemND5XRCOtRAsGy3tz3yWMtvWvIb+4vdRGw4QjQKAVGSno6b6QBarRPMbBmEgQWJyPM0WKM0+jpR5lcldTqF5T7UlclsnUhPq1tAOtGQWKwx0V/oa8u0F6JCSqenlTdUp2rLk+UKFSAwcy7MPbjj3u8+emPB5ASNgCBqZunqGOjry7LVID6I9n2fTQjArBABa9M1ly+7+P2Xv2tq1VRn+Dgcf0sBijWoGBVv2/C7n679wQD3I1kUS4IJlZpW3vyKFa99weLLxumyCiDCVkxP9sDe3qc3dd63p3dNRAOep1ABmAiAGaxOKBOFpL0obzydKka2rqxpatnMhtT8aRWLK5JTKxL1CZVK6ApNvlYJAJBSURgioICM9DZEQkQWBoGIowe23/P7Tb/c0bvVClu2QFgIbKavUMzbIIisjac+UqkhpGVfked5jZWNn37Zx85ddIZb8HI4/i4ECIYShe7b8ueb1tzYU+i0UUF72hjQ6GuikxpOf/NZ75pRM/NQU0hEBEptfQxHbdmdvdmdvf07rCn2cddg0lT4UyqjhCcqnZraULk04VdMT88lVKNVDBChlFKER9hJhFyQ3dq15YdP3LSzf1sQFKwwIEQR9/UO5nKhWI9tfJSIuTQCBFEpwcpk5VnzTv7UtR9rrJs+yRC7w+H4awgQlFapeFfXjh8+ftO6ztVhVBQRC5a0JqJpFdPPa7roJce/sq5i6ujU59Fvj8chwtAexv03Rj8T193Hg+vH3cj4Bppw/Mr+Qt+ft9712IFVT3dtsBhxJCJYzAW5rBnoz7GVoT7WsfTEH4iEhIzLm45/x8VvOm/p2WXJtJMeh+PvToCGIzvGRj969L//uOPWvM1FbBgseWSt8UBVYM31K99w0aIXVqdqAIHweaxXiAUREYtRsXVg/33b/nT39jtynCtaE1nDwkEQ9fdksoMFsEqrBFgFAEY4rrYlQA89QixLpd9w1r+849K3JP0kuNUuh+PvWYCGPZ31+9fc9Mh/7RjYyWCNCRDZI60oQeDNrJ134vSTz513/sKpi0f27Kgv7OFE7fg75oPc1s5N69ufeqZz3ZauzaEJmVGAwtAM5gq5gWIYmiAy8UejAIlmoHgiCCElSCcled3pL7n6lCtXzlmB4JIMHY5/BAEadnwI6ReP/PTHa7+PKSgWs0ojIxkrnudbtr7SC6sWXnfCDWfOO2/4LbGHNclLfWg8kMQR7vhd1tptBzY/tOve+3bcOQj9+ShQSosoYQwj29XVN9CfQfAAdDzBHSCukAcSAiH0tIhoT1+y4Lz/fOVnaytqJllV63A4/o4EaFggth3YetemO/68884sZL20L8zWhPElrbVWLE1lzTPTCxZOW9JY09RcO2t6ZZOv/XiM17hRnuE/CUi2kOkr9nZnO9t6D7R07+3OtO/t29VV6A4pCjiwCMZgMQgL+SAIokwmh+ABEBBaQRBSTASgERAFhQCgsW7GJcsuumLlC0+cszxO8HGGj8PxDylAw1EhAGjva/van756/9770mXJVEKxMChgEYaIRIg8T/keeAlKpLlsRlXz0hkrfPTnTJnfUDENAAkpjlIHXHy6dW1/sa9jsHVL26aCFAs6KkYFjqLIRAKgtJbQsoX+XGYgm89nigCEqAgUCxIiAFlBKwJAWjwNpMQg2OpU9ZsufMNrLnhVKpGKY8/udHE4/uEFaNgaYuHV2x//1epfrT+wpj/oTlakKIF+QlsxAKAEAEgBxbmGWqPEVaelsaMgFgFYJzQkCAiYrRhrRRhJGDgSYzkXFMNilBvMsTFhxEhIcWm+xLk8AABKedaIIg/R06RrUhUrZy4+b9FZV596ZXVZ9bEKSDkcjr8jASpFeZhFpCfT88CG+7/+p6+3B+3oUyLh+Qmd8DyltNZKK0VePHEjVq6h/qoipQV4QstsImuMCYIok89FxcgUGVFFVoywAkUQjzWNW1aX0OQJxwMM0RN/dvWsG869/gUnnl9XUetrb9x0bYfD8f+PAA1bQ4iYyWf+sm3Vbevu3HDg6da+FrFsrCEF5Cv0wNeKZGhAoJCIWGYAsMaQAIuYwEQWBYEBFCIZpZQXi1U8jNmCRVAkAIKEgACI2FDVMLd+9knNK85fdPYJs5f7nh8HlZzD5XD8swjQsAwJSGSi9r7OzS2bH968atW2R3f17DUUMbEJi5o0KAIgQOChigpm8ZRSiNaIooQgWBCxTEwKNarYvgEGEBQAIIM+eIvrjztjwcmnLTxldsPM6bXTypNlTnQcjn9qARqJDTErpUTEst3VvvvxHU+u3v54S/+B/nxvV76/GIZBFAghgy0l7Ay/l0falWn0lFZaU8pPlSfKE8qrTU85YebyZTMWL21aNHf67Ni9YmbXNszhcAI0vl8Wr9yzcCEs9Ob6egZ6c4X81v3bIxvlg/wzezcWo7DUBggRiXztz2+cW1NWDYgN1fXTaxuSiURlujKdSFenq33tlV75HMfPOxyOfw4BGgMLi8hzCAzH+gVDte/uJ3c4nAAdrXE0qe/m5MbhcALkcDgc4+LWfRwOhxMgh8PhBMjhcDicADkcDidADofD4QTI4XA4AXI4HA4nQA6HwwmQw+FwOAFyOBxOgBwOh8MJkMPhcALkcDgcToAcDocTIIfD4XAC5HA4nAA5HA4nQA6Hw+EEyOFwOAFyOBwOJ0AOh8MJkMPhcDgBcjgcToAcDofDCZDD4XAC5HA4HE6AHA6HEyCHw+FwAuRwOJwAORwOhxMgh8PhBMjhcDicADkcDidADofDCZDD4XA4AXI4HE6AHA6HwwmQw+H4/5H/BwHfw+VcIlkIAAAAAElFTkSuQmCC" alt="SavePlanet">
+    </div>
+    <h2 class="ty-big">Thank<br><em>You!</em></h2>
+    <div class="ty-divider"></div>
+    <p class="ty-msg">We appreciate your consideration of this proposal. Our dedicated team, quality products, and exceptional service will exceed your expectations. Let's create a cosy home for you.</p>
+  </div>
+
+  <div class="ty-mid">
+    <div class="ty-cta-card">
+      <h3>Let's Get In Touch</h3>
+      <p>Ready to move forward? Reach out via any channel below — we're here to help.</p>
+      <div class="ty-contacts-row">
+        <div class="ty-cc">
+          <div class="ty-cc-icon"><i data-lucide="phone"></i></div>
+          <div class="ty-cc-lbl">Call</div>
+          <div class="ty-cc-val">1300 362 724</div>
+        </div>
+        <div class="ty-cc">
+          <div class="ty-cc-icon"><i data-lucide="mail"></i></div>
+          <div class="ty-cc-lbl">Email</div>
+          <div class="ty-cc-val">info@saveplanet<br>.com.au</div>
+        </div>
+        <div class="ty-cc">
+          <div class="ty-cc-icon"><i data-lucide="globe"></i></div>
+          <div class="ty-cc-lbl">Website</div>
+          <div class="ty-cc-val">saveplanet.com.au</div>
+        </div>
+        <div class="ty-cc">
+          <div class="ty-cc-icon"><i data-lucide="map-pin"></i></div>
+          <div class="ty-cc-lbl">Visit</div>
+          <div class="ty-cc-val">22 Wallangara Blvd<br>Harkness VIC</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="ty-bot">
+    <p><strong>SavePlanet Pty Ltd</strong> · Energy Efficient Solutions · VEU Activity 6 · Victoria</p>
+  </div>
+</div>
+
+</div><!-- /book -->
+
+<script>
+  lucide.createIcons();
+  const d = new Date();
+  const fmt = d.toLocaleDateString('en-AU',{day:'2-digit',month:'long',year:'numeric'});
+  const el = document.getElementById('qd1');
+  if(el) el.textContent = fmt;
+</script>
+</body>
+</html>
