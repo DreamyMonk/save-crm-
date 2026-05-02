@@ -12,6 +12,12 @@ import { getFirebaseAuth } from "@/lib/firebase";
 import { useCrmStore } from "@/lib/use-crm-store";
 
 const TEMPLATE_URL = "/saveplanet-aircon-proposal-template.html";
+const signatureFonts = [
+  { label: "Elegant Script", value: "Brush Script MT, Segoe Script, cursive" },
+  { label: "Classic Hand", value: "Segoe Script, Lucida Handwriting, cursive" },
+  { label: "Soft Signature", value: "Lucida Handwriting, Brush Script MT, cursive" },
+  { label: "Simple Cursive", value: "Comic Sans MS, Segoe Print, cursive" },
+];
 
 export default function DraftProposalPage() {
   return <ProposalWorkspace allowAnonymous />;
@@ -31,6 +37,8 @@ function ProposalWorkspace({ publicView = false, allowAnonymous = false }: { pub
   const [message, setMessage] = useState("");
   const [proposalHtml, setProposalHtml] = useState("");
   const [signatureDataUrl, setSignatureDataUrl] = useState("");
+  const [autoSignName, setAutoSignName] = useState("");
+  const [autoSignFont, setAutoSignFont] = useState(signatureFonts[0].value);
   const [changeRequestDrafts, setChangeRequestDrafts] = useState<Record<string, string>>({});
   const effectivePublicView = publicView || (allowAnonymous && authChecked && !user);
   const quote = useMemo(() => {
@@ -231,7 +239,30 @@ function ProposalWorkspace({ publicView = false, allowAnonymous = false }: { pub
               <h2 className="font-semibold">Customer signature</h2>
             </div>
             <p className="mt-1 text-sm text-[#657267]">{effectivePublicView ? "Sign here to confirm that you have reviewed this proposal. Your signature will appear in the proposal customer signature area." : "Customer can sign here from the shared proposal link. Saved signature appears automatically in the proposal customer signature area."}</p>
-            <SignaturePad value={quote.customerSignatureDataUrl} onChange={setSignatureDataUrl} />
+            <SignaturePad value={quote.customerSignatureDataUrl} onChange={setSignatureDataUrl} autoName={autoSignName} autoFont={autoSignFont} />
+            <div className="mt-4 rounded-lg border border-[#e5edf7] bg-[#f8fbff] p-4">
+              <div className="flex items-center gap-2">
+                <PenLine size={16} />
+                <h3 className="text-sm font-semibold">Auto sign</h3>
+              </div>
+              <div className="mt-3 grid gap-3 md:grid-cols-[1fr_220px]">
+                <label className="space-y-1 text-sm">
+                  <span className="font-medium text-[#657267]">Type full name</span>
+                  <input value={autoSignName} onChange={(event) => setAutoSignName(event.target.value)} className="h-11 w-full rounded-lg border border-[#d7dfd0] bg-white px-3 outline-none focus:border-[#003CBB]" placeholder="Customer name" />
+                </label>
+                <label className="space-y-1 text-sm">
+                  <span className="font-medium text-[#657267]">Signature font</span>
+                  <select value={autoSignFont} onChange={(event) => setAutoSignFont(event.target.value)} className="h-11 w-full rounded-lg border border-[#d7dfd0] bg-white px-3 outline-none focus:border-[#003CBB]">
+                    {signatureFonts.map((font) => (
+                      <option key={font.label} value={font.value}>{font.label}</option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+              <div className="mt-3 rounded-lg border border-dashed border-[#c7d3e8] bg-white px-4 py-3 text-4xl text-[#0f172a]" style={{ fontFamily: autoSignFont }}>
+                {autoSignName || "Signature preview"}
+              </div>
+            </div>
           </div>
           <div className="flex flex-col justify-end gap-2">
             <button onClick={saveSignature} className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-[#003CBB] px-4 text-sm font-semibold text-white">
@@ -368,7 +399,7 @@ function buildProposalHtml(template: string, quote: QuoteRecord, customer: Custo
   return `<!DOCTYPE html>${doc.documentElement.outerHTML}`;
 }
 
-function SignaturePad({ value, onChange }: { value?: string; onChange: (value: string) => void }) {
+function SignaturePad({ value, onChange, autoName, autoFont }: { value?: string; onChange: (value: string) => void; autoName: string; autoFont: string }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const drawingRef = useRef(false);
 
@@ -388,6 +419,21 @@ function SignaturePad({ value, onChange }: { value?: string; onChange: (value: s
     image.onload = () => context.drawImage(image, 0, 0, canvas.width, canvas.height);
     image.src = value;
   }, [value]);
+
+  function autoSign() {
+    const canvas = canvasRef.current;
+    const context = canvas?.getContext("2d");
+    const name = autoName.trim();
+    if (!canvas || !context || !name) return;
+    context.fillStyle = "#fff";
+    context.fillRect(0, 0, canvas.width, canvas.height);
+    context.fillStyle = "#0f172a";
+    context.textAlign = "center";
+    context.textBaseline = "middle";
+    context.font = `76px ${autoFont}`;
+    context.fillText(name, canvas.width / 2, canvas.height / 2 + 6, canvas.width - 90);
+    onChange(canvas.toDataURL("image/png"));
+  }
 
   function point(event: React.PointerEvent<HTMLCanvasElement>) {
     const canvas = event.currentTarget;
@@ -444,9 +490,14 @@ function SignaturePad({ value, onChange }: { value?: string; onChange: (value: s
         onPointerCancel={stop}
         className="h-44 w-full touch-none rounded-lg border-2 border-dashed border-[#003CBB] bg-white"
       />
-      <button type="button" onClick={clear} className="mt-2 rounded-lg border border-[#c7d3e8] bg-white px-3 py-2 text-sm font-semibold text-[#003CBB]">
-        Clear signature
-      </button>
+      <div className="mt-2 flex flex-wrap gap-2">
+        <button type="button" onClick={autoSign} disabled={!autoName.trim()} className="rounded-lg bg-[#003CBB] px-3 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:bg-[#9bb3ee]">
+          Use auto sign
+        </button>
+        <button type="button" onClick={clear} className="rounded-lg border border-[#c7d3e8] bg-white px-3 py-2 text-sm font-semibold text-[#003CBB]">
+          Clear signature
+        </button>
+      </div>
     </div>
   );
 }
