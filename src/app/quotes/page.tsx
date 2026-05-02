@@ -19,19 +19,27 @@ export default function QuotesPage() {
   const customers = state.customers;
   const [productCategory, setProductCategory] = useState("All");
   const [productBrand, setProductBrand] = useState("All");
+  const [productType, setProductType] = useState("All");
+  const [productConfiguration, setProductConfiguration] = useState("All");
   const [productSearch, setProductSearch] = useState("");
   const productCategories = useMemo(() => unique([...fallbackProductCategories, ...state.products.map((product) => product.category)]), [state.products]);
   const categoryCatalog = useMemo(() => state.products.filter((product) => productCategory === "All" || product.category === productCategory), [productCategory, state.products]);
   const brandOptions = useMemo(() => ["All", ...unique(categoryCatalog.map((item) => item.brandName))], [categoryCatalog]);
   const activeBrand = brandOptions.includes(productBrand) ? productBrand : "All";
+  const brandCatalog = useMemo(() => categoryCatalog.filter((product) => activeBrand === "All" || product.brandName === activeBrand), [activeBrand, categoryCatalog]);
+  const productTypeOptions = useMemo(() => ["All", ...unique(brandCatalog.map((item) => item.productType ?? ""))], [brandCatalog]);
+  const activeProductType = productTypeOptions.includes(productType) ? productType : "All";
+  const typeCatalog = useMemo(() => brandCatalog.filter((product) => activeProductType === "All" || product.productType === activeProductType), [activeProductType, brandCatalog]);
+  const productConfigurationOptions = useMemo(() => ["All", ...unique(typeCatalog.map((item) => item.productConfiguration ?? ""))], [typeCatalog]);
+  const activeProductConfiguration = productConfigurationOptions.includes(productConfiguration) ? productConfiguration : "All";
   const filteredProducts = useMemo(() => {
     const term = productSearch.trim().toLowerCase();
-    return categoryCatalog.filter((product) => {
-      const matchesBrand = activeBrand === "All" || product.brandName === activeBrand;
+    return typeCatalog.filter((product) => {
+      const matchesConfiguration = activeProductConfiguration === "All" || product.productConfiguration === activeProductConfiguration;
       const matchesSearch = !term || [product.brandName, product.model, product.productName, product.productType, product.productConfiguration, product.productClass].join(" ").toLowerCase().includes(term);
-      return matchesBrand && matchesSearch;
+      return matchesConfiguration && matchesSearch;
     });
-  }, [activeBrand, categoryCatalog, productSearch]);
+  }, [activeProductConfiguration, productSearch, typeCatalog]);
   const quoteProducts = filteredProducts;
   const [selectedCustomerId, setSelectedCustomerId] = useState(customers[0]?.id ?? "");
   const [description, setDescription] = useState(customers[0]?.name ?? "");
@@ -74,7 +82,8 @@ export default function QuotesPage() {
       setMessage("Import or select a product first.");
       return;
     }
-    setItems((current) => [lineFromProduct(product, "Outdoor Unit", baseline, 0, 1, product.price, 0, 0, "Outdoor unit"), ...current.filter((item) => item.role !== "Outdoor Unit")]);
+    setItems((current) => [lineFromProduct(product, "Outdoor Unit", baseline, 0, 1, 0, 0, 0, "Outdoor unit included in combined system price"), ...current.filter((item) => item.role !== "Outdoor Unit")]);
+    setMessage(`${product.model ?? product.productName} added as outdoor unit. Price is counted in combined system price.`);
   }
 
   function addHead() {
@@ -87,8 +96,8 @@ export default function QuotesPage() {
       setMessage("Import or select a product first.");
       return;
     }
-    setItems((current) => [...current, lineFromProduct(product, "Indoor Head", headArea, headAreaM2, quantity, productPrice || product.price, installPrice, certificates, "Indoor head")]);
-    setMessage(`${product.model} added as indoor head.`);
+    setItems((current) => [...current, lineFromProduct(product, "Indoor Head", headArea, headAreaM2, quantity, productPrice || product.price, installPrice, certificates, "Indoor + outdoor combined system price")]);
+    setMessage(`${product.model ?? product.productName} added with combined indoor/outdoor system price.`);
   }
 
   function addService() {
@@ -181,8 +190,8 @@ export default function QuotesPage() {
               <Select label="Category" value={productCategory} options={productCategories} onChange={setProductCategory} />
               <Select label="Brand" value={activeBrand} options={brandOptions} onChange={setProductBrand} />
               <Input label="Search product" value={productSearch} onChange={(event) => setProductSearch(event.target.value)} placeholder="Brand, model, class..." />
-              <Select label="Product Type" value={productById(quoteProducts, selectedHeadModel)?.productType ?? productById(quoteProducts, selectedOutdoorModel)?.productType ?? "Select product"} options={unique(quoteProducts.map((item) => item.productType ?? ""))} onChange={() => undefined} />
-              <Select label="Product Configuration" value={productById(quoteProducts, selectedHeadModel)?.productConfiguration ?? productById(quoteProducts, selectedOutdoorModel)?.productConfiguration ?? "Select product"} options={unique(quoteProducts.map((item) => item.productConfiguration ?? ""))} onChange={() => undefined} />
+              <Select label="Product Type" value={activeProductType} options={productTypeOptions} onChange={setProductType} />
+              <Select label="Product Configuration" value={activeProductConfiguration} options={productConfigurationOptions} onChange={setProductConfiguration} />
               <Select label="Outdoor Unit (always outside)" value={selectedOutdoorModel} options={quoteProducts.map((item) => item.id)} labelFor={(value) => productLabel(productById(quoteProducts, value))} onChange={setOutdoorModel} />
               <button onClick={addOutdoor} className="h-10 rounded-lg bg-[#003CBB] px-4 text-sm font-semibold text-white">Add selected as outdoor unit</button>
               <Select label="Indoor Head (up to 4)" value={selectedHeadModel} options={quoteProducts.map((item) => item.id)} labelFor={(value) => productLabel(productById(quoteProducts, value))} onChange={setHeadModel} />
@@ -190,10 +199,10 @@ export default function QuotesPage() {
               <Input label="Area" value={headArea} onChange={(event) => setHeadArea(event.target.value)} />
               <NumberInput label="Area (m2)" value={headAreaM2} onChange={setHeadAreaM2} />
               <NumberInput label="Upgrade Quantity" value={quantity} onChange={setQuantity} />
-              <NumberInput label="Product Price (per unit), $" value={productPrice} onChange={setProductPrice} />
+              <NumberInput label="Combined indoor + outdoor price (per unit), $" value={productPrice} onChange={setProductPrice} />
               <NumberInput label="Install Cost, $" value={installPrice} onChange={setInstallPrice} />
               <NumberInput label="Certificates" value={certificates} onChange={setCertificates} />
-              <button onClick={addHead} className="h-10 rounded-lg bg-[#003CBB] px-4 text-sm font-semibold text-white">Add indoor head</button>
+              <button onClick={addHead} className="h-10 rounded-lg bg-[#003CBB] px-4 text-sm font-semibold text-white">Add combined system line</button>
             </div>
 
             <div className="overflow-x-auto rounded-lg border border-[#e5edf7]">
