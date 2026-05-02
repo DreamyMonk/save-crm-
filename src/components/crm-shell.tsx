@@ -36,6 +36,12 @@ const navItems: { href: string; label: string; icon: typeof BarChart3; module: M
 ];
 
 export function CrmShell({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
+
+  if (pathname.startsWith("/proposal/")) {
+    return <>{children}</>;
+  }
+
   return <AuthGate>{(user) => <ShellFrame email={user.email} pathnameKey={user.uid}>{children}</ShellFrame>}</AuthGate>;
 }
 
