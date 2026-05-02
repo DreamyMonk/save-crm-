@@ -202,6 +202,8 @@ export type QuoteRecord = {
   minimumContributionAdjustment: number;
   gstRate: number;
   status: "Draft" | "Saved";
+  customerSignatureDataUrl?: string;
+  customerSignedAt?: string;
 };
 
 export type Customer = {

@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { ArrowLeft, Download, Save } from "lucide-react";
+import { ArrowLeft, Download, Mail, PenLine, Save, Send } from "lucide-react";
 import { CrmShell, PageHeader } from "@/components/crm-shell";
 import { Customer, QuoteLineItem, QuoteRecord, currency } from "@/lib/crm-data";
 import { useCrmStore } from "@/lib/use-crm-store";
@@ -16,6 +16,7 @@ export default function DraftProposalPage() {
   const { state, setState } = useCrmStore();
   const [message, setMessage] = useState("");
   const [proposalHtml, setProposalHtml] = useState("");
+  const [signatureDataUrl, setSignatureDataUrl] = useState("");
   const quote = useMemo(() => {
     const fromState = state.quotes.find((item) => item.id === id);
     if (fromState) return fromState;
@@ -72,6 +73,34 @@ export default function DraftProposalPage() {
     iframeRef.current?.contentWindow?.print();
   }
 
+  async function sendProposalLink() {
+    if (!quote) return;
+    const link = `${window.location.origin}/quotes/${quote.id}/proposal`;
+    await navigator.clipboard?.writeText(link);
+    const subject = encodeURIComponent(`SavePlanet proposal ${quote.id}`);
+    const body = encodeURIComponent(`Hello ${customerName(customer)},\n\nPlease open your proposal here:\n${link}\n\nYou can view it, download the PDF, and sign online.\n\nSavePlanet`);
+    if (customer?.email) {
+      window.location.href = `mailto:${customer.email}?subject=${subject}&body=${body}`;
+    }
+    setMessage(customer?.email ? "Proposal link copied and email opened." : "Proposal link copied.");
+  }
+
+  function saveSignature() {
+    if (!quote) return;
+    if (!signatureDataUrl) {
+      setMessage("Please draw a signature first.");
+      return;
+    }
+    const signedAt = new Date().toISOString();
+    const updatedQuote = { ...quote, customerSignatureDataUrl: signatureDataUrl, customerSignedAt: signedAt };
+    setState({
+      ...state,
+      quotes: state.quotes.map((item) => (item.id === quote.id ? updatedQuote : item)),
+    });
+    window.localStorage.setItem(`saveplanet-quote-${quote.id}`, JSON.stringify(updatedQuote));
+    setMessage("Signature saved into the proposal.");
+  }
+
   return (
     <CrmShell>
       <PageHeader
@@ -84,6 +113,9 @@ export default function DraftProposalPage() {
             </Link>
             <button onClick={saveProposal} className="inline-flex h-10 items-center gap-2 rounded-lg bg-[#003CBB] px-4 text-sm font-semibold text-white">
               <Save size={16} /> Save proposal
+            </button>
+            <button onClick={sendProposalLink} className="inline-flex h-10 items-center gap-2 rounded-lg bg-[#eef4ff] px-4 text-sm font-semibold text-[#003CBB]">
+              <Send size={16} /> Send link
             </button>
             <button onClick={downloadPdf} className="inline-flex h-10 items-center gap-2 rounded-lg bg-[#0f172a] px-4 text-sm font-semibold text-white">
               <Download size={16} /> Download PDF
@@ -99,6 +131,24 @@ export default function DraftProposalPage() {
           srcDoc={proposalHtml}
           className="mx-auto h-[calc(100vh-190px)] min-h-[760px] w-full max-w-[1060px] rounded border border-[#c7d3e8] bg-white shadow-lg"
         />
+        <section className="mx-auto mt-5 grid max-w-[1060px] gap-4 rounded-lg border border-[#d9e2f2] bg-white p-5 shadow-sm lg:grid-cols-[1fr_auto]">
+          <div>
+            <div className="flex items-center gap-2">
+              <PenLine size={18} />
+              <h2 className="font-semibold">Customer signature</h2>
+            </div>
+            <p className="mt-1 text-sm text-[#657267]">Customer can sign here from the shared proposal link. Saved signature appears automatically in the proposal customer signature area.</p>
+            <SignaturePad value={quote.customerSignatureDataUrl} onChange={setSignatureDataUrl} />
+          </div>
+          <div className="flex flex-col justify-end gap-2">
+            <button onClick={saveSignature} className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-[#003CBB] px-4 text-sm font-semibold text-white">
+              <Save size={16} /> Save signature
+            </button>
+            <button onClick={sendProposalLink} className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-[#c7d3e8] bg-white px-4 text-sm font-semibold text-[#003CBB]">
+              <Mail size={16} /> Email link
+            </button>
+          </div>
+        </section>
       </main>
     </CrmShell>
   );
@@ -159,6 +209,15 @@ function buildProposalHtml(template: string, quote: QuoteRecord, customer: Custo
   const bankReference = doc.querySelectorAll(".bank-row .v")[3];
   if (bankReference) bankReference.textContent = quote.id;
 
+  if (quote.customerSignatureDataUrl) {
+    doc.querySelectorAll(".sig-fld.full").forEach((field) => {
+      const line = field.querySelector(".sig-line");
+      if (line) {
+        line.insertAdjacentHTML("beforebegin", `<img class="saved-customer-signature" src="${quote.customerSignatureDataUrl}" alt="Customer signature">`);
+      }
+    });
+  }
+
   if (quotePage) {
     const fragment = doc.createElement("template");
     fragment.innerHTML = `${productSummaryPage(quote, calculations)}${sizingGuidePage(quote, customer)}`;
@@ -169,9 +228,92 @@ function buildProposalHtml(template: string, quote: QuoteRecord, customer: Custo
   script.textContent = "if(window.lucide){window.lucide.createIcons();}";
   doc.body.appendChild(script);
   const style = doc.createElement("style");
-  style.textContent = ".cov-card-item span{display:block;max-width:100%;overflow-wrap:anywhere;line-height:1.35;}.cov-card{align-items:start;}";
+  style.textContent = ".cov-card-item span{display:block;max-width:100%;overflow-wrap:anywhere;line-height:1.35;}.cov-card{align-items:start;}.saved-customer-signature{display:block;max-width:320px;max-height:90px;margin:10px 0 6px;object-fit:contain;}";
   doc.head.appendChild(style);
   return `<!DOCTYPE html>${doc.documentElement.outerHTML}`;
+}
+
+function SignaturePad({ value, onChange }: { value?: string; onChange: (value: string) => void }) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const drawingRef = useRef(false);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const context = canvas.getContext("2d");
+    if (!context) return;
+    context.fillStyle = "#fff";
+    context.fillRect(0, 0, canvas.width, canvas.height);
+    context.lineCap = "round";
+    context.lineJoin = "round";
+    context.lineWidth = 2.5;
+    context.strokeStyle = "#0f172a";
+    if (!value) return;
+    const image = new Image();
+    image.onload = () => context.drawImage(image, 0, 0, canvas.width, canvas.height);
+    image.src = value;
+  }, [value]);
+
+  function point(event: React.PointerEvent<HTMLCanvasElement>) {
+    const canvas = event.currentTarget;
+    const rect = canvas.getBoundingClientRect();
+    return {
+      x: ((event.clientX - rect.left) / rect.width) * canvas.width,
+      y: ((event.clientY - rect.top) / rect.height) * canvas.height,
+    };
+  }
+
+  function start(event: React.PointerEvent<HTMLCanvasElement>) {
+    const context = event.currentTarget.getContext("2d");
+    if (!context) return;
+    drawingRef.current = true;
+    event.currentTarget.setPointerCapture(event.pointerId);
+    const nextPoint = point(event);
+    context.beginPath();
+    context.moveTo(nextPoint.x, nextPoint.y);
+  }
+
+  function draw(event: React.PointerEvent<HTMLCanvasElement>) {
+    if (!drawingRef.current) return;
+    const context = event.currentTarget.getContext("2d");
+    if (!context) return;
+    const nextPoint = point(event);
+    context.lineTo(nextPoint.x, nextPoint.y);
+    context.stroke();
+  }
+
+  function stop(event: React.PointerEvent<HTMLCanvasElement>) {
+    if (!drawingRef.current) return;
+    drawingRef.current = false;
+    onChange(event.currentTarget.toDataURL("image/png"));
+  }
+
+  function clear() {
+    const canvas = canvasRef.current;
+    const context = canvas?.getContext("2d");
+    if (!canvas || !context) return;
+    context.fillStyle = "#fff";
+    context.fillRect(0, 0, canvas.width, canvas.height);
+    onChange("");
+  }
+
+  return (
+    <div className="mt-4">
+      <canvas
+        ref={canvasRef}
+        width={760}
+        height={190}
+        onPointerDown={start}
+        onPointerMove={draw}
+        onPointerUp={stop}
+        onPointerCancel={stop}
+        className="h-44 w-full touch-none rounded-lg border-2 border-dashed border-[#003CBB] bg-white"
+      />
+      <button type="button" onClick={clear} className="mt-2 rounded-lg border border-[#c7d3e8] bg-white px-3 py-2 text-sm font-semibold text-[#003CBB]">
+        Clear signature
+      </button>
+    </div>
+  );
 }
 
 function productSummaryPage(quote: QuoteRecord, calculations: Calculations) {
@@ -211,6 +353,8 @@ function productSummaryPage(quote: QuoteRecord, calculations: Calculations) {
 
 function sizingGuidePage(quote: QuoteRecord, customer: Customer | undefined) {
   const heads = quote.items.filter((item) => item.role === "Indoor Head");
+  const signature = quote.customerSignatureDataUrl ? `<img class="saved-customer-signature" src="${quote.customerSignatureDataUrl}" alt="Customer signature">` : "";
+  const signedDate = quote.customerSignedAt ? formatDate(quote.customerSignedAt) : "__________________";
   const existingRows = heads.map((item) => `
     <tr>
       <td>${escapeHtml(item.area || "Room")}</td>
@@ -251,7 +395,7 @@ function sizingGuidePage(quote: QuoteRecord, customer: Customer | undefined) {
           <tbody>${proposedRows || `<tr><td colspan="6">Indoor head details to be confirmed.</td></tr>`}</tbody>
         </table>
         <div class="quot-to-bar" style="margin-top:20px;">
-          <div class="quot-to-card"><label>Customer</label><div class="name">Signature</div><p>Name: ${escapeHtml(customerName(customer))}<br>Date: __________________</p></div>
+          <div class="quot-to-card"><label>Customer</label><div class="name">Signature</div>${signature}<p>Name: ${escapeHtml(customerName(customer))}<br>Date: ${escapeHtml(signedDate)}</p></div>
           <div class="quot-to-card"><label>Installer</label><div class="name">Signature</div><p>Name: __________________<br>Date: __________________</p></div>
         </div>
       </div>

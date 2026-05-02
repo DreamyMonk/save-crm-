@@ -11,14 +11,28 @@ const schemes = ["STC HP", "STC SOLAR + BATTERY", "VEU APP - VIC Appliances", "V
 const priceTiers = ["Contractor Price", "Retail Price", "Custom Price"];
 const installTiers = ["Tier 1 (Metro / Standard)", "Tier 2 (Regional)", "Tier 3 (Complex Install)", "Custom"];
 const baselineOptions = ["GAS Ducted Heater NO Air Con", "Gas heater + existing air con", "Electric resistance heater", "No existing system"];
+const fallbackProductCategories = ["All", "Aircon", "Heat Pump", "Solar", "Solar Battery", "Inverter"];
 
 export default function QuotesPage() {
   const { state, setState } = useCrmStore();
   const router = useRouter();
   const customers = state.customers;
-  const mideaProducts = useMemo(() => state.products.filter((product) => product.brandName.toLowerCase() === "midea"), [state.products]);
-  const outdoorProducts = mideaProducts.filter((product) => product.productUnitMount?.toLowerCase().includes("outdoor") || product.model?.includes("MDV-"));
-  const indoorHeads = mideaProducts.filter((product) => product.productUnitMount?.toLowerCase().includes("wall") || product.productName.toLowerCase().includes("head"));
+  const [productCategory, setProductCategory] = useState("All");
+  const [productBrand, setProductBrand] = useState("All");
+  const [productSearch, setProductSearch] = useState("");
+  const productCategories = useMemo(() => unique([...fallbackProductCategories, ...state.products.map((product) => product.category)]), [state.products]);
+  const categoryCatalog = useMemo(() => state.products.filter((product) => productCategory === "All" || product.category === productCategory), [productCategory, state.products]);
+  const brandOptions = useMemo(() => ["All", ...unique(categoryCatalog.map((item) => item.brandName))], [categoryCatalog]);
+  const activeBrand = brandOptions.includes(productBrand) ? productBrand : "All";
+  const filteredProducts = useMemo(() => {
+    const term = productSearch.trim().toLowerCase();
+    return categoryCatalog.filter((product) => {
+      const matchesBrand = activeBrand === "All" || product.brandName === activeBrand;
+      const matchesSearch = !term || [product.brandName, product.model, product.productName, product.productType, product.productConfiguration, product.productClass].join(" ").toLowerCase().includes(term);
+      return matchesBrand && matchesSearch;
+    });
+  }, [activeBrand, categoryCatalog, productSearch]);
+  const quoteProducts = filteredProducts;
   const [selectedCustomerId, setSelectedCustomerId] = useState(customers[0]?.id ?? "");
   const [description, setDescription] = useState(customers[0]?.name ?? "");
   const [scheme, setScheme] = useState("VEU SH - VIC Space Heating/Cooling");
@@ -26,8 +40,8 @@ export default function QuotesPage() {
   const [priceTier, setPriceTier] = useState(priceTiers[0]);
   const [installTier, setInstallTier] = useState(installTiers[0]);
   const [baseline, setBaseline] = useState(baselineOptions[0]);
-  const [outdoorModel, setOutdoorModel] = useState(outdoorProducts[0]?.id ?? "");
-  const [headModel, setHeadModel] = useState(indoorHeads[0]?.id ?? "");
+  const [outdoorModel, setOutdoorModel] = useState("");
+  const [headModel, setHeadModel] = useState("");
   const [headArea, setHeadArea] = useState("Bedroom 1");
   const [headAreaM2, setHeadAreaM2] = useState(20);
   const [quantity, setQuantity] = useState(1);
@@ -45,6 +59,8 @@ export default function QuotesPage() {
   const [message, setMessage] = useState("");
   const customer = customers.find((item) => item.id === selectedCustomerId);
   const calculations = calculateQuote(items, addons, certificateRate, minimumContributionAdjustment, gstRate);
+  const selectedOutdoorModel = quoteProducts.some((product) => product.id === outdoorModel) ? outdoorModel : (quoteProducts[0]?.id ?? "");
+  const selectedHeadModel = quoteProducts.some((product) => product.id === headModel) ? headModel : (quoteProducts[0]?.id ?? "");
 
   function selectCustomer(customerId: string) {
     const nextCustomer = customers.find((item) => item.id === customerId);
@@ -53,9 +69,12 @@ export default function QuotesPage() {
   }
 
   function addOutdoor() {
-    const product = outdoorProducts.find((item) => item.id === outdoorModel);
-    if (!product) return;
-    setItems((current) => [lineFromProduct(product, "Outdoor Unit", baseline, 0, 1, 0, 0, 0, "Outdoor unit"), ...current.filter((item) => item.role !== "Outdoor Unit")]);
+    const product = quoteProducts.find((item) => item.id === selectedOutdoorModel);
+    if (!product) {
+      setMessage("Import or select a product first.");
+      return;
+    }
+    setItems((current) => [lineFromProduct(product, "Outdoor Unit", baseline, 0, 1, product.price, 0, 0, "Outdoor unit"), ...current.filter((item) => item.role !== "Outdoor Unit")]);
   }
 
   function addHead() {
@@ -63,8 +82,11 @@ export default function QuotesPage() {
       setMessage("Maximum 4 indoor heads allowed.");
       return;
     }
-    const product = indoorHeads.find((item) => item.id === headModel);
-    if (!product) return;
+    const product = quoteProducts.find((item) => item.id === selectedHeadModel);
+    if (!product) {
+      setMessage("Import or select a product first.");
+      return;
+    }
     setItems((current) => [...current, lineFromProduct(product, "Indoor Head", headArea, headAreaM2, quantity, productPrice || product.price, installPrice, certificates, "Indoor head")]);
     setMessage(`${product.model} added as indoor head.`);
   }
@@ -156,12 +178,14 @@ export default function QuotesPage() {
           <SectionTitle title="Products" />
           <div className="grid gap-6 p-5 xl:grid-cols-[420px_1fr]">
             <div className="space-y-4">
-              <Select label="Brand" value="MIDEA" options={["MIDEA"]} onChange={() => undefined} />
-              <Select label="Product Type" value={productById(mideaProducts, headModel)?.productType ?? "Non-Ducted"} options={unique(mideaProducts.map((item) => item.productType ?? ""))} onChange={() => undefined} />
-              <Select label="Product Configuration" value={productById(mideaProducts, headModel)?.productConfiguration ?? "Single split system"} options={unique(mideaProducts.map((item) => item.productConfiguration ?? ""))} onChange={() => undefined} />
-              <Select label="Outdoor Unit (always outside)" value={outdoorModel} options={outdoorProducts.map((item) => item.id)} labelFor={(value) => productLabel(productById(outdoorProducts, value))} onChange={setOutdoorModel} />
-              <button onClick={addOutdoor} className="h-10 rounded-lg bg-[#003CBB] px-4 text-sm font-semibold text-white">Add outdoor unit</button>
-              <Select label="Indoor Head (up to 4)" value={headModel} options={indoorHeads.map((item) => item.id)} labelFor={(value) => productLabel(productById(indoorHeads, value))} onChange={setHeadModel} />
+              <Select label="Category" value={productCategory} options={productCategories} onChange={setProductCategory} />
+              <Select label="Brand" value={activeBrand} options={brandOptions} onChange={setProductBrand} />
+              <Input label="Search product" value={productSearch} onChange={(event) => setProductSearch(event.target.value)} placeholder="Brand, model, class..." />
+              <Select label="Product Type" value={productById(quoteProducts, selectedHeadModel)?.productType ?? productById(quoteProducts, selectedOutdoorModel)?.productType ?? "Select product"} options={unique(quoteProducts.map((item) => item.productType ?? ""))} onChange={() => undefined} />
+              <Select label="Product Configuration" value={productById(quoteProducts, selectedHeadModel)?.productConfiguration ?? productById(quoteProducts, selectedOutdoorModel)?.productConfiguration ?? "Select product"} options={unique(quoteProducts.map((item) => item.productConfiguration ?? ""))} onChange={() => undefined} />
+              <Select label="Outdoor Unit (always outside)" value={selectedOutdoorModel} options={quoteProducts.map((item) => item.id)} labelFor={(value) => productLabel(productById(quoteProducts, value))} onChange={setOutdoorModel} />
+              <button onClick={addOutdoor} className="h-10 rounded-lg bg-[#003CBB] px-4 text-sm font-semibold text-white">Add selected as outdoor unit</button>
+              <Select label="Indoor Head (up to 4)" value={selectedHeadModel} options={quoteProducts.map((item) => item.id)} labelFor={(value) => productLabel(productById(quoteProducts, value))} onChange={setHeadModel} />
               <Select label="Original Equipment" value={baseline} options={baselineOptions} onChange={setBaseline} />
               <Input label="Area" value={headArea} onChange={(event) => setHeadArea(event.target.value)} />
               <NumberInput label="Area (m2)" value={headAreaM2} onChange={setHeadAreaM2} />
@@ -319,7 +343,8 @@ function productLabel(product?: Product) {
 }
 
 function unique(values: string[]) {
-  return Array.from(new Set(values.filter(Boolean)));
+  const cleaned = Array.from(new Set(values.filter(Boolean)));
+  return cleaned.length ? cleaned : ["Select product"];
 }
 
 function SectionTitle({ title }: { title: string }) {
