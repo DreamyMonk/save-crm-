@@ -145,7 +145,7 @@ export type InvoiceLineItem = {
   rate: number;
 };
 
-export type ProductCategory = "Aircon" | "Solar" | "Inverter";
+export type ProductCategory = "Aircon" | "Solar" | "Inverter" | "Heat Pump" | "Solar Battery";
 
 export type Product = {
   id: string;

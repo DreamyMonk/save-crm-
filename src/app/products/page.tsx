@@ -1,12 +1,13 @@
 "use client";
 
 import { FormEvent, useMemo, useState } from "react";
+import * as XLSX from "xlsx";
 import { Download, PackagePlus, Save, Search, Trash2, Upload } from "lucide-react";
 import { CrmShell, PageHeader } from "@/components/crm-shell";
 import { Product, ProductCategory, currency } from "@/lib/crm-data";
 import { useCrmStore } from "@/lib/use-crm-store";
 
-const categories: ProductCategory[] = ["Aircon", "Solar", "Inverter"];
+const categories: ProductCategory[] = ["Aircon", "Solar", "Inverter", "Heat Pump", "Solar Battery"];
 const productTemplateHeaders = [
   "Product Class",
   "Brand",
@@ -24,7 +25,6 @@ const productTemplateHeaders = [
   "GEMS TCSPF Mixed",
   "Refrigerant",
   "Status",
-  "Category",
   "Product Name",
   "Image URL",
   "Description",
@@ -35,12 +35,23 @@ export default function ProductsPage() {
   const { state, setState } = useCrmStore();
   const [message, setMessage] = useState("");
   const [search, setSearch] = useState("");
+  const [brandFilter, setBrandFilter] = useState("");
+  const [modelFilter, setModelFilter] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState<"All" | ProductCategory>("All");
   const [bulkCategory, setBulkCategory] = useState<ProductCategory>("Aircon");
+
+  const filterOptions = useMemo(() => {
+    return {
+      brands: unique(state.products.map((product) => product.brandName).filter(Boolean)),
+      models: unique(state.products.map((product) => product.model ?? "").filter(Boolean)),
+    };
+  }, [state.products]);
 
   const products = useMemo(() => {
     const term = search.toLowerCase();
-    return state.products.filter((product) =>
-      [
+    return state.products.filter((product) => {
+      const haystack = [
+        product.category,
         product.productClass,
         product.brandName,
         product.model,
@@ -52,10 +63,14 @@ export default function ProductsPage() {
         product.status,
       ]
         .join(" ")
-        .toLowerCase()
-        .includes(term),
-    );
-  }, [search, state.products]);
+        .toLowerCase();
+      const matchesKeyword = !term || haystack.includes(term);
+      const matchesBrand = !brandFilter || product.brandName === brandFilter;
+      const matchesModel = !modelFilter || product.model === modelFilter;
+      const matchesCategory = categoryFilter === "All" || product.category === categoryFilter;
+      return matchesKeyword && matchesBrand && matchesModel && matchesCategory;
+    });
+  }, [brandFilter, categoryFilter, modelFilter, search, state.products]);
 
   function addProduct(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -85,8 +100,7 @@ export default function ProductsPage() {
   async function uploadProducts(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
     if (!file) return;
-    const csv = await file.text();
-    const rows = parseCsv(csv);
+    const rows = await readProductRows(file);
     const [headers, ...body] = rows;
     const imported = body
       .filter((row) => row.some(Boolean))
@@ -124,7 +138,7 @@ export default function ProductsPage() {
               <label className="inline-flex h-10 cursor-pointer items-center gap-2 rounded-lg bg-[#003CBB] px-3 text-sm font-semibold text-white">
                 <Upload size={16} />
                 Bulk upload
-                <input type="file" accept=".csv" onChange={uploadProducts} className="hidden" />
+                <input type="file" accept=".csv,.xlsx,.xls" onChange={uploadProducts} className="hidden" />
               </label>
             </div>
           </div>
@@ -164,16 +178,22 @@ export default function ProductsPage() {
         <section className="rounded-lg border border-[#d9e2f2] bg-white shadow-sm">
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#e5edf7] p-4">
             <h2 className="font-semibold">Added products</h2>
-            <label className="relative">
-              <Search className="absolute left-3 top-2.5 text-[#657267]" size={16} />
-              <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search products" className="h-10 w-72 rounded-lg border border-[#d9e2f2] bg-white pl-10 pr-3 text-sm outline-none" />
-            </label>
+            <div className="flex flex-wrap justify-end gap-2">
+              <label className="relative">
+                <Search className="absolute left-3 top-2.5 text-[#657267]" size={16} />
+                <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search all products" className="h-10 w-72 rounded-lg border border-[#d9e2f2] bg-white pl-10 pr-3 text-sm outline-none" />
+              </label>
+              <FilterSelect label="Category" value={categoryFilter} options={["All", ...categories]} onChange={(value) => setCategoryFilter(value as "All" | ProductCategory)} />
+              <FilterSelect label="Brand" value={brandFilter} options={["", ...filterOptions.brands]} onChange={setBrandFilter} />
+              <FilterSelect label="Model" value={modelFilter} options={["", ...filterOptions.models]} onChange={setModelFilter} />
+            </div>
           </div>
           <div className="overflow-x-auto">
             <table className="min-w-[1900px] w-full border-collapse text-sm">
               <thead className="bg-[#f6f8fc] text-left text-xs uppercase tracking-[0.08em] text-[#657267]">
                 <tr>
                   <Th>ID</Th>
+                  <Th>Category</Th>
                   <Th>Product Class</Th>
                   <Th>Brand</Th>
                   <Th>Model</Th>
@@ -195,6 +215,15 @@ export default function ProductsPage() {
                 {products.map((product) => (
                   <tr key={product.id} className="border-t border-[#e5edf7]">
                     <Td>{product.id}</Td>
+                    <td className="min-w-32 px-2 py-2">
+                      <select value={product.category} onChange={(event) => updateProduct(product.id, { category: event.target.value as ProductCategory })} className="h-9 w-full rounded-md border border-transparent bg-transparent px-2 outline-none focus:border-[#003CBB] focus:bg-white">
+                        {categories.map((category) => (
+                          <option key={category} value={category}>
+                            {category}
+                          </option>
+                        ))}
+                      </select>
+                    </td>
                     <EditableCell value={product.productClass ?? ""} onChange={(value) => updateProduct(product.id, { productClass: value })} />
                     <EditableCell value={product.brandName} onChange={(value) => updateProduct(product.id, { brandName: value })} />
                     <EditableCell value={product.model ?? ""} onChange={(value) => updateProduct(product.id, { model: value })} />
@@ -256,10 +285,11 @@ function productFromForm(form: FormData, id: string): Product {
 
 function productFromCsv(headers: string[], row: string[], id: string, selectedCategory: ProductCategory): Product {
   const get = (name: string) => row[headers.findIndex((header) => normalizeHeader(header) === normalizeHeader(name))] ?? "";
+  const productClass = get("Product Class");
   return {
     id,
     category: selectedCategory,
-    productClass: get("Product Class"),
+    productClass: normalizeHeader(productClass) === normalizeHeader(selectedCategory) ? "" : productClass,
     productName: get("Product Name") || get("Model"),
     brandName: get("Brand"),
     model: get("Model"),
@@ -280,6 +310,21 @@ function productFromCsv(headers: string[], row: string[], id: string, selectedCa
     description: get("Description"),
     price: Number(get("Price AUD") || 0),
   };
+}
+
+function FilterSelect({ label, value, options, onChange }: { label: string; value: string; options: string[]; onChange: (value: string) => void }) {
+  return (
+    <label className="h-10 rounded-lg border border-[#d9e2f2] bg-white px-3 text-xs font-semibold uppercase tracking-[0.08em] text-[#657267]">
+      <span className="sr-only">{label}</span>
+      <select value={value} onChange={(event) => onChange(event.target.value)} className="h-full min-w-32 bg-transparent text-sm font-medium normal-case tracking-normal text-[#172033] outline-none">
+        {options.map((option) => (
+          <option key={option || "all"} value={option}>
+            {option || `All ${label.toLowerCase()}`}
+          </option>
+        ))}
+      </select>
+    </label>
+  );
 }
 
 function CategorySelect({ label, name }: { label: string; name?: string }) {
@@ -324,6 +369,10 @@ function EditableCell({ value, onChange }: { value: string; onChange: (value: st
 
 function normalizeHeader(value: string) {
   return value.toLowerCase().replace(/[^a-z0-9]/g, "");
+}
+
+function unique(values: string[]) {
+  return Array.from(new Set(values)).sort((a, b) => a.localeCompare(b));
 }
 
 function downloadCsv(filename: string, rows: string[][]) {
@@ -372,4 +421,14 @@ function parseCsv(csv: string) {
     rows.push(row);
   }
   return rows;
+}
+
+async function readProductRows(file: File) {
+  const extension = file.name.split(".").pop()?.toLowerCase();
+  if (extension === "xlsx" || extension === "xls") {
+    const workbook = XLSX.read(await file.arrayBuffer(), { type: "array" });
+    const sheet = workbook.Sheets[workbook.SheetNames[0]];
+    return XLSX.utils.sheet_to_json<string[]>(sheet, { header: 1, blankrows: false }).map((row) => row.map((cell) => String(cell ?? "").trim()));
+  }
+  return parseCsv(await file.text());
 }
