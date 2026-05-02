@@ -8,7 +8,7 @@ import { useCrmStore } from "@/lib/use-crm-store";
 export default function SettingsPage() {
   const { state, setState } = useCrmStore();
   const [message, setMessage] = useState("");
-  const mailjet = state.settings.mailjet;
+  const resend = state.settings.resend;
   const twilio = state.settings.twilio;
 
   function saveSettings(event: FormEvent<HTMLFormElement>) {
@@ -20,12 +20,11 @@ export default function SettingsPage() {
         ...state.settings,
         loginImageUrl: String(form.get("loginImageUrl") || state.settings.loginImageUrl),
         logoUrl: String(form.get("logoUrl") || ""),
-        mailjet: {
-          apiKey: String(form.get("apiKey") || ""),
-          apiSecret: String(form.get("apiSecret") || ""),
+        resend: {
+          apiKey: String(form.get("resendApiKey") || ""),
           fromEmail: String(form.get("fromEmail") || ""),
           fromName: String(form.get("fromName") || "SavePlanet CRM"),
-          enabled: form.get("enabled") === "on",
+          enabled: form.get("resendEnabled") === "on",
         },
         twilio: {
           accountSid: String(form.get("twilioAccountSid") || ""),
@@ -39,20 +38,20 @@ export default function SettingsPage() {
     setMessage("Settings saved.");
   }
 
-  async function testMailjet() {
+  async function testResend() {
     setMessage("Sending test email...");
-    const response = await fetch("/api/mailjet/send", {
+    const response = await fetch("/api/resend/send", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        mailjet: state.settings.mailjet,
-        toEmail: state.settings.mailjet.fromEmail,
-        toName: state.settings.mailjet.fromName,
-        subject: "SavePlanet CRM Mailjet test",
-        text: "Mailjet is connected to SavePlanet CRM.",
+        resend: state.settings.resend,
+        toEmail: state.settings.resend.fromEmail,
+        toName: state.settings.resend.fromName,
+        subject: "SavePlanet CRM Resend test",
+        text: "Resend is connected to SavePlanet CRM.",
       }),
     });
-    setMessage(response.ok ? "Test email sent." : "Test email failed. Check Mailjet settings.");
+    setMessage(response.ok ? "Test email sent." : "Test email failed. Check Resend settings.");
   }
 
   return (
@@ -60,21 +59,20 @@ export default function SettingsPage() {
       <PageHeader eyebrow="Settings" title="Mail and automation settings" />
       <div className="grid gap-6 p-4 md:p-8 xl:grid-cols-[520px_1fr]">
         <form onSubmit={saveSettings} className="rounded-lg border border-[#dce3d5] bg-white p-5 shadow-sm">
-          <h2 className="font-semibold">Login, Mailjet and Twilio settings</h2>
+          <h2 className="font-semibold">Login, Resend and Twilio settings</h2>
           <p className="mt-1 text-sm text-[#657267]">Customize branding, automatic email, and one-click calling.</p>
           <div className="mt-5 grid gap-3">
             <Input name="loginImageUrl" label="Login side image URL" defaultValue={state.settings.loginImageUrl} />
             <Input name="logoUrl" label="Logo image URL" defaultValue={state.settings.logoUrl} />
             <div className="mt-2 border-t border-[#e5edf7] pt-4">
-              <h3 className="text-sm font-semibold text-[#0f172a]">Mailjet</h3>
+              <h3 className="text-sm font-semibold text-[#0f172a]">Resend</h3>
             </div>
-            <Input name="apiKey" label="Mailjet API key" defaultValue={mailjet.apiKey} />
-            <Input name="apiSecret" label="Mailjet API secret" type="password" defaultValue={mailjet.apiSecret} />
-            <Input name="fromEmail" label="From email" type="email" defaultValue={mailjet.fromEmail} />
-            <Input name="fromName" label="From name" defaultValue={mailjet.fromName} />
+            <Input name="resendApiKey" label="Resend API key" type="password" defaultValue={resend.apiKey} />
+            <Input name="fromEmail" label="From email" type="email" defaultValue={resend.fromEmail} />
+            <Input name="fromName" label="From name" defaultValue={resend.fromName} />
             <label className="flex items-center justify-between rounded-lg border border-[#d7dfd0] p-3 text-sm font-medium">
-              <span>Enable Mailjet sending</span>
-              <input name="enabled" type="checkbox" defaultChecked={mailjet.enabled} />
+              <span>Enable Resend sending</span>
+              <input name="resendEnabled" type="checkbox" defaultChecked={resend.enabled} />
             </label>
             <div className="mt-2 border-t border-[#e5edf7] pt-4">
               <h3 className="text-sm font-semibold text-[#0f172a]">Twilio calling</h3>
@@ -93,7 +91,7 @@ export default function SettingsPage() {
             <button className="inline-flex h-11 items-center gap-2 rounded-lg bg-[#003CBB] px-4 text-sm font-semibold text-white">
               <Save size={16} /> Save settings
             </button>
-            <button type="button" onClick={testMailjet} className="inline-flex h-11 items-center gap-2 rounded-lg border border-[#d7dfd0] bg-white px-4 text-sm font-semibold">
+            <button type="button" onClick={testResend} className="inline-flex h-11 items-center gap-2 rounded-lg border border-[#d7dfd0] bg-white px-4 text-sm font-semibold">
               <Send size={16} /> Send test
             </button>
           </div>

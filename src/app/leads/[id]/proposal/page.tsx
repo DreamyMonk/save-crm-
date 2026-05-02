@@ -259,12 +259,12 @@ export default function ProposalPage() {
     const pdf = await createPdf();
     const encodedPdf = pdf.output("datauristring").split(",")[1] ?? "";
 
-    if (state.settings.mailjet.enabled && canEmail && lead.email) {
-      const response = await fetch("/api/mailjet/send", {
+    if (state.settings.resend.enabled && canEmail && lead.email) {
+      const response = await fetch("/api/resend/send", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          mailjet: state.settings.mailjet,
+          resend: state.settings.resend,
           toEmail: lead.email,
           toName: lead.contact,
           subject: `Proposal PDF for ${lead.title}`,
@@ -278,11 +278,11 @@ export default function ProposalPage() {
           ],
         }),
       });
-      deliveryStatus = response.ok ? "Proposal PDF sent and logged" : "Proposal saved, Mailjet PDF send failed";
+      deliveryStatus = response.ok ? "Proposal PDF sent and logged" : "Proposal saved, Resend PDF send failed";
     } else if (!canEmail) {
       deliveryStatus = "Proposal saved, email blocked by lead preferences";
-    } else if (!state.settings.mailjet.enabled) {
-      deliveryStatus = "Proposal saved, enable Mailjet in settings to send PDF";
+    } else if (!state.settings.resend.enabled) {
+      deliveryStatus = "Proposal saved, enable Resend in settings to send PDF";
     }
 
     setState({

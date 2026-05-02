@@ -23,7 +23,7 @@ export default function ResetPasswordPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         email,
-        mailjet: state.settings.mailjet,
+        resend: state.settings.resend,
       }),
     });
 

@@ -46,13 +46,13 @@ function NewAppointmentContent() {
     };
 
     let emailStatus: Appointment["emailStatus"] = "Not sent";
-    if (state.settings.mailjet.enabled && !lead.communicationPreferences?.dndAllChannels && lead.communicationPreferences?.email) {
+    if (state.settings.resend.enabled && !lead.communicationPreferences?.dndAllChannels && lead.communicationPreferences?.email) {
       try {
-        const response = await fetch("/api/mailjet/send", {
+        const response = await fetch("/api/resend/send", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            mailjet: state.settings.mailjet,
+            resend: state.settings.resend,
             toEmail: lead.email,
             toName: lead.contact,
             subject: `Appointment scheduled: ${appointment.title}`,
@@ -128,7 +128,7 @@ function NewAppointmentContent() {
         <aside className="rounded-lg bg-[#eef4ff] p-5">
           <h2 className="font-semibold">Automatic email</h2>
           <p className="mt-2 text-sm leading-6 text-[#4f5e55]">
-            Email is sent automatically when Mailjet is enabled in Settings and the lead allows Email communication.
+            Email is sent automatically when Resend is enabled in Settings and the lead allows Email communication.
           </p>
           {status ? <p className="mt-4 rounded-lg bg-white p-3 text-sm font-medium">{status}</p> : null}
           <button className="mt-5 h-11 w-full rounded-lg bg-[#003CBB] px-5 text-sm font-semibold text-white">Schedule appointment</button>

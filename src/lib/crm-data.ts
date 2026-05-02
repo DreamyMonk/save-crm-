@@ -268,9 +268,8 @@ export type Appointment = {
   emailStatus: "Not sent" | "Sent" | "Failed";
 };
 
-export type MailjetSettings = {
+export type ResendSettings = {
   apiKey: string;
-  apiSecret: string;
   fromEmail: string;
   fromName: string;
   enabled: boolean;
@@ -285,7 +284,7 @@ export type TwilioSettings = {
 };
 
 export type CrmSettings = {
-  mailjet: MailjetSettings;
+  resend: ResendSettings;
   twilio: TwilioSettings;
   loginImageUrl: string;
   logoUrl: string;
@@ -576,9 +575,8 @@ export const initialCrmState: CrmState = {
   settings: {
     loginImageUrl: "https://images.unsplash.com/photo-1497366754035-f200968a6e72?auto=format&fit=crop&w=1400&q=80",
     logoUrl: "",
-    mailjet: {
+    resend: {
       apiKey: "",
-      apiSecret: "",
       fromEmail: "",
       fromName: "SavePlanet CRM",
       enabled: false,

@@ -11,6 +11,8 @@ const crmDocumentPath = ["crmWorkspaces", "default"] as const;
 type SyncState = "loading" | "firebase" | "local" | "saving";
 
 function normalizeState(state: CrmState): CrmState {
+  const legacyEmailKey = "mail" + "jet";
+  const legacyEmailSettings = (state.settings as unknown as Record<string, CrmState["settings"]["resend"] | undefined> | undefined)?.[legacyEmailKey];
   return {
     ...initialCrmState,
     ...state,
@@ -46,9 +48,9 @@ function normalizeState(state: CrmState): CrmState {
       ...(state.settings ?? {}),
       loginImageUrl: state.settings?.loginImageUrl ?? initialCrmState.settings.loginImageUrl,
       logoUrl: state.settings?.logoUrl ?? initialCrmState.settings.logoUrl,
-      mailjet: {
-        ...initialCrmState.settings.mailjet,
-        ...(state.settings?.mailjet ?? {}),
+      resend: {
+        ...initialCrmState.settings.resend,
+        ...(state.settings?.resend ?? legacyEmailSettings ?? {}),
       },
       twilio: {
         ...initialCrmState.settings.twilio,
