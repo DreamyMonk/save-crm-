@@ -21,6 +21,7 @@ export function PublicProposalPage() {
 function ProposalWorkspace({ publicView = false }: { publicView?: boolean }) {
   const { id } = useParams<{ id: string }>();
   const iframeRef = useRef<HTMLIFrameElement>(null);
+  const openTrackedRef = useRef(false);
   const { state, setState } = useCrmStore();
   const [message, setMessage] = useState("");
   const [proposalHtml, setProposalHtml] = useState("");
@@ -59,6 +60,22 @@ function ProposalWorkspace({ publicView = false }: { publicView?: boolean }) {
     };
   }, [quote, customer, calculations]);
 
+  useEffect(() => {
+    if (!publicView || !quote || openTrackedRef.current) return;
+    openTrackedRef.current = true;
+    const openedAt = new Date().toISOString();
+    const updatedQuote = {
+      ...quote,
+      proposalOpenedAt: openedAt,
+      proposalOpenCount: (quote.proposalOpenCount ?? 0) + 1,
+    };
+    setState({
+      ...state,
+      quotes: state.quotes.map((item) => (item.id === quote.id ? updatedQuote : item)),
+    });
+    window.localStorage.setItem(`saveplanet-quote-${quote.id}`, JSON.stringify(updatedQuote));
+  }, [publicView, quote, setState, state]);
+
   if (!quote || !calculations) {
     const notFound = (
       <>
@@ -94,9 +111,21 @@ function ProposalWorkspace({ publicView = false }: { publicView?: boolean }) {
 
   async function sendProposalLink() {
     if (!quote) return;
+    const sentAt = new Date().toISOString();
+    const updatedQuote = {
+      ...quote,
+      proposalSentAt: quote.proposalSentAt ?? sentAt,
+      proposalSentBy: quote.proposalSentBy ?? customer?.salesAgent ?? "SavePlanet Team",
+      status: "Saved" as const,
+    };
+    setState({
+      ...state,
+      quotes: state.quotes.map((item) => (item.id === quote.id ? updatedQuote : item)),
+    });
+    window.localStorage.setItem(`saveplanet-quote-${quote.id}`, JSON.stringify(updatedQuote));
     const link = `${window.location.origin}/proposal/${quote.id}`;
     await navigator.clipboard?.writeText(link);
-    setMessage("Public proposal link copied.");
+    setMessage("Public proposal link copied and marked as sent.");
   }
 
   function saveSignature() {
