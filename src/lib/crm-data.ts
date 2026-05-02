@@ -206,6 +206,8 @@ export type QuoteRecord = {
   proposalSentBy?: string;
   proposalOpenedAt?: string;
   proposalOpenCount?: number;
+  proposalChangeRequestHtml?: string;
+  proposalChangeRequestedAt?: string;
   customerSignatureDataUrl?: string;
   customerSignedAt?: string;
 };

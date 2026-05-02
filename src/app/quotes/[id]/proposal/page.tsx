@@ -6,6 +6,7 @@ import { useParams } from "next/navigation";
 import { onAuthStateChanged, User } from "firebase/auth";
 import { ArrowLeft, Copy, Download, PenLine, Save, Send } from "lucide-react";
 import { CrmShell, PageHeader } from "@/components/crm-shell";
+import { RichTextEditor } from "@/components/rich-text-editor";
 import { Customer, QuoteLineItem, QuoteRecord, currency } from "@/lib/crm-data";
 import { getFirebaseAuth } from "@/lib/firebase";
 import { useCrmStore } from "@/lib/use-crm-store";
@@ -30,6 +31,7 @@ function ProposalWorkspace({ publicView = false, allowAnonymous = false }: { pub
   const [message, setMessage] = useState("");
   const [proposalHtml, setProposalHtml] = useState("");
   const [signatureDataUrl, setSignatureDataUrl] = useState("");
+  const [changeRequestDrafts, setChangeRequestDrafts] = useState<Record<string, string>>({});
   const effectivePublicView = publicView || (allowAnonymous && authChecked && !user);
   const quote = useMemo(() => {
     const fromState = state.quotes.find((item) => item.id === id);
@@ -48,6 +50,7 @@ function ProposalWorkspace({ publicView = false, allowAnonymous = false }: { pub
     if (!quote) return undefined;
     return calculateQuote(quote.items, quote.additionalServices, quote.certificateRate, quote.minimumContributionAdjustment, quote.gstRate);
   }, [quote]);
+  const changeRequestHtml = quote ? (changeRequestDrafts[quote.id] ?? quote.proposalChangeRequestHtml ?? "") : "";
 
   useEffect(() => {
     if (!quote || !calculations) return;
@@ -165,6 +168,26 @@ function ProposalWorkspace({ publicView = false, allowAnonymous = false }: { pub
     setMessage("Signature saved into the proposal.");
   }
 
+  function saveChangeRequest() {
+    if (!quote) return;
+    if (!hasEditorText(changeRequestHtml)) {
+      setMessage("Please write the requested changes first.");
+      return;
+    }
+    const requestedAt = new Date().toISOString();
+    const updatedQuote = {
+      ...quote,
+      proposalChangeRequestHtml: changeRequestHtml,
+      proposalChangeRequestedAt: requestedAt,
+    };
+    setState({
+      ...state,
+      quotes: state.quotes.map((item) => (item.id === quote.id ? updatedQuote : item)),
+    });
+    window.localStorage.setItem(`saveplanet-quote-${quote.id}`, JSON.stringify(updatedQuote));
+    setMessage(effectivePublicView ? "Your requested changes were sent to SavePlanet." : "Requested changes saved.");
+  }
+
   const content = (
     <>
       <PageHeader
@@ -219,6 +242,37 @@ function ProposalWorkspace({ publicView = false, allowAnonymous = false }: { pub
             </button> : null}
           </div>
         </section>
+        <section className="mx-auto mt-5 max-w-[1060px] rounded-lg border border-[#d9e2f2] bg-white p-5 shadow-sm">
+          <div className="flex items-center gap-2">
+            <PenLine size={18} />
+            <h2 className="font-semibold">Changes</h2>
+          </div>
+          <p className="mt-1 text-sm text-[#657267]">
+            {effectivePublicView ? "Write any requested changes before signing or after reviewing the proposal." : "Client requested changes from the public proposal viewer."}
+          </p>
+          {effectivePublicView ? (
+            <>
+              <div className="mt-4">
+                <RichTextEditor
+                  value={changeRequestHtml}
+                  onChange={(value) => {
+                    if (!quote) return;
+                    setChangeRequestDrafts((current) => ({ ...current, [quote.id]: value }));
+                  }}
+                  placeholder="Write requested changes here..."
+                  minHeight={180}
+                />
+              </div>
+              <button onClick={saveChangeRequest} className="mt-4 inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-[#003CBB] px-4 text-sm font-semibold text-white">
+                <Send size={16} /> Send changes
+              </button>
+            </>
+          ) : quote.proposalChangeRequestHtml ? (
+            <div className="prose prose-sm mt-4 max-w-none rounded-lg border border-[#e5edf7] bg-[#f8fbff] p-4 text-[#0f172a]" dangerouslySetInnerHTML={{ __html: quote.proposalChangeRequestHtml }} />
+          ) : (
+            <p className="mt-4 rounded-lg border border-dashed border-[#c7d3e8] bg-[#f8fbff] p-4 text-sm text-[#657267]">No change request submitted yet.</p>
+          )}
+        </section>
       </main>
     </>
   );
@@ -228,6 +282,11 @@ function ProposalWorkspace({ publicView = false, allowAnonymous = false }: { pub
       {content}
     </CrmShell>
   );
+}
+
+function hasEditorText(html: string) {
+  if (!html) return false;
+  return html.replace(/<[^>]*>/g, "").replaceAll("&nbsp;", " ").trim().length > 0;
 }
 
 function buildProposalHtml(template: string, quote: QuoteRecord, customer: Customer | undefined, calculations: Calculations) {
