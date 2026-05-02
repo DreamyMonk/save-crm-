@@ -1,1 +1,1 @@
-export { default } from "@/app/quotes/[id]/proposal/page";
+export { PublicProposalPage as default } from "@/app/quotes/[id]/proposal/page";

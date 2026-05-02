@@ -11,6 +11,14 @@ import { useCrmStore } from "@/lib/use-crm-store";
 const TEMPLATE_URL = "/saveplanet-aircon-proposal-template.html";
 
 export default function DraftProposalPage() {
+  return <ProposalWorkspace publicView={false} />;
+}
+
+export function PublicProposalPage() {
+  return <ProposalWorkspace publicView />;
+}
+
+function ProposalWorkspace({ publicView = false }: { publicView?: boolean }) {
   const { id } = useParams<{ id: string }>();
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const { state, setState } = useCrmStore();
@@ -52,9 +60,20 @@ export default function DraftProposalPage() {
   }, [quote, customer, calculations]);
 
   if (!quote || !calculations) {
-    return (
+    const notFound = (
+      <>
+        <PageHeader eyebrow="Draft proposal" title="Proposal not found" actions={<Link href={publicView ? "/" : "/quotes"} className="rounded-lg bg-[#003CBB] px-4 py-2 text-sm font-semibold text-white">{publicView ? "Back home" : "Back to quotes"}</Link>} />
+        <main className="grid min-h-[70vh] place-items-center bg-white p-6">
+          <div className="max-w-md rounded-xl border border-[#d9e2f2] bg-white p-6 text-center shadow-sm">
+            <h2 className="text-xl font-semibold text-[#0f172a]">This proposal is not available</h2>
+            <p className="mt-2 text-sm leading-6 text-[#657267]">Please check the proposal link or ask the SavePlanet team to resend it.</p>
+          </div>
+        </main>
+      </>
+    );
+    return publicView ? notFound : (
       <CrmShell>
-        <PageHeader eyebrow="Draft proposal" title="Proposal not found" actions={<Link href="/quotes" className="rounded-lg bg-[#003CBB] px-4 py-2 text-sm font-semibold text-white">Back to quotes</Link>} />
+        {notFound}
       </CrmShell>
     );
   }
@@ -96,13 +115,18 @@ export default function DraftProposalPage() {
     setMessage("Signature saved into the proposal.");
   }
 
-  return (
-    <CrmShell>
+  const content = (
+    <>
       <PageHeader
         eyebrow={quote.id}
-        title="Draft proposal"
+        title={publicView ? "SavePlanet proposal" : "Draft proposal"}
         actions={
-          <>
+          publicView ? (
+            <button onClick={downloadPdf} className="inline-flex h-10 items-center gap-2 rounded-lg bg-[#0f172a] px-4 text-sm font-semibold text-white">
+              <Download size={16} /> Download PDF
+            </button>
+          ) : (
+            <>
             <Link href="/quotes" className="inline-flex h-10 items-center gap-2 rounded-lg border border-[#c7d3e8] bg-white px-4 text-sm font-semibold text-[#003CBB]">
               <ArrowLeft size={16} /> Back
             </Link>
@@ -115,7 +139,8 @@ export default function DraftProposalPage() {
             <button onClick={downloadPdf} className="inline-flex h-10 items-center gap-2 rounded-lg bg-[#0f172a] px-4 text-sm font-semibold text-white">
               <Download size={16} /> Download PDF
             </button>
-          </>
+            </>
+          )
         }
       />
       {message ? <p className="mx-8 mt-4 rounded-lg bg-[#eef4ff] p-3 text-sm font-semibold text-[#003CBB]">{message}</p> : null}
@@ -132,19 +157,25 @@ export default function DraftProposalPage() {
               <PenLine size={18} />
               <h2 className="font-semibold">Customer signature</h2>
             </div>
-            <p className="mt-1 text-sm text-[#657267]">Customer can sign here from the shared proposal link. Saved signature appears automatically in the proposal customer signature area.</p>
+            <p className="mt-1 text-sm text-[#657267]">{publicView ? "Sign here to confirm that you have reviewed this proposal. Your signature will appear in the proposal customer signature area." : "Customer can sign here from the shared proposal link. Saved signature appears automatically in the proposal customer signature area."}</p>
             <SignaturePad value={quote.customerSignatureDataUrl} onChange={setSignatureDataUrl} />
           </div>
           <div className="flex flex-col justify-end gap-2">
             <button onClick={saveSignature} className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-[#003CBB] px-4 text-sm font-semibold text-white">
               <Save size={16} /> Save signature
             </button>
-            <button onClick={sendProposalLink} className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-[#c7d3e8] bg-white px-4 text-sm font-semibold text-[#003CBB]">
+            {!publicView ? <button onClick={sendProposalLink} className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-[#c7d3e8] bg-white px-4 text-sm font-semibold text-[#003CBB]">
               <Copy size={16} /> Copy public link
-            </button>
+            </button> : null}
           </div>
         </section>
       </main>
+    </>
+  );
+
+  return publicView ? content : (
+    <CrmShell>
+      {content}
     </CrmShell>
   );
 }
