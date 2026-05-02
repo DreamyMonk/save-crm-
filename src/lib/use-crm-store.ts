@@ -93,14 +93,16 @@ export function useCrmStore() {
       try {
         const snapshot = await getDoc(doc(getFirebaseDb(), ...crmDocumentPath));
         if (!active) return;
+        const localState = readLocalState();
         if (snapshot.exists()) {
-          const remoteState = normalizeState(snapshot.data() as CrmState);
+          const remoteState = mergeLocalProducts(normalizeState(snapshot.data() as CrmState), localState);
           lastSavedState.current = JSON.stringify(remoteState);
           setState(remoteState);
         } else {
-          await setDoc(doc(getFirebaseDb(), ...crmDocumentPath), initialCrmState);
-          lastSavedState.current = JSON.stringify(initialCrmState);
-          setState(initialCrmState);
+          const nextState = localState ?? initialCrmState;
+          await setDoc(doc(getFirebaseDb(), ...crmDocumentPath), nextState);
+          lastSavedState.current = JSON.stringify(nextState);
+          setState(nextState);
         }
         setSyncState("firebase");
         setSyncError(null);
@@ -131,9 +133,9 @@ export function useCrmStore() {
     if (serializedState === lastSavedState.current) return;
     const timeout = window.setTimeout(() => {
       setSyncState("saving");
-      setDoc(doc(getFirebaseDb(), ...crmDocumentPath), state)
-        .then(() => {
-          lastSavedState.current = serializedState;
+      saveMergedState(state)
+        .then((savedState) => {
+          lastSavedState.current = JSON.stringify(savedState);
           setSyncState("firebase");
           setSyncError(null);
         })
@@ -147,4 +149,33 @@ export function useCrmStore() {
   }, [ready, state, syncState]);
 
   return { state, setState, ready, syncState, syncError };
+}
+
+function readLocalState() {
+  if (typeof window === "undefined") return null;
+  const saved = window.localStorage.getItem(storageKey);
+  if (!saved) return null;
+  try {
+    return normalizeState(JSON.parse(saved) as CrmState);
+  } catch {
+    return null;
+  }
+}
+
+function mergeLocalProducts(remoteState: CrmState, localState: CrmState | null) {
+  if (!localState) return remoteState;
+  if (remoteState.products.length > 0 || localState.products.length === 0) return remoteState;
+  return { ...remoteState, products: localState.products };
+}
+
+async function saveMergedState(state: CrmState) {
+  const ref = doc(getFirebaseDb(), ...crmDocumentPath);
+  const snapshot = await getDoc(ref);
+  const remoteState = snapshot.exists() ? normalizeState(snapshot.data() as CrmState) : initialCrmState;
+  const mergedState = {
+    ...state,
+    products: state.products.length === 0 && remoteState.products.length > 0 ? remoteState.products : state.products,
+  };
+  await setDoc(ref, mergedState);
+  return mergedState;
 }
