@@ -7,7 +7,7 @@ import { onAuthStateChanged, User } from "firebase/auth";
 import { ArrowLeft, Copy, Download, PenLine, Save, Send } from "lucide-react";
 import { CrmShell, PageHeader } from "@/components/crm-shell";
 import { RichTextEditor } from "@/components/rich-text-editor";
-import { Customer, QuoteLineItem, QuoteRecord, currency } from "@/lib/crm-data";
+import { CrmState, Customer, QuoteLineItem, QuoteRecord, TeamMember, currency } from "@/lib/crm-data";
 import { getFirebaseAuth } from "@/lib/firebase";
 import { useCrmStore } from "@/lib/use-crm-store";
 
@@ -144,10 +144,12 @@ function ProposalWorkspace({ publicView = false, allowAnonymous = false }: { pub
   async function sendProposalLink() {
     if (!quote) return;
     const sentAt = new Date().toISOString();
+    const sender = findSenderMember(state, quote, customer, user);
+    const link = `${window.location.origin}/proposal/${quote.id}`;
     const updatedQuote = {
       ...quote,
       proposalSentAt: quote.proposalSentAt ?? sentAt,
-      proposalSentBy: quote.proposalSentBy ?? customer?.salesAgent ?? "SavePlanet Team",
+      proposalSentBy: quote.proposalSentBy ?? sender?.name ?? customer?.salesAgent ?? user?.email ?? "SavePlanet Team",
       status: "Saved" as const,
     };
     setState({
@@ -155,25 +157,53 @@ function ProposalWorkspace({ publicView = false, allowAnonymous = false }: { pub
       quotes: state.quotes.map((item) => (item.id === quote.id ? updatedQuote : item)),
     });
     window.localStorage.setItem(`saveplanet-quote-${quote.id}`, JSON.stringify(updatedQuote));
-    const link = `${window.location.origin}/proposal/${quote.id}`;
     await navigator.clipboard?.writeText(link);
-    setMessage("Public proposal link copied and marked as sent.");
+
+    if (!customer?.email) {
+      setMessage("Public proposal link copied. Customer email is missing, so no email was sent.");
+      return;
+    }
+
+    const emailSent = await sendResendEmail(state, {
+      recipients: [{ email: customer.email, name: customerName(customer) }],
+      subject: `SavePlanet proposal ${quote.id}`,
+      text: `Hi ${customerName(customer)},\n\nYour SavePlanet proposal is ready.\n\nOpen it here:\n${link}\n\nYou can view, download, and sign the proposal from this link.\n\nThanks,\nSavePlanet`,
+    });
+    setMessage(emailSent ? "Public proposal link copied and emailed to the customer." : "Public proposal link copied. Customer email failed, please check Resend settings.");
   }
 
-  function saveSignature() {
+  async function saveSignature() {
     if (!quote) return;
     if (!signatureDataUrl) {
       setMessage("Please draw a signature first.");
       return;
     }
     const signedAt = new Date().toISOString();
+    const firstSignature = !quote.customerSignedAt;
     const updatedQuote = { ...quote, customerSignatureDataUrl: signatureDataUrl, customerSignedAt: signedAt };
     setState({
       ...state,
       quotes: state.quotes.map((item) => (item.id === quote.id ? updatedQuote : item)),
     });
     window.localStorage.setItem(`saveplanet-quote-${quote.id}`, JSON.stringify(updatedQuote));
-    setMessage("Signature saved into the proposal.");
+
+    if (!firstSignature) {
+      setMessage("Signature saved into the proposal.");
+      return;
+    }
+
+    const recipients = signingNotificationRecipients(state, updatedQuote, customer, user);
+    if (!recipients.length) {
+      setMessage("Signature saved. Add real admin and agent emails in Access Manager to receive notifications.");
+      return;
+    }
+
+    const emailSent = await sendResendEmail(state, {
+      recipients,
+      subject: `Proposal signed: ${quote.id}`,
+      text: `${customerName(customer)} signed proposal ${quote.id} on ${formatDate(signedAt)}.\n\nCustomer: ${customerName(customer)}\nProposal: ${quote.id}\nStatus: Signed\n\nOpen proposal records in SavePlanet CRM:\n${window.location.origin}/proposals`,
+    });
+    setMessage(emailSent ? "Signature saved. Admin and sending agent were notified." : "Signature saved. Notification email failed, please check Resend settings.");
   }
 
   function saveChangeRequest() {
@@ -215,7 +245,7 @@ function ProposalWorkspace({ publicView = false, allowAnonymous = false }: { pub
               <Save size={16} /> Save proposal
             </button>
             <button onClick={sendProposalLink} className="inline-flex h-10 items-center gap-2 rounded-lg bg-[#eef4ff] px-4 text-sm font-semibold text-[#003CBB]">
-              <Send size={16} /> Copy public link
+              <Send size={16} /> Send proposal
             </button>
             <button onClick={downloadPdf} className="inline-flex h-10 items-center gap-2 rounded-lg bg-[#0f172a] px-4 text-sm font-semibold text-white">
               <Download size={16} /> Download PDF
@@ -269,7 +299,7 @@ function ProposalWorkspace({ publicView = false, allowAnonymous = false }: { pub
               <Save size={16} /> Save signature
             </button>
             {!effectivePublicView ? <button onClick={sendProposalLink} className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-[#c7d3e8] bg-white px-4 text-sm font-semibold text-[#003CBB]">
-              <Copy size={16} /> Copy public link
+              <Copy size={16} /> Send and copy link
             </button> : null}
           </div>
         </section>
@@ -313,6 +343,54 @@ function ProposalWorkspace({ publicView = false, allowAnonymous = false }: { pub
       {content}
     </CrmShell>
   );
+}
+
+async function sendResendEmail(
+  state: CrmState,
+  payload: { recipients: { email: string; name?: string }[]; subject: string; text: string },
+) {
+  try {
+    const response = await fetch("/api/resend/send", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        resend: state.settings.resend,
+        recipients: payload.recipients,
+        subject: payload.subject,
+        text: payload.text,
+      }),
+    });
+    return response.ok;
+  } catch {
+    return false;
+  }
+}
+
+function findSenderMember(state: CrmState, quote: QuoteRecord, customer: Customer | undefined, user: User | null) {
+  const currentEmail = user?.email?.toLowerCase();
+  return (
+    state.team.find((member) => member.active && currentEmail && member.email?.toLowerCase() === currentEmail) ??
+    state.team.find((member) => member.active && member.name === quote.proposalSentBy) ??
+    state.team.find((member) => member.active && member.name === customer?.salesAgent)
+  );
+}
+
+function signingNotificationRecipients(state: CrmState, quote: QuoteRecord, customer: Customer | undefined, user: User | null) {
+  const recipients = new Map<string, { email: string; name?: string }>();
+  const addMember = (member?: TeamMember) => {
+    if (!member?.email || !isDeliverableEmail(member.email)) return;
+    recipients.set(member.email.toLowerCase(), { email: member.email, name: member.name });
+  };
+
+  state.team.filter((member) => member.active && member.role.toLowerCase() === "admin").forEach(addMember);
+  addMember(findSenderMember(state, quote, customer, user));
+
+  return Array.from(recipients.values());
+}
+
+function isDeliverableEmail(email: string) {
+  const normalized = email.trim().toLowerCase();
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized) && !normalized.endsWith(".local");
 }
 
 function hasEditorText(html: string) {

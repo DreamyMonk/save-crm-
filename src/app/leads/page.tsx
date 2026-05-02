@@ -182,7 +182,7 @@ function LeadCard({ lead, owner, onCall }: { lead: Lead; owner: string; onCall: 
         <span className="text-sm font-semibold">{currency(lead.amount)}</span>
       </div>
       <div className="mt-3 grid grid-cols-3 gap-2 border-t border-[#edf2e9] pt-3">
-        <Link href={`/leads/${lead.id}/mail`} className="inline-flex h-9 items-center justify-center rounded-lg bg-[#003CBB] text-white transition hover:bg-[#002f93]" title="Mail">
+        <Link href={`/leads/${lead.id}/mail`} className="inline-flex h-9 items-center justify-center rounded-lg bg-[#003CBB] text-white transition hover:bg-[#002f93]" title="Send email">
           <Mail size={16} />
         </Link>
         <Link href={`/leads/${lead.id}/tasks`} className="inline-flex h-9 items-center justify-center rounded-lg border border-[#d7e3ff] bg-white text-[#003CBB] transition hover:bg-[#eef4ff]" title="Tasks and notes">

@@ -4,7 +4,7 @@ import { useParams } from "next/navigation";
 import { FormEvent, useState } from "react";
 import { ButtonLink, CrmShell, PageHeader } from "@/components/crm-shell";
 import { RichTextEditor } from "@/components/rich-text-editor";
-import { MailMessage } from "@/lib/crm-data";
+import { MailMessage, defaultCommunicationPreferences } from "@/lib/crm-data";
 import { htmlToPlainText } from "@/lib/text";
 import { useCrmStore } from "@/lib/use-crm-store";
 
@@ -12,49 +12,67 @@ export default function LeadMailPage() {
   const { id } = useParams<{ id: string }>();
   const { state, setState } = useCrmStore();
   const [body, setBody] = useState("");
+  const [subject, setSubject] = useState("SavePlanet CRM update");
+  const [message, setMessage] = useState("");
   const lead = state.leads.find((item) => item.id === id);
 
-  function sendMail(event: FormEvent<HTMLFormElement>) {
+  async function sendMail(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!lead || !body.trim()) return;
+    const plainBody = htmlToPlainText(body).trim();
+    if (!lead || !plainBody || !subject.trim()) return;
+
+    const preferences = lead.communicationPreferences ?? defaultCommunicationPreferences();
+    if (preferences.dndAllChannels || !preferences.email) {
+      setMessage("Email blocked by this lead's communication preferences.");
+      return;
+    }
+
+    setMessage("Sending email...");
+    const response = await fetch("/api/resend/send", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        resend: state.settings.resend,
+        toEmail: lead.email,
+        toName: lead.contact,
+        subject: subject.trim(),
+        text: plainBody,
+      }),
+    });
+
+    if (!response.ok) {
+      setMessage("Email failed. Check Resend settings and the lead email address.");
+      return;
+    }
+
     const mail: MailMessage = {
       id: `M-${Date.now()}`,
-      subject: "CRM reply",
+      subject: subject.trim(),
       body,
       direction: "Out",
-      createdAt: "Now",
+      createdAt: new Date().toLocaleString("en-AU"),
     };
     setState({
       ...state,
       leads: state.leads.map((item) => (item.id === lead.id ? { ...item, mails: [...item.mails, mail] } : item)),
     });
     setBody("");
+    setMessage("Outgoing email sent.");
   }
 
   return (
     <CrmShell>
-      <PageHeader eyebrow="Mail" title={lead ? `Email ${lead.contact}` : "Lead not found"} actions={<ButtonLink href={`/leads/${id}`}>Back to lead</ButtonLink>} />
+      <PageHeader eyebrow="Outgoing email" title={lead ? `Email ${lead.contact}` : "Lead not found"} actions={<ButtonLink href={`/leads/${id}`}>Back to lead</ButtonLink>} />
       {lead ? (
-        <div className="grid gap-6 p-4 md:p-8 xl:grid-cols-[1fr_420px]">
-          <section className="rounded-lg border border-[#dce3d5] bg-white p-5 shadow-sm">
-            <h2 className="font-semibold">Mailbox</h2>
-            <div className="mt-4 space-y-3">
-              {lead.mails.map((mail) => (
-                <article key={mail.id} className="rounded-lg border border-[#edf2e9] p-4">
-                  <div className="flex items-center justify-between gap-3">
-                    <p className="font-semibold">{mail.subject}</p>
-                    <span className="rounded-md bg-[#eef4ff] px-2 py-1 text-xs font-semibold">{mail.direction}</span>
-                  </div>
-                  <p className="mt-2 text-sm leading-6 text-[#4f5e55]">{htmlToPlainText(mail.body)}</p>
-                  <p className="mt-2 text-xs text-[#657267]">{mail.createdAt}</p>
-                </article>
-              ))}
-            </div>
-          </section>
-          <form onSubmit={sendMail} className="rounded-lg border border-[#dce3d5] bg-white p-5 shadow-sm">
-            <h2 className="font-semibold">Compose email</h2>
+        <div className="p-4 md:p-8">
+          <form onSubmit={sendMail} className="mx-auto max-w-3xl rounded-lg border border-[#dce3d5] bg-white p-5 shadow-sm">
+            <h2 className="font-semibold">Send outgoing email</h2>
             <p className="mt-1 text-sm text-[#657267]">To: {lead.email}</p>
-            <input className="mt-4 h-11 w-full rounded-lg border border-[#d7dfd0] px-3 outline-none" defaultValue="CRM reply" />
+            {message ? <p className="mt-4 rounded-lg bg-[#eef4ff] px-3 py-2 text-sm font-semibold text-[#003CBB]">{message}</p> : null}
+            <label className="mt-4 block space-y-1 text-sm">
+              <span className="font-medium text-[#657267]">Subject</span>
+              <input value={subject} onChange={(event) => setSubject(event.target.value)} className="h-11 w-full rounded-lg border border-[#d7dfd0] px-3 outline-none focus:border-[#003CBB]" />
+            </label>
             <div className="mt-3">
               <RichTextEditor value={body} onChange={setBody} placeholder="Write email..." minHeight={240} />
             </div>

@@ -60,14 +60,14 @@ export default function SettingsPage() {
       <div className="grid gap-6 p-4 md:p-8 xl:grid-cols-[520px_1fr]">
         <form onSubmit={saveSettings} className="rounded-lg border border-[#dce3d5] bg-white p-5 shadow-sm">
           <h2 className="font-semibold">Login, Resend and Twilio settings</h2>
-          <p className="mt-1 text-sm text-[#657267]">Customize branding, automatic email, and one-click calling.</p>
+          <p className="mt-1 text-sm text-[#657267]">Customize branding, automatic email, and one-click calling. Resend can use the server .env key, so the API key field can stay blank here.</p>
           <div className="mt-5 grid gap-3">
             <Input name="loginImageUrl" label="Login side image URL" defaultValue={state.settings.loginImageUrl} />
             <Input name="logoUrl" label="Logo image URL" defaultValue={state.settings.logoUrl} />
             <div className="mt-2 border-t border-[#e5edf7] pt-4">
               <h3 className="text-sm font-semibold text-[#0f172a]">Resend</h3>
             </div>
-            <Input name="resendApiKey" label="Resend API key" type="password" defaultValue={resend.apiKey} />
+            <Input name="resendApiKey" label="Resend API key override" type="password" defaultValue={resend.apiKey} placeholder="Optional when RESEND_API_KEY is in .env" />
             <Input name="fromEmail" label="From email" type="email" defaultValue={resend.fromEmail} />
             <Input name="fromName" label="From name" defaultValue={resend.fromName} />
             <label className="flex items-center justify-between rounded-lg border border-[#d7dfd0] p-3 text-sm font-medium">

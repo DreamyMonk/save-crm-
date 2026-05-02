@@ -9,13 +9,23 @@ type ResendAttachment = {
   ContentType?: string;
 };
 
+type ResendRecipient = {
+  email?: string;
+  name?: string;
+};
+
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const resend = body.resend;
+    const resend = resolveResendSettings(body.resend);
+    const recipients = normalizeRecipients(body);
 
-    if (!resend?.enabled || !resend.apiKey || !resend.fromEmail) {
+    if (!resend.enabled || !resend.apiKey || !resend.fromEmail) {
       return NextResponse.json({ error: "Resend is not configured" }, { status: 400 });
+    }
+
+    if (!recipients.length) {
+      return NextResponse.json({ error: "No email recipients provided" }, { status: 400 });
     }
 
     const response = await fetch("https://api.resend.com/emails", {
@@ -26,7 +36,7 @@ export async function POST(request: Request) {
       },
       body: JSON.stringify({
         from: resend.fromName ? `${resend.fromName} <${resend.fromEmail}>` : resend.fromEmail,
-        to: [body.toName ? `${body.toName} <${body.toEmail}>` : body.toEmail],
+        to: recipients.map((recipient) => (recipient.name ? `${recipient.name} <${recipient.email}>` : recipient.email)),
         subject: body.subject,
         text: body.text,
         attachments: normalizeAttachments(body.attachments),
@@ -42,6 +52,31 @@ export async function POST(request: Request) {
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Mail send failed" }, { status: 500 });
   }
+}
+
+function resolveResendSettings(resend?: { apiKey?: string; fromEmail?: string; fromName?: string; enabled?: boolean }) {
+  const apiKey = process.env.RESEND_API_KEY || resend?.apiKey || "";
+  const fromEmail = process.env.RESEND_FROM_EMAIL || resend?.fromEmail || "";
+  const fromName = process.env.RESEND_FROM_NAME || resend?.fromName || "SavePlanet CRM";
+  return {
+    apiKey,
+    fromEmail,
+    fromName,
+    enabled: Boolean(apiKey && fromEmail) || resend?.enabled === true,
+  };
+}
+
+function normalizeRecipients(body: { toEmail?: string; toName?: string; recipients?: ResendRecipient[] }) {
+  const rawRecipients = Array.isArray(body.recipients) ? body.recipients : [{ email: body.toEmail, name: body.toName }];
+  const unique = new Map<string, { email: string; name?: string }>();
+
+  for (const recipient of rawRecipients) {
+    const email = recipient.email?.trim();
+    if (!email) continue;
+    unique.set(email.toLowerCase(), { email, name: recipient.name?.trim() || undefined });
+  }
+
+  return Array.from(unique.values());
 }
 
 function normalizeAttachments(attachments: unknown) {

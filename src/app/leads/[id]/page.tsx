@@ -162,7 +162,7 @@ export default function LeadDetailPage() {
             <button onClick={addLeadToCustomers} className="inline-flex h-11 items-center gap-2 rounded-lg border border-[#d7dfd0] bg-white px-4 text-sm font-semibold text-[#0f172a] shadow-sm">
               <UserPlus size={16} /> Add customer
             </button>
-            <ButtonLink href={`/leads/${lead.id}/mail`}><Mail size={16} /> Mail</ButtonLink>
+            <ButtonLink href={`/leads/${lead.id}/mail`}><Mail size={16} /> Send email</ButtonLink>
             <ButtonLink href={`/leads/${lead.id}/tasks`} variant="light"><ClipboardList size={16} /> Tasks/notes</ButtonLink>
           </>
         }
@@ -238,7 +238,6 @@ export default function LeadDetailPage() {
               ))}
             </div>
           </section>
-          <Panel title="Latest email" lines={lead.mails.slice(-2).map((mail) => `${mail.subject}: ${mail.body}`)} />
           <Panel title="Open tasks" lines={lead.tasks.filter((task) => task.status === "Open").map((task) => `${task.title} · ${task.due}`)} />
           <Link href="/leads" className="block rounded-lg border border-[#d7dfd0] bg-white p-4 text-sm font-semibold">Back to Kanban</Link>
         </aside>

@@ -577,9 +577,9 @@ export const initialCrmState: CrmState = {
     logoUrl: "",
     resend: {
       apiKey: "",
-      fromEmail: "",
+      fromEmail: "noreply@saveplanet.au",
       fromName: "SavePlanet CRM",
-      enabled: false,
+      enabled: true,
     },
     twilio: {
       accountSid: "",
