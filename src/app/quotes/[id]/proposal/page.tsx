@@ -3,29 +3,34 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
+import { onAuthStateChanged, User } from "firebase/auth";
 import { ArrowLeft, Copy, Download, PenLine, Save, Send } from "lucide-react";
 import { CrmShell, PageHeader } from "@/components/crm-shell";
 import { Customer, QuoteLineItem, QuoteRecord, currency } from "@/lib/crm-data";
+import { getFirebaseAuth } from "@/lib/firebase";
 import { useCrmStore } from "@/lib/use-crm-store";
 
 const TEMPLATE_URL = "/saveplanet-aircon-proposal-template.html";
 
 export default function DraftProposalPage() {
-  return <ProposalWorkspace publicView={false} />;
+  return <ProposalWorkspace allowAnonymous />;
 }
 
 export function PublicProposalPage() {
   return <ProposalWorkspace publicView />;
 }
 
-function ProposalWorkspace({ publicView = false }: { publicView?: boolean }) {
+function ProposalWorkspace({ publicView = false, allowAnonymous = false }: { publicView?: boolean; allowAnonymous?: boolean }) {
   const { id } = useParams<{ id: string }>();
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const openTrackedRef = useRef(false);
   const { state, setState } = useCrmStore();
+  const [user, setUser] = useState<User | null>(null);
+  const [authChecked, setAuthChecked] = useState(!allowAnonymous);
   const [message, setMessage] = useState("");
   const [proposalHtml, setProposalHtml] = useState("");
   const [signatureDataUrl, setSignatureDataUrl] = useState("");
+  const effectivePublicView = publicView || (allowAnonymous && authChecked && !user);
   const quote = useMemo(() => {
     const fromState = state.quotes.find((item) => item.id === id);
     if (fromState) return fromState;
@@ -61,7 +66,15 @@ function ProposalWorkspace({ publicView = false }: { publicView?: boolean }) {
   }, [quote, customer, calculations]);
 
   useEffect(() => {
-    if (!publicView || !quote || openTrackedRef.current) return;
+    if (!allowAnonymous) return;
+    return onAuthStateChanged(getFirebaseAuth(), (currentUser) => {
+      setUser(currentUser);
+      setAuthChecked(true);
+    });
+  }, [allowAnonymous]);
+
+  useEffect(() => {
+    if (!effectivePublicView || !quote || openTrackedRef.current) return;
     openTrackedRef.current = true;
     const openedAt = new Date().toISOString();
     const updatedQuote = {
@@ -74,12 +87,20 @@ function ProposalWorkspace({ publicView = false }: { publicView?: boolean }) {
       quotes: state.quotes.map((item) => (item.id === quote.id ? updatedQuote : item)),
     });
     window.localStorage.setItem(`saveplanet-quote-${quote.id}`, JSON.stringify(updatedQuote));
-  }, [publicView, quote, setState, state]);
+  }, [effectivePublicView, quote, setState, state]);
+
+  if (allowAnonymous && !authChecked) {
+    return (
+      <main className="grid min-h-screen place-items-center bg-white text-[#0f172a]">
+        <p className="font-semibold">Loading proposal...</p>
+      </main>
+    );
+  }
 
   if (!quote || !calculations) {
     const notFound = (
       <>
-        <PageHeader eyebrow="Draft proposal" title="Proposal not found" actions={<Link href={publicView ? "/" : "/quotes"} className="rounded-lg bg-[#003CBB] px-4 py-2 text-sm font-semibold text-white">{publicView ? "Back home" : "Back to quotes"}</Link>} />
+        <PageHeader eyebrow="Draft proposal" title="Proposal not found" actions={<Link href={effectivePublicView ? "/" : "/quotes"} className="rounded-lg bg-[#003CBB] px-4 py-2 text-sm font-semibold text-white">{effectivePublicView ? "Back home" : "Back to quotes"}</Link>} />
         <main className="grid min-h-[70vh] place-items-center bg-white p-6">
           <div className="max-w-md rounded-xl border border-[#d9e2f2] bg-white p-6 text-center shadow-sm">
             <h2 className="text-xl font-semibold text-[#0f172a]">This proposal is not available</h2>
@@ -88,7 +109,7 @@ function ProposalWorkspace({ publicView = false }: { publicView?: boolean }) {
         </main>
       </>
     );
-    return publicView ? notFound : (
+    return effectivePublicView ? notFound : (
       <CrmShell>
         {notFound}
       </CrmShell>
@@ -148,9 +169,9 @@ function ProposalWorkspace({ publicView = false }: { publicView?: boolean }) {
     <>
       <PageHeader
         eyebrow={quote.id}
-        title={publicView ? "SavePlanet proposal" : "Draft proposal"}
+        title={effectivePublicView ? "SavePlanet proposal" : "Draft proposal"}
         actions={
-          publicView ? (
+          effectivePublicView ? (
             <button onClick={downloadPdf} className="inline-flex h-10 items-center gap-2 rounded-lg bg-[#0f172a] px-4 text-sm font-semibold text-white">
               <Download size={16} /> Download PDF
             </button>
@@ -186,14 +207,14 @@ function ProposalWorkspace({ publicView = false }: { publicView?: boolean }) {
               <PenLine size={18} />
               <h2 className="font-semibold">Customer signature</h2>
             </div>
-            <p className="mt-1 text-sm text-[#657267]">{publicView ? "Sign here to confirm that you have reviewed this proposal. Your signature will appear in the proposal customer signature area." : "Customer can sign here from the shared proposal link. Saved signature appears automatically in the proposal customer signature area."}</p>
+            <p className="mt-1 text-sm text-[#657267]">{effectivePublicView ? "Sign here to confirm that you have reviewed this proposal. Your signature will appear in the proposal customer signature area." : "Customer can sign here from the shared proposal link. Saved signature appears automatically in the proposal customer signature area."}</p>
             <SignaturePad value={quote.customerSignatureDataUrl} onChange={setSignatureDataUrl} />
           </div>
           <div className="flex flex-col justify-end gap-2">
             <button onClick={saveSignature} className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-[#003CBB] px-4 text-sm font-semibold text-white">
               <Save size={16} /> Save signature
             </button>
-            {!publicView ? <button onClick={sendProposalLink} className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-[#c7d3e8] bg-white px-4 text-sm font-semibold text-[#003CBB]">
+            {!effectivePublicView ? <button onClick={sendProposalLink} className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-[#c7d3e8] bg-white px-4 text-sm font-semibold text-[#003CBB]">
               <Copy size={16} /> Copy public link
             </button> : null}
           </div>
@@ -202,7 +223,7 @@ function ProposalWorkspace({ publicView = false }: { publicView?: boolean }) {
     </>
   );
 
-  return publicView ? content : (
+  return effectivePublicView ? content : (
     <CrmShell>
       {content}
     </CrmShell>
