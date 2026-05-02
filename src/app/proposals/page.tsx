@@ -10,6 +10,10 @@ import { useCrmStore } from "@/lib/use-crm-store";
 export default function ProposalsPage() {
   const { state } = useCrmStore();
   const [proposalSearch, setProposalSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("All");
+  const [dateFilter, setDateFilter] = useState("All");
+  const [rangeStart, setRangeStart] = useState("");
+  const [rangeEnd, setRangeEnd] = useState("");
   const [selectedQuoteId, setSelectedQuoteId] = useState("");
   const proposalRows = useMemo(() => {
     const term = proposalSearch.trim().toLowerCase();
@@ -28,10 +32,10 @@ export default function ProposalsPage() {
         };
       })
       .filter(({ quote, customerName, agent, proposalName }) => {
-        if (!term) return true;
-        return [quote.id, proposalName, agent, customerName].join(" ").toLowerCase().includes(term);
+        const matchesSearch = !term || [quote.id, proposalName, agent, customerName].join(" ").toLowerCase().includes(term);
+        return matchesSearch && matchesStatusFilter(quote, statusFilter) && matchesDateFilter(quote, dateFilter, rangeStart, rangeEnd);
       });
-  }, [proposalSearch, state.customers, state.quotes]);
+  }, [dateFilter, proposalSearch, rangeEnd, rangeStart, state.customers, state.quotes, statusFilter]);
   const selectedRow = proposalRows.find((row) => row.quote.id === selectedQuoteId) ?? proposalRows[0];
   const sentCount = state.quotes.filter((quote) => quote.proposalSentAt).length;
   const openedCount = state.quotes.filter((quote) => quote.proposalOpenedAt).length;
@@ -64,6 +68,30 @@ export default function ProposalsPage() {
                 className="h-11 w-full rounded-lg border border-[#d7dfd0] bg-white pl-10 pr-3 text-sm outline-none focus:border-[#003CBB]"
               />
             </div>
+          </div>
+          <div className="grid gap-3 border-b border-[#e5edf7] p-5 md:grid-cols-2 xl:grid-cols-4">
+            <FilterSelect label="Status" value={statusFilter} options={["All", "Signed", "Opened", "Not opened", "Changes requested", "Sent", "Draft"]} onChange={setStatusFilter} />
+            <FilterSelect label="Date" value={dateFilter} options={["All", "Today", "Yesterday", "Range"]} onChange={setDateFilter} />
+            <label className="space-y-1 text-sm">
+              <span className="font-medium text-[#657267]">From</span>
+              <input
+                type="date"
+                value={rangeStart}
+                disabled={dateFilter !== "Range"}
+                onChange={(event) => setRangeStart(event.target.value)}
+                className="h-11 w-full rounded-lg border border-[#d7dfd0] bg-white px-3 outline-none disabled:bg-[#f4f6f2] disabled:text-[#9aa59a]"
+              />
+            </label>
+            <label className="space-y-1 text-sm">
+              <span className="font-medium text-[#657267]">To</span>
+              <input
+                type="date"
+                value={rangeEnd}
+                disabled={dateFilter !== "Range"}
+                onChange={(event) => setRangeEnd(event.target.value)}
+                className="h-11 w-full rounded-lg border border-[#d7dfd0] bg-white px-3 outline-none disabled:bg-[#f4f6f2] disabled:text-[#9aa59a]"
+              />
+            </label>
           </div>
           <div className="grid gap-0 xl:grid-cols-[minmax(0,1fr)_380px]">
             <div className="overflow-x-auto">
@@ -165,6 +193,19 @@ function Detail({ label, value }: { label: string; value: string }) {
   );
 }
 
+function FilterSelect({ label, value, options, onChange }: { label: string; value: string; options: string[]; onChange: (value: string) => void }) {
+  return (
+    <label className="space-y-1 text-sm">
+      <span className="font-medium text-[#657267]">{label}</span>
+      <select value={value} onChange={(event) => onChange(event.target.value)} className="h-11 w-full rounded-lg border border-[#d7dfd0] bg-white px-3 outline-none focus:border-[#003CBB]">
+        {options.map((option) => (
+          <option key={option} value={option}>{option}</option>
+        ))}
+      </select>
+    </label>
+  );
+}
+
 function Th({ children }: { children: React.ReactNode }) {
   return <th className="px-4 py-3 font-semibold">{children}</th>;
 }
@@ -194,6 +235,58 @@ function proposalStatus(quote: QuoteRecord) {
   if (quote.proposalOpenedAt) return "Opened";
   if (quote.proposalSentAt) return "Sent";
   return "Draft";
+}
+
+function matchesStatusFilter(quote: QuoteRecord, statusFilter: string) {
+  if (statusFilter === "All") return true;
+  if (statusFilter === "Signed") return Boolean(quote.customerSignedAt);
+  if (statusFilter === "Opened") return Boolean(quote.proposalOpenedAt) && !quote.customerSignedAt && !quote.proposalChangeRequestHtml;
+  if (statusFilter === "Not opened") return Boolean(quote.proposalSentAt) && !quote.proposalOpenedAt;
+  if (statusFilter === "Changes requested") return Boolean(quote.proposalChangeRequestHtml);
+  if (statusFilter === "Sent") return Boolean(quote.proposalSentAt) && !quote.proposalOpenedAt && !quote.customerSignedAt && !quote.proposalChangeRequestHtml;
+  if (statusFilter === "Draft") return !quote.proposalSentAt;
+  return true;
+}
+
+function matchesDateFilter(quote: QuoteRecord, dateFilter: string, rangeStart: string, rangeEnd: string) {
+  if (dateFilter === "All") return true;
+  const value = proposalActivityDate(quote);
+  if (!value) return false;
+  const timestamp = new Date(value).getTime();
+  if (Number.isNaN(timestamp)) return false;
+  if (dateFilter === "Today") return isSameLocalDay(timestamp, new Date());
+  if (dateFilter === "Yesterday") {
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    return isSameLocalDay(timestamp, yesterday);
+  }
+  if (dateFilter === "Range") {
+    const start = rangeStart ? startOfLocalDay(rangeStart).getTime() : Number.NEGATIVE_INFINITY;
+    const end = rangeEnd ? endOfLocalDay(rangeEnd).getTime() : Number.POSITIVE_INFINITY;
+    return timestamp >= start && timestamp <= end;
+  }
+  return true;
+}
+
+function proposalActivityDate(quote: QuoteRecord) {
+  return quote.proposalChangeRequestedAt || quote.customerSignedAt || quote.proposalOpenedAt || quote.proposalSentAt || quote.activityDate;
+}
+
+function isSameLocalDay(timestamp: number, day: Date) {
+  const date = new Date(timestamp);
+  return date.getFullYear() === day.getFullYear() && date.getMonth() === day.getMonth() && date.getDate() === day.getDate();
+}
+
+function startOfLocalDay(value: string) {
+  const date = new Date(value);
+  date.setHours(0, 0, 0, 0);
+  return date;
+}
+
+function endOfLocalDay(value: string) {
+  const date = new Date(value);
+  date.setHours(23, 59, 59, 999);
+  return date;
 }
 
 function formatDateTime(value?: string) {
