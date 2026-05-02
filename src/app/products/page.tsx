@@ -35,6 +35,7 @@ export default function ProductsPage() {
   const { state, setState } = useCrmStore();
   const [message, setMessage] = useState("");
   const [search, setSearch] = useState("");
+  const [bulkCategory, setBulkCategory] = useState<ProductCategory>("Aircon");
 
   const products = useMemo(() => {
     const term = search.toLowerCase();
@@ -89,9 +90,9 @@ export default function ProductsPage() {
     const [headers, ...body] = rows;
     const imported = body
       .filter((row) => row.some(Boolean))
-      .map((row, index) => productFromCsv(headers, row, `P-${1000 + state.products.length + index + 1}`));
+      .map((row, index) => productFromCsv(headers, row, `P-${1000 + state.products.length + index + 1}`, bulkCategory));
     setState({ ...state, products: [...state.products, ...imported] });
-    setMessage(`${imported.length} products imported.`);
+    setMessage(`${imported.length} ${bulkCategory.toLowerCase()} products imported.`);
     event.currentTarget.value = "";
   }
 
@@ -106,6 +107,16 @@ export default function ProductsPage() {
               <h2 className="font-semibold">Add product</h2>
             </div>
             <div className="flex flex-wrap gap-2">
+              <label className="flex h-10 items-center gap-2 rounded-lg border border-[#c7d3e8] bg-white px-3 text-sm font-semibold text-[#172033]">
+                <span className="text-[#657267]">Bulk category</span>
+                <select value={bulkCategory} onChange={(event) => setBulkCategory(event.target.value as ProductCategory)} className="bg-transparent font-semibold text-[#003CBB] outline-none">
+                  {categories.map((category) => (
+                    <option key={category} value={category}>
+                      {category}
+                    </option>
+                  ))}
+                </select>
+              </label>
               <button type="button" onClick={downloadTemplate} className="inline-flex h-10 items-center gap-2 rounded-lg border border-[#c7d3e8] bg-white px-3 text-sm font-semibold text-[#003CBB]">
                 <Download size={16} />
                 Template
@@ -243,12 +254,11 @@ function productFromForm(form: FormData, id: string): Product {
   };
 }
 
-function productFromCsv(headers: string[], row: string[], id: string): Product {
+function productFromCsv(headers: string[], row: string[], id: string, selectedCategory: ProductCategory): Product {
   const get = (name: string) => row[headers.findIndex((header) => normalizeHeader(header) === normalizeHeader(name))] ?? "";
-  const category = categories.includes(get("Category") as ProductCategory) ? (get("Category") as ProductCategory) : "Aircon";
   return {
     id,
-    category,
+    category: selectedCategory,
     productClass: get("Product Class"),
     productName: get("Product Name") || get("Model"),
     brandName: get("Brand"),
