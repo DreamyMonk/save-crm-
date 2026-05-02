@@ -35,10 +35,12 @@ const navItems: { href: string; label: string; icon: typeof BarChart3; module: M
   { href: "/reports", label: "Reports", icon: ClipboardList, module: "reports" },
 ];
 
+const publicRoutePrefixes = ["/proposal", "/verify"] as const;
+
 export function CrmShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
 
-  if (pathname.startsWith("/proposal/")) {
+  if (publicRoutePrefixes.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`))) {
     return <>{children}</>;
   }
 
