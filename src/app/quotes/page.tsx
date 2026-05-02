@@ -151,7 +151,7 @@ export default function QuotesPage() {
 
   return (
     <CrmShell>
-      <PageHeader eyebrow="Quote maker" title="Aircon proposal calculator" />
+      <PageHeader eyebrow="Quote maker" title="Proposal calculator" />
       <div className="space-y-6 p-4 md:p-8">
         <section className="rounded-lg border border-[#d9e2f2] bg-white shadow-sm">
           <SectionTitle title="Main Record" />

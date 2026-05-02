@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { ArrowLeft, Download, Mail, PenLine, Save, Send } from "lucide-react";
+import { ArrowLeft, Copy, Download, PenLine, Save, Send } from "lucide-react";
 import { CrmShell, PageHeader } from "@/components/crm-shell";
 import { Customer, QuoteLineItem, QuoteRecord, currency } from "@/lib/crm-data";
 import { useCrmStore } from "@/lib/use-crm-store";
@@ -75,14 +75,9 @@ export default function DraftProposalPage() {
 
   async function sendProposalLink() {
     if (!quote) return;
-    const link = `${window.location.origin}/quotes/${quote.id}/proposal`;
+    const link = `${window.location.origin}/proposal/${quote.id}`;
     await navigator.clipboard?.writeText(link);
-    const subject = encodeURIComponent(`SavePlanet proposal ${quote.id}`);
-    const body = encodeURIComponent(`Hello ${customerName(customer)},\n\nPlease open your proposal here:\n${link}\n\nYou can view it, download the PDF, and sign online.\n\nSavePlanet`);
-    if (customer?.email) {
-      window.location.href = `mailto:${customer.email}?subject=${subject}&body=${body}`;
-    }
-    setMessage(customer?.email ? "Proposal link copied and email opened." : "Proposal link copied.");
+    setMessage("Public proposal link copied.");
   }
 
   function saveSignature() {
@@ -115,7 +110,7 @@ export default function DraftProposalPage() {
               <Save size={16} /> Save proposal
             </button>
             <button onClick={sendProposalLink} className="inline-flex h-10 items-center gap-2 rounded-lg bg-[#eef4ff] px-4 text-sm font-semibold text-[#003CBB]">
-              <Send size={16} /> Send link
+              <Send size={16} /> Copy public link
             </button>
             <button onClick={downloadPdf} className="inline-flex h-10 items-center gap-2 rounded-lg bg-[#0f172a] px-4 text-sm font-semibold text-white">
               <Download size={16} /> Download PDF
@@ -145,7 +140,7 @@ export default function DraftProposalPage() {
               <Save size={16} /> Save signature
             </button>
             <button onClick={sendProposalLink} className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-[#c7d3e8] bg-white px-4 text-sm font-semibold text-[#003CBB]">
-              <Mail size={16} /> Email link
+              <Copy size={16} /> Copy public link
             </button>
           </div>
         </section>
