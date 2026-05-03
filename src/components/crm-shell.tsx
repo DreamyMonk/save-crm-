@@ -50,14 +50,16 @@ export function CrmShell({ children }: { children: React.ReactNode }) {
     return <>{children}</>;
   }
 
-  return <AuthGate>{(user) => <ShellFrame email={user.email} pathnameKey={user.uid}>{children}</ShellFrame>}</AuthGate>;
+  return <AuthGate>{(user) => <ShellFrame email={user.email} uid={user.uid}>{children}</ShellFrame>}</AuthGate>;
 }
 
-function ShellFrame({ children, email }: { children: React.ReactNode; email: string | null; pathnameKey: string }) {
+function ShellFrame({ children, email, uid }: { children: React.ReactNode; email: string | null; uid: string }) {
   const pathname = usePathname();
-  const { state } = useCrmStore();
+  const { state, ready } = useCrmStore();
   const normalizedEmail = email?.trim().toLowerCase();
-  const member = state.team.find((item) => item.email?.trim().toLowerCase() === normalizedEmail && item.active);
+  const member = ready
+    ? state.team.find((item) => item.active && (item.uid === uid || item.email?.trim().toLowerCase() === normalizedEmail))
+    : undefined;
   const allowedModules = member ? member.modules : normalizedEmail && adminFallbackEmails.includes(normalizedEmail) ? adminFallbackModules : [];
   const visibleNav = navItems.filter((item) => allowedModules.includes(item.module));
   const activeModule = navItems.find((item) => {
@@ -117,7 +119,14 @@ function ShellFrame({ children, email }: { children: React.ReactNode; email: str
           </div>
         </aside>
         <section className="min-w-0 flex-1">
-          {hasAccess ? children : (
+          {!ready ? (
+            <div className="grid min-h-screen place-items-center p-8">
+              <div className="rounded-lg border border-[#dce3d5] bg-white p-6 text-center shadow-sm">
+                <h1 className="text-xl font-semibold">Loading access</h1>
+                <p className="mt-2 text-sm text-[#657267]">Checking your assigned modules.</p>
+              </div>
+            </div>
+          ) : hasAccess ? children : (
             <div className="grid min-h-screen place-items-center p-8">
               <div className="rounded-lg border border-[#dce3d5] bg-white p-6 text-center shadow-sm">
                 <h1 className="text-xl font-semibold">No module access</h1>
