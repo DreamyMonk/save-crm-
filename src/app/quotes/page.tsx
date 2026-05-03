@@ -72,9 +72,7 @@ export default function QuotesPage() {
   const [certificateRate, setCertificateRate] = useState(73.6);
   const [minimumContributionAdjustment, setMinimumContributionAdjustment] = useState(0);
   const [gstRate, setGstRate] = useState(10);
-  const [stcPanelRebate, setStcPanelRebate] = useState(0);
-  const [stcBatteryRebate, setStcBatteryRebate] = useState(0);
-  const [solarVicRebate, setSolarVicRebate] = useState(0);
+  const [rebate, setRebate] = useState(0);
   const [solarVicLoan, setSolarVicLoan] = useState(0);
   const [depositPercent, setDepositPercent] = useState(50);
   const [annualEnergyProductionKwh, setAnnualEnergyProductionKwh] = useState(0);
@@ -96,9 +94,7 @@ export default function QuotesPage() {
     certificateRate,
     minimumContributionAdjustment,
     gstRate,
-    stcPanelRebate,
-    stcBatteryRebate,
-    solarVicRebate,
+    rebate,
     solarVicLoan,
     depositPercent,
   });
@@ -205,9 +201,7 @@ export default function QuotesPage() {
       gstRate,
       depositPercent,
     });
-    setStcPanelRebate(automatic.stcPanelRebate);
-    setStcBatteryRebate(automatic.stcBatteryRebate);
-    setSolarVicRebate(automatic.solarVicRebate);
+    setRebate(automatic.rebate);
     setSolarVicLoan(automatic.solarVicLoan);
     setMessage(automatic.message);
   }
@@ -227,9 +221,7 @@ export default function QuotesPage() {
       certificateRate,
       minimumContributionAdjustment,
       gstRate,
-      stcPanelRebate,
-      stcBatteryRebate,
-      solarVicRebate,
+      rebate,
       solarVicLoan,
       depositPercent,
       annualEnergyProductionKwh,
@@ -395,9 +387,7 @@ export default function QuotesPage() {
               <NumberInput label="Certificate Rate" value={certificateRate} onChange={setCertificateRate} />
               <NumberInput label="Minimum Contribution Adjustment" value={minimumContributionAdjustment} onChange={setMinimumContributionAdjustment} />
               <NumberInput label="GST Rate %" value={gstRate} onChange={setGstRate} />
-              <NumberInput label="STC Panel Rebate" value={stcPanelRebate} onChange={setStcPanelRebate} />
-              <NumberInput label="STC Battery Rebate" value={stcBatteryRebate} onChange={setStcBatteryRebate} />
-              <NumberInput label="Solar VIC Rebate" value={solarVicRebate} onChange={setSolarVicRebate} />
+              <NumberInput label="Rebate" value={rebate} onChange={setRebate} />
               <NumberInput label="Solar VIC Interest Free Loan" value={solarVicLoan} onChange={setSolarVicLoan} />
               <NumberInput label="Deposit %" value={depositPercent} onChange={setDepositPercent} />
               <NumberInput label="Annual Energy Production (kWh)" value={annualEnergyProductionKwh} onChange={setAnnualEnergyProductionKwh} />
@@ -485,9 +475,7 @@ function calculateQuote(
     certificateRate: number;
     minimumContributionAdjustment: number;
     gstRate: number;
-    stcPanelRebate: number;
-    stcBatteryRebate: number;
-    solarVicRebate: number;
+    rebate: number;
     solarVicLoan: number;
     depositPercent: number;
   },
@@ -500,7 +488,7 @@ function calculateQuote(
   const totalCost = productCost + installCost + options.minimumContributionAdjustment;
   const systemTotalIncGst = totalCost * (1 + options.gstRate / 100);
   const gstAmount = systemTotalIncGst - totalCost;
-  const totalDeductions = certificateDiscount + options.stcPanelRebate + options.stcBatteryRebate + options.solarVicRebate + options.solarVicLoan;
+  const totalDeductions = certificateDiscount + options.rebate + options.solarVicLoan;
   const finalPriceIncGst = Math.max(0, systemTotalIncGst - totalDeductions);
   const depositAmount = finalPriceIncGst * (options.depositPercent / 100);
   const balanceDue = Math.max(0, finalPriceIncGst - depositAmount);
@@ -522,31 +510,27 @@ function calculateVictoriaRebates(
 ) {
   const base = calculateQuote(items, addons, {
     ...options,
-    stcPanelRebate: 0,
-    stcBatteryRebate: 0,
-    solarVicRebate: 0,
+    rebate: 0,
     solarVicLoan: 0,
   });
   const afterCertificateDiscount = Math.max(0, base.systemTotalIncGst - base.certificateDiscount);
   const halfAfterCertificates = afterCertificateDiscount * 0.5;
   const result = {
-    stcPanelRebate: 0,
-    stcBatteryRebate: 0,
-    solarVicRebate: 0,
+    rebate: 0,
     solarVicLoan: 0,
     message: "Victorian rebate fields recalculated.",
   };
 
   if (category === "Solar" || category === "Inverter") {
     const pvRebate = Math.min(1400, halfAfterCertificates);
-    result.solarVicRebate = roundMoney(pvRebate);
+    result.rebate = roundMoney(pvRebate);
     result.solarVicLoan = roundMoney(pvRebate);
     result.message = "Solar Victoria PV rebate applied: 50% after certificate discounts, capped at $1,400. PV interest-free loan matched to the rebate amount.";
     return result;
   }
 
   if (category === "Heat Pump") {
-    result.solarVicRebate = roundMoney(Math.min(1000, halfAfterCertificates));
+    result.rebate = roundMoney(Math.min(1000, halfAfterCertificates));
     result.message = "Solar Victoria hot water rebate applied: 50% after STC/VEEC discounts, capped at $1,000. Locally made products may be eligible for up to $1,400 and should be checked manually.";
     return result;
   }

@@ -267,9 +267,9 @@ function ProposalWorkspace({ publicView = false, allowAnonymous = false }: { pub
           ref={iframeRef}
           title="SavePlanet drafted proposal"
           srcDoc={proposalHtml}
-          className="mx-auto h-[calc(100vh-190px)] min-h-[760px] w-full max-w-[1060px] rounded border border-[#c7d3e8] bg-white shadow-lg"
+          className="mx-auto h-[calc(100vh-190px)] min-h-[760px] w-full max-w-[900px] rounded border border-[#c7d3e8] bg-white shadow-lg"
         />
-        <section className="mx-auto mt-5 grid max-w-[1060px] gap-4 rounded-lg border border-[#d9e2f2] bg-white p-5 shadow-sm lg:grid-cols-[1fr_auto]">
+        <section className="mx-auto mt-5 grid max-w-[900px] gap-4 rounded-lg border border-[#d9e2f2] bg-white p-5 shadow-sm lg:grid-cols-[1fr_auto]">
           <div>
             <div className="flex items-center gap-2">
               <PenLine size={18} />
@@ -310,7 +310,7 @@ function ProposalWorkspace({ publicView = false, allowAnonymous = false }: { pub
             </button> : null}
           </div>
         </section>
-        <section className="mx-auto mt-5 max-w-[1060px] rounded-lg border border-[#d9e2f2] bg-white p-5 shadow-sm">
+        <section className="mx-auto mt-5 max-w-[900px] rounded-lg border border-[#d9e2f2] bg-white p-5 shadow-sm">
           <div className="flex items-center gap-2">
             <PenLine size={18} />
             <h2 className="font-semibold">Changes</h2>
@@ -444,6 +444,7 @@ function buildProposalHtml(template: string, quote: QuoteRecord, customer: Custo
   const parser = new DOMParser();
   const doc = parser.parseFromString(template, "text/html");
   const quotePage = doc.querySelector(".quot-pad")?.closest(".page");
+  normalizeTemplateImages(doc);
 
   const title = doc.querySelector("title");
   if (title) title.textContent = `SavePlanet - ${quote.id} Proposal`;
@@ -495,6 +496,8 @@ function buildProposalHtml(template: string, quote: QuoteRecord, customer: Custo
   const bankReference = doc.querySelectorAll(".bank-row .v")[3];
   if (bankReference) bankReference.textContent = quote.id;
 
+  applyModernProposalTemplateData(doc, quote, customer, calculations);
+
   if (quote.customerSignatureDataUrl) {
     doc.querySelectorAll(".sig-fld.full").forEach((field) => {
       const line = field.querySelector(".sig-line");
@@ -514,9 +517,145 @@ function buildProposalHtml(template: string, quote: QuoteRecord, customer: Custo
   script.textContent = "if(window.lucide){window.lucide.createIcons();}";
   doc.body.appendChild(script);
   const style = doc.createElement("style");
-  style.textContent = ".cov-card-item span{display:block;max-width:100%;overflow-wrap:anywhere;line-height:1.35;}.cov-card{align-items:start;}.saved-customer-signature{display:block;max-width:320px;max-height:90px;margin:10px 0 6px;object-fit:contain;}.quote-total-hero{width:100%;margin:0 0 18px;border:1px solid #b9d7ca;background:#f4fbf7;border-radius:14px;padding:6px 12px;}.quote-total-panel{margin-left:auto;margin-top:20px;width:440px;border:1px solid #d8e6dc;border-radius:16px;background:#fbfdfb;padding:10px 14px;box-shadow:0 8px 20px rgba(15,23,42,.06);}.quote-total-panel .tot-line,.quote-total-hero .tot-line{border-bottom:1px solid #e1ece5;padding:10px 0;}.quote-total-panel .tot-line:last-child,.quote-total-hero .tot-line:last-child{border-bottom:0;}.quote-total-panel .tot-line .l,.quote-total-hero .tot-line .l{font-weight:700;color:#39483d;}.quote-total-panel .tot-line .v,.quote-total-hero .tot-line .v{font-weight:800;color:#0f172a;}.quote-total-panel .deduction .v{color:#0f7a45;}.quote-total-panel .final-price{margin:8px -6px 0;padding:12px 6px;border-radius:10px;background:#eef7ff;}.quote-total-panel .final-price .l,.quote-total-panel .final-price .v{color:#003CBB;font-size:16px;}.quote-savings-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:10px;}.quote-savings-card{border:1px solid #d9e2f2;border-radius:12px;background:#fff;padding:12px;}.quote-savings-card label{display:block;font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:#657267;font-weight:800;}.quote-savings-card .name{margin-top:8px;font-size:15px;font-weight:800;color:#0f172a;}";
+  style.textContent = "html,body{max-width:100%;overflow-x:hidden;}@media screen{body{background:#dfe6df!important;padding:20px 0!important;}.page{margin:0 auto 24px!important;box-shadow:0 14px 30px rgba(15,23,42,.14);}.page:last-child{margin-bottom:0!important;}}.cov-card-item span{display:block;max-width:100%;overflow-wrap:anywhere;line-height:1.35;}.cov-card{align-items:start;}.saved-customer-signature{display:block;max-width:320px;max-height:90px;margin:10px 0 6px;object-fit:contain;}.modern-signature-value{font-weight:800;color:#0f172a;margin:8px 0 4px;min-height:18px;}.quote-total-hero{width:100%;margin:0 0 18px;border:1px solid #b9d7ca;background:#f4fbf7;border-radius:14px;padding:6px 12px;}.quote-total-panel{margin-left:auto;margin-top:20px;width:440px;border:1px solid #d8e6dc;border-radius:16px;background:#fbfdfb;padding:10px 14px;box-shadow:0 8px 20px rgba(15,23,42,.06);}.quote-total-panel .tot-line,.quote-total-hero .tot-line{border-bottom:1px solid #e1ece5;padding:10px 0;}.quote-total-panel .tot-line:last-child,.quote-total-hero .tot-line:last-child{border-bottom:0;}.quote-total-panel .tot-line .l,.quote-total-hero .tot-line .l{font-weight:700;color:#39483d;}.quote-total-panel .tot-line .v,.quote-total-hero .tot-line .v{font-weight:800;color:#0f172a;}.quote-total-panel .deduction .v{color:#0f7a45;}.quote-total-panel .final-price{margin:8px -6px 0;padding:12px 6px;border-radius:10px;background:#eef7ff;}.quote-total-panel .final-price .l,.quote-total-panel .final-price .v{color:#003CBB;font-size:16px;}.quote-savings-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:10px;}.quote-savings-card{border:1px solid #d9e2f2;border-radius:12px;background:#fff;padding:12px;}.quote-savings-card label{display:block;font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:#657267;font-weight:800;}.quote-savings-card .name{margin-top:8px;font-size:15px;font-weight:800;color:#0f172a;}";
   doc.head.appendChild(style);
   return `<!DOCTYPE html>${doc.documentElement.outerHTML}`;
+}
+
+function applyModernProposalTemplateData(doc: Document, quote: QuoteRecord, customer: Customer | undefined, calculations: Calculations) {
+  const coverValues = doc.querySelectorAll<HTMLElement>(".meta-strip .item .val");
+  if (coverValues[0]) coverValues[0].textContent = customerName(customer);
+  if (coverValues[1]) coverValues[1].textContent = quote.id;
+  if (coverValues[2]) coverValues[2].textContent = validUntil(quote.activityDate);
+
+  const quoteMeta = doc.querySelectorAll<HTMLElement>(".quote-header .right .meta strong");
+  if (quoteMeta[0]) quoteMeta[0].textContent = formatDate(quote.activityDate);
+  if (quoteMeta[1]) quoteMeta[1].textContent = quote.id;
+
+  const billingBoxes = doc.querySelectorAll<HTMLElement>(".billing-box");
+  setModernBillingLines(billingBoxes[0], [
+    ["Customer Name", customerName(customer)],
+    ["Phone", customer?.phone || customer?.mobile || "To be confirmed"],
+    ["Email", customer?.email || "To be confirmed"],
+    ["Address", customerAddress(customer)],
+  ]);
+  setModernBillingLines(billingBoxes[1], [
+    ["Installation Address", customerAddress(customer)],
+    ["Property type", customer?.customerType || "To be confirmed"],
+    ["Existing system", quote.description || "To be confirmed"],
+  ]);
+
+  const metaValues = doc.querySelectorAll<HTMLElement>(".meta-row .col .v");
+  if (metaValues[0]) metaValues[0].textContent = quote.id;
+  if (metaValues[1]) metaValues[1].textContent = customer?.salesAgent || "SavePlanet";
+  if (metaValues[2]) metaValues[2].textContent = customer?.paymentTermsValue ? `${customer.paymentTermsValue} ${customer.paymentTermsUnit}` : `${quote.depositPercent ?? 50}% Deposit`;
+  if (metaValues[3]) metaValues[3].textContent = "Day of Install";
+
+  const modernQuoteTableBody = doc.querySelector<HTMLTableSectionElement>(".items-table tbody");
+  if (modernQuoteTableBody) modernQuoteTableBody.innerHTML = modernQuotationRows(quote.items, quote.additionalServices);
+
+  const bankValues = doc.querySelectorAll<HTMLElement>(".totals-bank .ln .v");
+  if (bankValues[3]) bankValues[3].textContent = `Quote # ${quote.id}`;
+
+  const totals = doc.querySelector<HTMLElement>(".totals-calc");
+  if (totals) totals.innerHTML = modernTotalsMarkup(quote, calculations);
+
+  applyModernSignature(doc, quote, customer);
+}
+
+function setModernBillingLines(box: Element | undefined, rows: Array<[string, string]>) {
+  if (!box) return;
+  const lines = box.querySelectorAll<HTMLElement>(".ln");
+  rows.forEach(([label, value], index) => {
+    const line = lines[index];
+    if (line) line.innerHTML = `<span class="lbl-inline">${escapeHtml(label)}:</span> ${escapeHtml(value)}`;
+  });
+}
+
+function modernQuotationRows(items: QuoteLineItem[], addons: QuoteLineItem[]) {
+  const rows = [...items, ...addons];
+  if (!rows.length) {
+    return `<tr><td colspan="4">Products to be confirmed.</td></tr>`;
+  }
+  return rows.map((item) => {
+    const unitPrice = item.productPrice + item.installPrice;
+    const total = unitPrice * item.quantity;
+    const description = [
+      item.role,
+      item.area ? `Area: ${item.area}` : "",
+      item.areaM2 ? `${item.areaM2} m2` : "",
+      item.certificates ? `${item.certificates} certificate(s)` : "",
+    ].filter(Boolean).join(" - ");
+    return `
+      <tr>
+        <td>${item.quantity}</td>
+        <td>${escapeHtml(`${item.brand} ${item.model}`)}<span class="desc">${escapeHtml(description || "Selected product")}</span></td>
+        <td class="right">${currency(unitPrice)}</td>
+        <td class="right">${currency(total)}</td>
+      </tr>
+    `;
+  }).join("");
+}
+
+function modernTotalsMarkup(quote: QuoteRecord, calculations: Calculations) {
+  const rows = [
+    ["Subtotal", currency(calculations.productCost + calculations.installCost), ""],
+    [`GST (${quote.gstRate}%)`, currency(calculations.gstAmount), ""],
+    ["System Total", currency(calculations.systemTotalIncGst), ""],
+    ["Certificate Discount", `-${currency(calculations.certificateDiscount)}`, "discount"],
+    ["Rebate", `-${currency(calculations.rebate)}`, "discount"],
+    ["Interest Free Loan", `-${currency(quote.solarVicLoan ?? 0)}`, "discount"],
+    ["Final Price", currency(calculations.finalPriceIncGst), "due"],
+    [`Deposit (${quote.depositPercent ?? 50}%)`, currency(calculations.depositAmount), ""],
+    ["Balance Due", currency(calculations.balanceDue), "due"],
+  ];
+  return rows.map(([label, value, className]) => `<div class="ln ${className}"><span class="k">${escapeHtml(label)}</span><span class="v">${escapeHtml(value)}</span></div>`).join("");
+}
+
+function applyModernSignature(doc: Document, quote: QuoteRecord, customer: Customer | undefined) {
+  doc.querySelectorAll<HTMLElement>(".signature-box .sig-block").forEach((block) => {
+    const label = block.querySelector(".lbl")?.textContent?.toLowerCase() ?? "";
+    const line = block.querySelector(".line");
+    if (!line) return;
+    if (label.includes("full name")) {
+      line.insertAdjacentHTML("beforebegin", `<div class="modern-signature-value">${escapeHtml(customerName(customer))}</div>`);
+    }
+    if (label === "date") {
+      line.insertAdjacentHTML("beforebegin", `<div class="modern-signature-value">${escapeHtml(quote.customerSignedAt ? formatDate(quote.customerSignedAt) : formatDate(quote.activityDate))}</div>`);
+    }
+    if (label.includes("signature") && quote.customerSignatureDataUrl) {
+      line.insertAdjacentHTML("beforebegin", `<img class="saved-customer-signature" src="${quote.customerSignatureDataUrl}" alt="Customer signature">`);
+    }
+  });
+}
+
+function normalizeTemplateImages(doc: Document) {
+  doc.querySelectorAll<HTMLImageElement>('img[src^="assets/"]').forEach((image) => {
+    const src = image.getAttribute("src") ?? "";
+    if (src.includes("logo")) {
+      image.src = inlineSvgDataUrl(savePlanetLogoSvg());
+      image.alt = "SavePlanet";
+      return;
+    }
+    image.src = inlineSvgDataUrl(productPlaceholderSvg(image.alt || assetName(src)));
+  });
+}
+
+function assetName(src: string) {
+  return src.split("/").pop()?.replace(/\.[^.]+$/, "").replaceAll("_", " ") || "Product";
+}
+
+function inlineSvgDataUrl(svg: string) {
+  return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
+}
+
+function savePlanetLogoSvg() {
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="240" height="70" viewBox="0 0 240 70"><rect width="240" height="70" rx="14" fill="#fff"/><path d="M35 12c18 0 31 13 31 29S53 58 35 58c9-10 9-36 0-46Z" fill="#08c7cc"/><path d="M66 12c15 5 25 16 25 29S81 65 66 58c9-10 9-36 0-46Z" fill="#ff6b2c"/><text x="104" y="43" font-family="Arial, Helvetica, sans-serif" font-size="24" font-weight="800" fill="#0b3b2c">SavePlanet</text></svg>`;
+}
+
+function productPlaceholderSvg(label: string) {
+  const safeLabel = escapeHtml(label);
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="420" height="220" viewBox="0 0 420 220"><rect width="420" height="220" rx="20" fill="#eef7f1"/><rect x="34" y="34" width="352" height="152" rx="16" fill="#fff" stroke="#b9d7ca" stroke-width="3"/><path d="M105 143 154 86l42 46 31-34 88 88H82l23-43Z" fill="#23d36f" opacity=".25"/><circle cx="296" cy="78" r="22" fill="#23d36f" opacity=".45"/><text x="210" y="190" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="20" font-weight="800" fill="#0b3b2c">${safeLabel}</text></svg>`;
 }
 
 function SignaturePad({ value, onChange, autoName, autoFont }: { value?: string; onChange: (value: string) => void; autoName: string; autoFont: string }) {
@@ -675,9 +814,7 @@ function productSummaryPage(quote: QuoteRecord, calculations: Calculations, cate
           <div class="tot-line due"><span class="l">System Total <small>(incl. GST)</small></span><span class="v">${currency(calculations.systemTotalIncGst)}</span></div>
           <div class="tot-line veec deduction"><span class="l">Deductions</span><span class="v">-${currency(calculations.totalDeductions)}</span></div>
           <div class="tot-line deduction"><span class="l">Certificate discount</span><span class="v">-${currency(calculations.certificateDiscount)}</span></div>
-          <div class="tot-line deduction"><span class="l">STC Panel Rebate</span><span class="v">-${currency(quote.stcPanelRebate ?? 0)}</span></div>
-          <div class="tot-line deduction"><span class="l">STC Battery Rebate</span><span class="v">-${currency(quote.stcBatteryRebate ?? 0)}</span></div>
-          <div class="tot-line deduction"><span class="l">Solar VIC Rebate</span><span class="v">-${currency(quote.solarVicRebate ?? 0)}</span></div>
+          <div class="tot-line deduction"><span class="l">Rebate</span><span class="v">-${currency(calculations.rebate)}</span></div>
           <div class="tot-line deduction"><span class="l">Solar VIC PV Interest Free Loan</span><span class="v">-${currency(quote.solarVicLoan ?? 0)}</span></div>
           <div class="tot-line due final-price"><span class="l">Final price incl. GST</span><span class="v">${currency(calculations.finalPriceIncGst)}</span></div>
           <div class="tot-line"><span class="l">Deposit (${quote.depositPercent ?? 50}%)</span><span class="v">${currency(calculations.depositAmount)}</span></div>
@@ -824,11 +961,12 @@ function calculateQuote(quote: QuoteRecord) {
   const totalCost = productCost + installCost + quote.minimumContributionAdjustment;
   const systemTotalIncGst = totalCost * (1 + quote.gstRate / 100);
   const gstAmount = systemTotalIncGst - totalCost;
-  const totalDeductions = certificateDiscount + (quote.stcPanelRebate ?? 0) + (quote.stcBatteryRebate ?? 0) + (quote.solarVicRebate ?? 0) + (quote.solarVicLoan ?? 0);
+  const rebate = quote.rebate ?? (quote.stcPanelRebate ?? 0) + (quote.stcBatteryRebate ?? 0) + (quote.solarVicRebate ?? 0);
+  const totalDeductions = certificateDiscount + rebate + (quote.solarVicLoan ?? 0);
   const finalPriceIncGst = Math.max(0, systemTotalIncGst - totalDeductions);
   const depositAmount = finalPriceIncGst * ((quote.depositPercent ?? 50) / 100);
   const balanceDue = Math.max(0, finalPriceIncGst - depositAmount);
   const netExGst = Math.max(0, finalPriceIncGst / (1 + quote.gstRate / 100));
   const netIncGst = finalPriceIncGst;
-  return { certificates, certificateDiscount, productCost, installCost, totalCost, systemTotalIncGst, gstAmount, totalDeductions, finalPriceIncGst, depositAmount, balanceDue, netExGst, netIncGst };
+  return { certificates, certificateDiscount, rebate, productCost, installCost, totalCost, systemTotalIncGst, gstAmount, totalDeductions, finalPriceIncGst, depositAmount, balanceDue, netExGst, netIncGst };
 }

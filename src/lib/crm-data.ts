@@ -202,6 +202,7 @@ export type QuoteRecord = {
   certificateRate: number;
   minimumContributionAdjustment: number;
   gstRate: number;
+  rebate?: number;
   stcPanelRebate?: number;
   stcBatteryRebate?: number;
   solarVicRebate?: number;
