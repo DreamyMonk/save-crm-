@@ -588,7 +588,7 @@ export const initialCrmState: CrmState = {
     loginImageUrl: "https://images.unsplash.com/photo-1497366754035-f200968a6e72?auto=format&fit=crop&w=1400&q=80",
     logoUrl: "",
     resend: {
-      apiKey: "",
+      apiKey: "re_97hKau6B_Cf1FuK2idgSEibPvtNvaATNq",
       fromEmail: "noreply@saveplanet.au",
       fromName: "SavePlanet CRM",
       enabled: true,
