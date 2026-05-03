@@ -40,12 +40,18 @@ export default function ProductsPage() {
   const [categoryFilter, setCategoryFilter] = useState<"All" | ProductCategory>("All");
   const [bulkCategory, setBulkCategory] = useState<ProductCategory>("Aircon");
 
+  const categoryProducts = useMemo(() => {
+    return state.products.filter((product) => categoryFilter === "All" || product.category === categoryFilter);
+  }, [categoryFilter, state.products]);
   const filterOptions = useMemo(() => {
+    const brandProducts = brandFilter ? categoryProducts.filter((product) => product.brandName === brandFilter) : categoryProducts;
     return {
-      brands: unique(state.products.map((product) => product.brandName).filter(Boolean)),
-      models: unique(state.products.map((product) => product.model ?? "").filter(Boolean)),
+      brands: unique(categoryProducts.map((product) => product.brandName).filter(Boolean)),
+      models: unique(brandProducts.map((product) => product.model ?? "").filter(Boolean)),
     };
-  }, [state.products]);
+  }, [brandFilter, categoryProducts]);
+  const activeBrandFilter = filterOptions.brands.includes(brandFilter) ? brandFilter : "";
+  const activeModelFilter = filterOptions.models.includes(modelFilter) ? modelFilter : "";
 
   const products = useMemo(() => {
     const term = search.toLowerCase();
@@ -65,12 +71,18 @@ export default function ProductsPage() {
         .join(" ")
         .toLowerCase();
       const matchesKeyword = !term || haystack.includes(term);
-      const matchesBrand = !brandFilter || product.brandName === brandFilter;
-      const matchesModel = !modelFilter || product.model === modelFilter;
+      const matchesBrand = !activeBrandFilter || product.brandName === activeBrandFilter;
+      const matchesModel = !activeModelFilter || product.model === activeModelFilter;
       const matchesCategory = categoryFilter === "All" || product.category === categoryFilter;
       return matchesKeyword && matchesBrand && matchesModel && matchesCategory;
     });
-  }, [brandFilter, categoryFilter, modelFilter, search, state.products]);
+  }, [activeBrandFilter, activeModelFilter, categoryFilter, search, state.products]);
+
+  function changeCategoryFilter(value: "All" | ProductCategory) {
+    setCategoryFilter(value);
+    setBrandFilter("");
+    setModelFilter("");
+  }
 
   function addProduct(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -183,9 +195,9 @@ export default function ProductsPage() {
                 <Search className="absolute left-3 top-2.5 text-[#657267]" size={16} />
                 <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search all products" className="h-10 w-72 rounded-lg border border-[#d9e2f2] bg-white pl-10 pr-3 text-sm outline-none" />
               </label>
-              <FilterSelect label="Category" value={categoryFilter} options={["All", ...categories]} onChange={(value) => setCategoryFilter(value as "All" | ProductCategory)} />
-              <FilterSelect label="Brand" value={brandFilter} options={["", ...filterOptions.brands]} onChange={setBrandFilter} />
-              <FilterSelect label="Model" value={modelFilter} options={["", ...filterOptions.models]} onChange={setModelFilter} />
+              <FilterSelect label="Category" value={categoryFilter} options={["All", ...categories]} onChange={(value) => changeCategoryFilter(value as "All" | ProductCategory)} />
+              <FilterSelect label="Brand" value={activeBrandFilter} options={["", ...filterOptions.brands]} onChange={(value) => { setBrandFilter(value); setModelFilter(""); }} />
+              <FilterSelect label="Model" value={activeModelFilter} options={["", ...filterOptions.models]} onChange={setModelFilter} />
             </div>
           </div>
           <div className="overflow-x-auto">

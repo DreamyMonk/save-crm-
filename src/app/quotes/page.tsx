@@ -45,11 +45,12 @@ export default function QuotesPage() {
   const [description, setDescription] = useState(customers[0]?.name ?? "");
   const [scheme, setScheme] = useState("VEU SH - VIC Space Heating/Cooling");
   const [activityDate, setActivityDate] = useState("2026-05-02");
-  const [priceTier, setPriceTier] = useState(priceTiers[0]);
-  const [installTier, setInstallTier] = useState(installTiers[0]);
   const [baseline, setBaseline] = useState(baselineOptions[0]);
   const [outdoorModel, setOutdoorModel] = useState("");
   const [headModel, setHeadModel] = useState("");
+  const [outdoorProductPrice, setOutdoorProductPrice] = useState(0);
+  const [outdoorInstallPrice, setOutdoorInstallPrice] = useState(0);
+  const [outdoorCertificates, setOutdoorCertificates] = useState(0);
   const [headArea, setHeadArea] = useState("Bedroom 1");
   const [headAreaM2, setHeadAreaM2] = useState(20);
   const [quantity, setQuantity] = useState(1);
@@ -72,6 +73,23 @@ export default function QuotesPage() {
   const selectedHeadModel = quoteProducts.some((product) => product.id === headModel) ? headModel : (quoteProducts[0]?.id ?? "");
   const selectedProductModel = quoteProducts.some((product) => product.id === headModel) ? headModel : (quoteProducts[0]?.id ?? "");
 
+  function changeProductCategory(value: string) {
+    setProductCategory(value);
+    setProductBrand("All");
+    setProductType("All");
+    setProductConfiguration("All");
+    setOutdoorModel("");
+    setHeadModel("");
+  }
+
+  function changeProductBrand(value: string) {
+    setProductBrand(value);
+    setProductType("All");
+    setProductConfiguration("All");
+    setOutdoorModel("");
+    setHeadModel("");
+  }
+
   function selectCustomer(customerId: string) {
     const nextCustomer = customers.find((item) => item.id === customerId);
     setSelectedCustomerId(customerId);
@@ -84,8 +102,11 @@ export default function QuotesPage() {
       setMessage("Import or select a product first.");
       return;
     }
-    setItems((current) => [lineFromProduct(product, "Outdoor Unit", baseline, 0, 1, 0, 0, 0, "Outdoor unit included in combined system price"), ...current.filter((item) => item.role !== "Outdoor Unit")]);
-    setMessage(`${product.model ?? product.productName} added as outdoor unit. Price is counted in combined system price.`);
+    setItems((current) => [
+      lineFromProduct(product, "Outdoor Unit", baseline, 0, 1, outdoorProductPrice || product.price, outdoorInstallPrice, outdoorCertificates, "Outdoor unit"),
+      ...current.filter((item) => item.role !== "Outdoor Unit"),
+    ]);
+    setMessage(`${product.model ?? product.productName} added as outdoor unit.`);
   }
 
   function addHead() {
@@ -153,8 +174,8 @@ export default function QuotesPage() {
       description,
       scheme,
       activityDate,
-      priceTier,
-      installationCostTier: installTier,
+      priceTier: priceTiers[0],
+      installationCostTier: installTiers[0],
       items,
       additionalServices: addons,
       certificateRate,
@@ -190,8 +211,6 @@ export default function QuotesPage() {
             <Input label="Description" value={description} onChange={(event) => setDescription(event.target.value)} />
             <Select label="Scheme" value={scheme} options={schemes} onChange={setScheme} />
             <Input label="Activity Date" type="date" value={activityDate} onChange={(event) => setActivityDate(event.target.value)} />
-            <Select label="Price Tier" value={priceTier} options={priceTiers} onChange={setPriceTier} />
-            <Select label="Installation Cost Tier" value={installTier} options={installTiers} onChange={setInstallTier} />
           </div>
         </section>
 
@@ -199,15 +218,18 @@ export default function QuotesPage() {
           <SectionTitle title="Products" />
           <div className="grid gap-6 p-5 xl:grid-cols-[420px_1fr]">
             <div className="space-y-4">
-              <Select label="Category" value={productCategory} options={productCategories} onChange={setProductCategory} />
-              <Select label="Brand" value={activeBrand} options={brandOptions} onChange={setProductBrand} />
+              <Select label="Category" value={productCategory} options={productCategories} onChange={changeProductCategory} />
+              <Select label="Brand" value={activeBrand} options={brandOptions} onChange={changeProductBrand} />
               <Input label="Search product" value={productSearch} onChange={(event) => setProductSearch(event.target.value)} placeholder="Brand, model, class..." />
-              <Select label="Product Type" value={activeProductType} options={productTypeOptions} onChange={setProductType} />
-              <Select label="Product Configuration" value={activeProductConfiguration} options={productConfigurationOptions} onChange={setProductConfiguration} />
               {isAirconCategory ? (
                 <>
                   <Select label="Outdoor Unit (always outside)" value={selectedOutdoorModel} options={quoteProducts.map((item) => item.id)} labelFor={(value) => productLabel(productById(quoteProducts, value))} onChange={setOutdoorModel} />
+                  <NumberInput label="Outdoor Product Price, $" value={outdoorProductPrice} onChange={setOutdoorProductPrice} />
+                  <NumberInput label="Outdoor Install Cost, $" value={outdoorInstallPrice} onChange={setOutdoorInstallPrice} />
+                  <NumberInput label="Outdoor Certificates" value={outdoorCertificates} onChange={setOutdoorCertificates} />
                   <button onClick={addOutdoor} className="h-10 rounded-lg bg-[#003CBB] px-4 text-sm font-semibold text-white">Add selected as outdoor unit</button>
+                  <Select label="Product Type" value={activeProductType} options={productTypeOptions} onChange={setProductType} />
+                  <Select label="Product Configuration" value={activeProductConfiguration} options={productConfigurationOptions} onChange={setProductConfiguration} />
                   <Select label="Indoor Head (up to 4)" value={selectedHeadModel} options={quoteProducts.map((item) => item.id)} labelFor={(value) => productLabel(productById(quoteProducts, value))} onChange={setHeadModel} />
                   <Select label="Original Equipment" value={baseline} options={baselineOptions} onChange={setBaseline} />
                   <Input label="Area" value={headArea} onChange={(event) => setHeadArea(event.target.value)} />
