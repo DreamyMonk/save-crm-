@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { onAuthStateChanged, User } from "firebase/auth";
@@ -66,6 +66,16 @@ function ProposalWorkspace({ publicView = false, allowAnonymous = false }: { pub
     return calculateQuote(quote);
   }, [quote]);
   const changeRequestHtml = quote ? (changeRequestDrafts[quote.id] ?? quote.proposalChangeRequestHtml ?? "") : "";
+  const persistQuoteUpdate = useCallback((updatedQuote: QuoteRecord) => {
+    const exists = state.quotes.some((item) => item.id === updatedQuote.id);
+    setState({
+      ...state,
+      quotes: exists
+        ? state.quotes.map((item) => (item.id === updatedQuote.id ? updatedQuote : item))
+        : [...state.quotes, updatedQuote],
+    });
+    window.localStorage.setItem(`saveplanet-quote-${updatedQuote.id}`, JSON.stringify(updatedQuote));
+  }, [setState, state]);
 
   useEffect(() => {
     if (!quote || !calculations) return;
@@ -95,17 +105,13 @@ function ProposalWorkspace({ publicView = false, allowAnonymous = false }: { pub
     if (!effectivePublicView || !quote || openTrackedRef.current) return;
     openTrackedRef.current = true;
     const openedAt = new Date().toISOString();
-    const updatedQuote = {
+    const updatedQuote: QuoteRecord = {
       ...quote,
       proposalOpenedAt: openedAt,
       proposalOpenCount: (quote.proposalOpenCount ?? 0) + 1,
     };
-    setState({
-      ...state,
-      quotes: state.quotes.map((item) => (item.id === quote.id ? updatedQuote : item)),
-    });
-    window.localStorage.setItem(`saveplanet-quote-${quote.id}`, JSON.stringify(updatedQuote));
-  }, [effectivePublicView, quote, setState, state]);
+    persistQuoteUpdate(updatedQuote);
+  }, [effectivePublicView, persistQuoteUpdate, quote]);
 
   if (allowAnonymous && !authChecked) {
     return (
@@ -136,10 +142,7 @@ function ProposalWorkspace({ publicView = false, allowAnonymous = false }: { pub
 
   function saveProposal() {
     if (!quote) return;
-    setState({
-      ...state,
-      quotes: state.quotes.map((item) => (item.id === quote.id ? { ...item, status: "Saved" } : item)),
-    });
+    persistQuoteUpdate({ ...quote, status: "Saved" });
     setMessage("Proposal saved.");
   }
 
@@ -153,17 +156,13 @@ function ProposalWorkspace({ publicView = false, allowAnonymous = false }: { pub
     const sentAt = new Date().toISOString();
     const sender = findSenderMember(state, quote, customer, user);
     const link = `${window.location.origin}/proposal/${quote.id}`;
-    const updatedQuote = {
+    const updatedQuote: QuoteRecord = {
       ...quote,
       proposalSentAt: quote.proposalSentAt ?? sentAt,
       proposalSentBy: quote.proposalSentBy ?? sender?.name ?? customer?.salesAgent ?? user?.email ?? "SavePlanet Team",
       status: "Saved" as const,
     };
-    setState({
-      ...state,
-      quotes: state.quotes.map((item) => (item.id === quote.id ? updatedQuote : item)),
-    });
-    window.localStorage.setItem(`saveplanet-quote-${quote.id}`, JSON.stringify(updatedQuote));
+    persistQuoteUpdate(updatedQuote);
     await navigator.clipboard?.writeText(link);
 
     if (!customer?.email) {
@@ -187,12 +186,8 @@ function ProposalWorkspace({ publicView = false, allowAnonymous = false }: { pub
     }
     const signedAt = new Date().toISOString();
     const firstSignature = !quote.customerSignedAt;
-    const updatedQuote = { ...quote, customerSignatureDataUrl: signatureDataUrl, customerSignedAt: signedAt };
-    setState({
-      ...state,
-      quotes: state.quotes.map((item) => (item.id === quote.id ? updatedQuote : item)),
-    });
-    window.localStorage.setItem(`saveplanet-quote-${quote.id}`, JSON.stringify(updatedQuote));
+    const updatedQuote: QuoteRecord = { ...quote, customerSignatureDataUrl: signatureDataUrl, customerSignedAt: signedAt };
+    persistQuoteUpdate(updatedQuote);
 
     if (!firstSignature) {
       setMessage("Signature saved into the proposal.");
@@ -220,16 +215,12 @@ function ProposalWorkspace({ publicView = false, allowAnonymous = false }: { pub
       return;
     }
     const requestedAt = new Date().toISOString();
-    const updatedQuote = {
+    const updatedQuote: QuoteRecord = {
       ...quote,
       proposalChangeRequestHtml: changeRequestHtml,
       proposalChangeRequestedAt: requestedAt,
     };
-    setState({
-      ...state,
-      quotes: state.quotes.map((item) => (item.id === quote.id ? updatedQuote : item)),
-    });
-    window.localStorage.setItem(`saveplanet-quote-${quote.id}`, JSON.stringify(updatedQuote));
+    persistQuoteUpdate(updatedQuote);
     setMessage(effectivePublicView ? "Your requested changes were sent to SavePlanet." : "Requested changes saved.");
   }
 
@@ -603,8 +594,8 @@ function modernTotalsMarkup(quote: QuoteRecord, calculations: Calculations) {
     [`GST (${quote.gstRate}%)`, currency(calculations.gstAmount), ""],
     ["System Total", currency(calculations.systemTotalIncGst), ""],
     ["Certificate Discount", `-${currency(calculations.certificateDiscount)}`, "discount"],
-    ["Rebate", `-${currency(calculations.rebate)}`, "discount"],
-    ["Interest Free Loan", `-${currency(quote.solarVicLoan ?? 0)}`, "discount"],
+    ["Victorian Rebate", `-${currency(calculations.rebate)}`, "discount"],
+    ["Solar VIC Interest Free Loan", `-${currency(quote.solarVicLoan ?? 0)}`, "discount"],
     ["Final Price", currency(calculations.finalPriceIncGst), "due"],
     [`Deposit (${quote.depositPercent ?? 50}%)`, currency(calculations.depositAmount), ""],
     ["Balance Due", currency(calculations.balanceDue), "due"],
@@ -814,7 +805,7 @@ function productSummaryPage(quote: QuoteRecord, calculations: Calculations, cate
           <div class="tot-line due"><span class="l">System Total <small>(incl. GST)</small></span><span class="v">${currency(calculations.systemTotalIncGst)}</span></div>
           <div class="tot-line veec deduction"><span class="l">Deductions</span><span class="v">-${currency(calculations.totalDeductions)}</span></div>
           <div class="tot-line deduction"><span class="l">Certificate discount</span><span class="v">-${currency(calculations.certificateDiscount)}</span></div>
-          <div class="tot-line deduction"><span class="l">Rebate</span><span class="v">-${currency(calculations.rebate)}</span></div>
+          <div class="tot-line deduction"><span class="l">Victorian Rebate</span><span class="v">-${currency(calculations.rebate)}</span></div>
           <div class="tot-line deduction"><span class="l">Solar VIC PV Interest Free Loan</span><span class="v">-${currency(quote.solarVicLoan ?? 0)}</span></div>
           <div class="tot-line due final-price"><span class="l">Final price incl. GST</span><span class="v">${currency(calculations.finalPriceIncGst)}</span></div>
           <div class="tot-line"><span class="l">Deposit (${quote.depositPercent ?? 50}%)</span><span class="v">${currency(calculations.depositAmount)}</span></div>

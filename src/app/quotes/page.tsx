@@ -387,7 +387,7 @@ export default function QuotesPage() {
               <NumberInput label="Certificate Rate" value={certificateRate} onChange={setCertificateRate} />
               <NumberInput label="Minimum Contribution Adjustment" value={minimumContributionAdjustment} onChange={setMinimumContributionAdjustment} />
               <NumberInput label="GST Rate %" value={gstRate} onChange={setGstRate} />
-              <NumberInput label="Rebate" value={rebate} onChange={setRebate} />
+              <NumberInput label="Victorian Rebate" value={rebate} onChange={setRebate} />
               <NumberInput label="Solar VIC Interest Free Loan" value={solarVicLoan} onChange={setSolarVicLoan} />
               <NumberInput label="Deposit %" value={depositPercent} onChange={setDepositPercent} />
               <NumberInput label="Annual Energy Production (kWh)" value={annualEnergyProductionKwh} onChange={setAnnualEnergyProductionKwh} />
@@ -399,14 +399,17 @@ export default function QuotesPage() {
                 <Calculator size={16} /> Auto calculate Victorian rebates
               </button>
               <p className="mt-2 text-xs leading-5 text-[#657267]">
-                Uses current Victorian rules: Solar PV rebate up to $1,400, hot water rebate up to $1,000, and Solar Victoria PV loan matching the PV rebate when selected. VEU/STC certificate discount still uses the certificates and rate entered above.
+                Uses official Solar Victoria rules: rebate is 50% of the purchase price after STC/VEEC discounts. Solar PV is capped at $1,400 with a matching interest-free loan. Hot water is capped at $1,000, or $1,400 when the selected product brand is locally made eligible.
               </p>
             </div>
             <div className="grid gap-3 px-5 pb-5 md:grid-cols-2">
               <Result label="Certificates Created" value={`${calculations.certificates.toFixed(2)} @ ${certificateRate.toFixed(2)}`} />
               <Result label="System total (incl. GST)" value={currency(calculations.systemTotalIncGst)} />
               <Result label="GST" value={currency(calculations.gstAmount)} />
-              <Result label="Total deductions / rebate applied" value={`-${currency(calculations.totalDeductions)}`} />
+              <Result label="Certificate discount" value={`-${currency(calculations.certificateDiscount)}`} />
+              <Result label="Victorian rebate" value={`-${currency(rebate)}`} />
+              <Result label="Interest-free loan" value={`-${currency(solarVicLoan)}`} />
+              <Result label="Total deductions" value={`-${currency(calculations.totalDeductions)}`} />
               <Result label="Final price (incl. GST)" value={currency(calculations.finalPriceIncGst)} strong />
               <Result label="Deposit" value={currency(calculations.depositAmount)} />
               <Result label="Balance due" value={currency(calculations.balanceDue)} />
@@ -513,8 +516,8 @@ function calculateVictoriaRebates(
     rebate: 0,
     solarVicLoan: 0,
   });
-  const afterCertificateDiscount = Math.max(0, base.systemTotalIncGst - base.certificateDiscount);
-  const halfAfterCertificates = afterCertificateDiscount * 0.5;
+  const purchasePriceAfterOtherDiscounts = Math.max(0, base.systemTotalIncGst - base.certificateDiscount);
+  const officialHalfRate = purchasePriceAfterOtherDiscounts * 0.5;
   const result = {
     rebate: 0,
     solarVicLoan: 0,
@@ -522,16 +525,17 @@ function calculateVictoriaRebates(
   };
 
   if (category === "Solar" || category === "Inverter") {
-    const pvRebate = Math.min(1400, halfAfterCertificates);
+    const pvRebate = Math.min(1400, officialHalfRate);
     result.rebate = roundMoney(pvRebate);
     result.solarVicLoan = roundMoney(pvRebate);
-    result.message = "Solar Victoria PV rebate applied: 50% after certificate discounts, capped at $1,400. PV interest-free loan matched to the rebate amount.";
+    result.message = "Official Solar Victoria PV rebate applied: 50% of purchase price after STC/VEEC discounts, capped at $1,400. PV interest-free loan matched to the rebate amount.";
     return result;
   }
 
   if (category === "Heat Pump") {
-    result.rebate = roundMoney(Math.min(1000, halfAfterCertificates));
-    result.message = "Solar Victoria hot water rebate applied: 50% after STC/VEEC discounts, capped at $1,000. Locally made products may be eligible for up to $1,400 and should be checked manually.";
+    const locallyMadeCap = hasLocallyMadeHotWaterProduct(items) ? 1400 : 1000;
+    result.rebate = roundMoney(Math.min(locallyMadeCap, officialHalfRate));
+    result.message = `Official Solar Victoria hot water rebate applied: 50% of purchase price after STC/VEEC discounts, capped at ${currency(locallyMadeCap)}${locallyMadeCap === 1400 ? " for a locally made eligible product." : "."}`;
     return result;
   }
 
@@ -550,6 +554,11 @@ function calculateVictoriaRebates(
 
 function roundMoney(value: number) {
   return Math.round(value * 100) / 100;
+}
+
+function hasLocallyMadeHotWaterProduct(items: QuoteLineItem[]) {
+  const locallyMadeBrands = ["Dux", "Earthworker", "Everhot", "Reclaim", "Rheem", "Rinnai", "Sanden", "Solahart", "Thermann", "Wilson"];
+  return items.some((item) => locallyMadeBrands.some((brand) => item.brand.toLowerCase().includes(brand.toLowerCase())));
 }
 
 function productById(products: Product[], id: string) {

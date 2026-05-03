@@ -170,6 +170,7 @@ function mergeLocalCollections(remoteState: CrmState, localState: CrmState | nul
     ...remoteState,
     products: mergeById(remoteState.products, localState.products),
     customers: mergeById(remoteState.customers, localState.customers),
+    quotes: mergeById(remoteState.quotes, localState.quotes),
   };
 }
 
@@ -185,6 +186,7 @@ async function saveMergedState(state: CrmState) {
   const mergedState = {
     ...state,
     products: state.products.length === 0 && remoteState.products.length > 0 ? remoteState.products : state.products,
+    quotes: state.quotes.length === 0 && remoteState.quotes.length > 0 ? remoteState.quotes : state.quotes,
   };
   await setDoc(ref, mergedState);
   return mergedState;

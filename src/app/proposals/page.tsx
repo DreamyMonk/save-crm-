@@ -132,8 +132,8 @@ export default function ProposalsPage() {
                           <button onClick={() => setSelectedQuoteId(quote.id)} className="inline-flex h-9 items-center rounded-lg border border-[#c7d3e8] px-3 text-xs font-semibold text-[#003CBB]">
                             View
                           </button>
-                          <Link href={`/proposal/${quote.id}`} className="inline-flex h-9 items-center gap-2 rounded-lg border border-[#c7d3e8] px-3 text-xs font-semibold text-[#003CBB]">
-                            <ExternalLink size={14} />
+                          <Link href={`/proposal/${quote.id}`} className="inline-flex h-9 items-center gap-2 rounded-lg bg-[#003CBB] px-3 text-xs font-semibold text-white">
+                            <ExternalLink size={14} /> Open proposal
                           </Link>
                         </div>
                       </Td>
@@ -155,6 +155,9 @@ export default function ProposalsPage() {
                   <Detail label="Customer" value={selectedRow.customerName} />
                   <Detail label="Agent" value={selectedRow.agent} />
                   <Detail label="Status" value={selectedRow.status} />
+                  <Link href={`/proposal/${selectedRow.quote.id}`} className="inline-flex h-10 items-center gap-2 rounded-lg bg-[#003CBB] px-4 text-sm font-semibold text-white">
+                    <ExternalLink size={16} /> Open proposal
+                  </Link>
                   <div>
                     <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[#657267]">Client changes</p>
                     {selectedRow.quote.proposalChangeRequestHtml ? (
