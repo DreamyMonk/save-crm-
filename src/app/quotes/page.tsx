@@ -227,7 +227,9 @@ export default function QuotesPage() {
                   <NumberInput label="Outdoor Product Price, $" value={outdoorProductPrice} onChange={setOutdoorProductPrice} />
                   <NumberInput label="Outdoor Install Cost, $" value={outdoorInstallPrice} onChange={setOutdoorInstallPrice} />
                   <NumberInput label="Outdoor Certificates" value={outdoorCertificates} onChange={setOutdoorCertificates} />
-                  <button onClick={addOutdoor} className="h-10 rounded-lg bg-[#003CBB] px-4 text-sm font-semibold text-white">Add selected as outdoor unit</button>
+                  <div className="pb-2">
+                    <button onClick={addOutdoor} className="h-10 w-full rounded-lg bg-[#003CBB] px-4 text-sm font-semibold text-white">Add selected as outdoor unit</button>
+                  </div>
                   <Select label="Product Type" value={activeProductType} options={productTypeOptions} onChange={setProductType} />
                   <Select label="Product Configuration" value={activeProductConfiguration} options={productConfigurationOptions} onChange={setProductConfiguration} />
                   <Select label="Indoor Head (up to 4)" value={selectedHeadModel} options={quoteProducts.map((item) => item.id)} labelFor={(value) => productLabel(productById(quoteProducts, value))} onChange={setHeadModel} />
