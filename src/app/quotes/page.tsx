@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { FileText, Save, Trash2 } from "lucide-react";
 import { CrmShell, PageHeader } from "@/components/crm-shell";
 import { Product, QuoteLineItem, QuoteRecord, currency } from "@/lib/crm-data";
+import { displayBrandForCategory, isAllowedBrandForCategory } from "@/lib/product-brand-rules";
 import { useCrmStore } from "@/lib/use-crm-store";
 
 const schemes = ["STC HP", "STC SOLAR + BATTERY", "VEU APP - VIC Appliances", "VEU HP - VIC Water Heating", "VEU RESI", "VEU SH - VIC Space Heating/Cooling", "Off Scheme"];
@@ -23,10 +24,15 @@ export default function QuotesPage() {
   const [productConfiguration, setProductConfiguration] = useState("All");
   const [productSearch, setProductSearch] = useState("");
   const productCategories = useMemo(() => unique([...fallbackProductCategories, ...state.products.map((product) => product.category)]), [state.products]);
-  const categoryCatalog = useMemo(() => state.products.filter((product) => productCategory === "All" || product.category === productCategory), [productCategory, state.products]);
-  const brandOptions = useMemo(() => ["All", ...unique(categoryCatalog.map((item) => item.brandName))], [categoryCatalog]);
+  const categoryCatalog = useMemo(() => {
+    return state.products.filter((product) => {
+      if (productCategory === "All") return true;
+      return product.category === productCategory && isAllowedBrandForCategory(productCategory, product.brandName);
+    });
+  }, [productCategory, state.products]);
+  const brandOptions = useMemo(() => ["All", ...unique(categoryCatalog.map((item) => displayBrandForCategory(item.category, item.brandName)))], [categoryCatalog]);
   const activeBrand = brandOptions.includes(productBrand) ? productBrand : "All";
-  const brandCatalog = useMemo(() => categoryCatalog.filter((product) => activeBrand === "All" || product.brandName === activeBrand), [activeBrand, categoryCatalog]);
+  const brandCatalog = useMemo(() => categoryCatalog.filter((product) => activeBrand === "All" || displayBrandForCategory(product.category, product.brandName) === activeBrand), [activeBrand, categoryCatalog]);
   const productTypeOptions = useMemo(() => ["All", ...unique(brandCatalog.map((item) => item.productType ?? ""))], [brandCatalog]);
   const activeProductType = productTypeOptions.includes(productType) ? productType : "All";
   const typeCatalog = useMemo(() => brandCatalog.filter((product) => activeProductType === "All" || product.productType === activeProductType), [activeProductType, brandCatalog]);

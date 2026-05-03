@@ -5,6 +5,7 @@ import * as XLSX from "xlsx";
 import { Download, PackagePlus, Save, Search, Trash2, Upload } from "lucide-react";
 import { CrmShell, PageHeader } from "@/components/crm-shell";
 import { Product, ProductCategory, currency } from "@/lib/crm-data";
+import { displayBrandForCategory, isAllowedBrandForCategory } from "@/lib/product-brand-rules";
 import { useCrmStore } from "@/lib/use-crm-store";
 
 const categories: ProductCategory[] = ["Aircon", "Solar", "Inverter", "Heat Pump", "Solar Battery"];
@@ -41,12 +42,15 @@ export default function ProductsPage() {
   const [bulkCategory, setBulkCategory] = useState<ProductCategory>("Aircon");
 
   const categoryProducts = useMemo(() => {
-    return state.products.filter((product) => categoryFilter === "All" || product.category === categoryFilter);
+    return state.products.filter((product) => {
+      if (categoryFilter === "All") return true;
+      return product.category === categoryFilter && isAllowedBrandForCategory(categoryFilter, product.brandName);
+    });
   }, [categoryFilter, state.products]);
   const filterOptions = useMemo(() => {
-    const brandProducts = brandFilter ? categoryProducts.filter((product) => product.brandName === brandFilter) : categoryProducts;
+    const brandProducts = brandFilter ? categoryProducts.filter((product) => displayBrandForCategory(product.category, product.brandName) === brandFilter) : categoryProducts;
     return {
-      brands: unique(categoryProducts.map((product) => product.brandName).filter(Boolean)),
+      brands: unique(categoryProducts.map((product) => displayBrandForCategory(product.category, product.brandName)).filter(Boolean)),
       models: unique(brandProducts.map((product) => product.model ?? "").filter(Boolean)),
     };
   }, [brandFilter, categoryProducts]);
@@ -71,10 +75,11 @@ export default function ProductsPage() {
         .join(" ")
         .toLowerCase();
       const matchesKeyword = !term || haystack.includes(term);
-      const matchesBrand = !activeBrandFilter || product.brandName === activeBrandFilter;
+      const matchesAllowedBrand = categoryFilter === "All" || isAllowedBrandForCategory(categoryFilter, product.brandName);
+      const matchesBrand = !activeBrandFilter || displayBrandForCategory(product.category, product.brandName) === activeBrandFilter;
       const matchesModel = !activeModelFilter || product.model === activeModelFilter;
       const matchesCategory = categoryFilter === "All" || product.category === categoryFilter;
-      return matchesKeyword && matchesBrand && matchesModel && matchesCategory;
+      return matchesKeyword && matchesAllowedBrand && matchesBrand && matchesModel && matchesCategory;
     });
   }, [activeBrandFilter, activeModelFilter, categoryFilter, search, state.products]);
 
