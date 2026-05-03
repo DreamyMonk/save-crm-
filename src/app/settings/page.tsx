@@ -24,7 +24,7 @@ export default function SettingsPage() {
           apiKey: String(form.get("resendApiKey") || ""),
           fromEmail: String(form.get("fromEmail") || ""),
           fromName: String(form.get("fromName") || "SavePlanet CRM"),
-          enabled: form.get("resendEnabled") === "on",
+          enabled: true,
         },
         twilio: {
           accountSid: String(form.get("twilioAccountSid") || ""),
@@ -70,10 +70,7 @@ export default function SettingsPage() {
             <Input name="resendApiKey" label="Resend API key override" type="password" defaultValue={resend.apiKey} placeholder="Optional when RESEND_API_KEY is in .env" />
             <Input name="fromEmail" label="From email" type="email" defaultValue={resend.fromEmail} />
             <Input name="fromName" label="From name" defaultValue={resend.fromName} />
-            <label className="flex items-center justify-between rounded-lg border border-[#d7dfd0] p-3 text-sm font-medium">
-              <span>Enable Resend sending</span>
-              <input name="resendEnabled" type="checkbox" defaultChecked={resend.enabled} />
-            </label>
+            <p className="rounded-lg border border-[#d7dfd0] bg-[#f6f8fc] p-3 text-sm font-medium text-[#0f172a]">Resend sending is always on for outbound proposal and notification mail.</p>
             <div className="mt-2 border-t border-[#e5edf7] pt-4">
               <h3 className="text-sm font-semibold text-[#0f172a]">Twilio calling</h3>
             </div>

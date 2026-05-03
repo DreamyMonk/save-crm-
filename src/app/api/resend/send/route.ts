@@ -65,7 +65,7 @@ function resolveResendSettings(resend?: { apiKey?: string; fromEmail?: string; f
     apiKey,
     fromEmail,
     fromName,
-    enabled: Boolean(apiKey && fromEmail) || resend?.enabled === true,
+    enabled: true,
   };
 }
 
