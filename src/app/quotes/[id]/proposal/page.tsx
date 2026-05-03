@@ -7,11 +7,17 @@ import { onAuthStateChanged, User } from "firebase/auth";
 import { ArrowLeft, Copy, Download, PenLine, Save, Send } from "lucide-react";
 import { CrmShell, PageHeader } from "@/components/crm-shell";
 import { RichTextEditor } from "@/components/rich-text-editor";
-import { CrmState, Customer, QuoteLineItem, QuoteRecord, TeamMember, currency } from "@/lib/crm-data";
+import { CrmState, Customer, Product, ProductCategory, QuoteLineItem, QuoteRecord, TeamMember, currency } from "@/lib/crm-data";
 import { getFirebaseAuth } from "@/lib/firebase";
 import { useCrmStore } from "@/lib/use-crm-store";
 
-const TEMPLATE_URL = "/saveplanet-aircon-proposal-template.html";
+const templateUrls = {
+  Aircon: "/saveplanet-aircon-proposal-template.html",
+  "Heat Pump": "/saveplanet-hot-water-proposal-template.html",
+  Solar: "/saveplanet-solar-proposal-template.html",
+  Inverter: "/saveplanet-solar-proposal-template.html",
+  "Solar Battery": "/saveplanet-solar-proposal-template.html",
+} as const;
 const signatureFonts = [
   { label: "Elegant Script", value: "Brush Script MT, Segoe Script, cursive" },
   { label: "Classic Hand", value: "Segoe Script, Lucida Handwriting, cursive" },
@@ -54,19 +60,20 @@ function ProposalWorkspace({ publicView = false, allowAnonymous = false }: { pub
     }
   }, [id, state.quotes]);
   const customer = state.customers.find((item) => item.id === quote?.customerId);
+  const quoteCategory = quote ? resolveQuoteCategory(quote, state.products) : "Aircon";
   const calculations = useMemo(() => {
     if (!quote) return undefined;
-    return calculateQuote(quote.items, quote.additionalServices, quote.certificateRate, quote.minimumContributionAdjustment, quote.gstRate);
+    return calculateQuote(quote);
   }, [quote]);
   const changeRequestHtml = quote ? (changeRequestDrafts[quote.id] ?? quote.proposalChangeRequestHtml ?? "") : "";
 
   useEffect(() => {
     if (!quote || !calculations) return;
     let cancelled = false;
-    fetch(TEMPLATE_URL)
+    fetch(templateUrlForCategory(quoteCategory))
       .then((response) => response.text())
       .then((template) => {
-        if (!cancelled) setProposalHtml(buildProposalHtml(template, quote, customer, calculations));
+        if (!cancelled) setProposalHtml(buildProposalHtml(template, quote, customer, calculations, quoteCategory));
       })
       .catch(() => {
         if (!cancelled) setMessage("Could not load the static proposal template.");
@@ -74,7 +81,7 @@ function ProposalWorkspace({ publicView = false, allowAnonymous = false }: { pub
     return () => {
       cancelled = true;
     };
-  }, [quote, customer, calculations]);
+  }, [quote, customer, calculations, quoteCategory]);
 
   useEffect(() => {
     if (!allowAnonymous) return;
@@ -393,12 +400,47 @@ function isDeliverableEmail(email: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized) && !normalized.endsWith(".local");
 }
 
+function templateUrlForCategory(category: string) {
+  return templateUrls[category as keyof typeof templateUrls] ?? templateUrls.Aircon;
+}
+
+function resolveQuoteCategory(quote: QuoteRecord, products: Product[]): ProductCategory {
+  const explicitCategory = quote.productCategory;
+  const schemeCategory = inferCategoryFromScheme(quote.scheme);
+  const itemCategory = inferQuoteCategory(quote, products);
+
+  if (explicitCategory && explicitCategory !== "Aircon") return explicitCategory;
+  if (schemeCategory) return schemeCategory;
+  if (itemCategory) return itemCategory;
+  return explicitCategory ?? "Aircon";
+}
+
+function inferCategoryFromScheme(scheme: string): ProductCategory | undefined {
+  const normalized = scheme.toLowerCase();
+  if (normalized.includes("solar")) return "Solar";
+  if (normalized.includes("hot water") || normalized.includes("veu hp") || normalized.includes("stc hp")) return "Heat Pump";
+  if (normalized.includes("space heating") || normalized.includes("cooling")) return "Aircon";
+  return undefined;
+}
+
+function inferQuoteCategory(quote: QuoteRecord, products: Product[]): ProductCategory | undefined {
+  const productId = quote.items.find((item) => item.productId)?.productId;
+  const productCategory = products.find((product) => product.id === productId)?.category;
+  if (productCategory) return productCategory;
+
+  const itemText = quote.items.map((item) => `${item.role} ${item.brand} ${item.model} ${item.notes}`).join(" ").toLowerCase();
+  if (itemText.includes("solar") || itemText.includes("inverter") || itemText.includes("battery")) return "Solar";
+  if (itemText.includes("heat pump") || itemText.includes("hot water")) return "Heat Pump";
+  if (itemText.includes("indoor head") || itemText.includes("outdoor unit") || itemText.includes("air con")) return "Aircon";
+  return undefined;
+}
+
 function hasEditorText(html: string) {
   if (!html) return false;
   return html.replace(/<[^>]*>/g, "").replaceAll("&nbsp;", " ").trim().length > 0;
 }
 
-function buildProposalHtml(template: string, quote: QuoteRecord, customer: Customer | undefined, calculations: Calculations) {
+function buildProposalHtml(template: string, quote: QuoteRecord, customer: Customer | undefined, calculations: Calculations, category: string) {
   const parser = new DOMParser();
   const doc = parser.parseFromString(template, "text/html");
   const quotePage = doc.querySelector(".quot-pad")?.closest(".page");
@@ -443,12 +485,12 @@ function buildProposalHtml(template: string, quote: QuoteRecord, customer: Custo
 
   const totalValues = doc.querySelectorAll(".totals-block .tot-line .v");
   if (totalValues[0]) totalValues[0].textContent = currency(calculations.productCost + calculations.installCost);
-  if (totalValues[1]) totalValues[1].textContent = currency(calculations.netIncGst - calculations.netExGst);
-  if (totalValues[2]) totalValues[2].textContent = currency(calculations.totalCost);
-  if (totalValues[3]) totalValues[3].textContent = `-${currency(calculations.certificateDiscount)}`;
-  if (totalValues[4]) totalValues[4].textContent = currency(calculations.netIncGst);
-  if (totalValues[5]) totalValues[5].textContent = currency(0);
-  if (totalValues[6]) totalValues[6].textContent = currency(calculations.netIncGst);
+  if (totalValues[1]) totalValues[1].textContent = currency(calculations.gstAmount);
+  if (totalValues[2]) totalValues[2].textContent = currency(calculations.systemTotalIncGst);
+  if (totalValues[3]) totalValues[3].textContent = `-${currency(calculations.totalDeductions)}`;
+  if (totalValues[4]) totalValues[4].textContent = currency(calculations.finalPriceIncGst);
+  if (totalValues[5]) totalValues[5].textContent = currency(calculations.depositAmount);
+  if (totalValues[6]) totalValues[6].textContent = currency(calculations.balanceDue);
 
   const bankReference = doc.querySelectorAll(".bank-row .v")[3];
   if (bankReference) bankReference.textContent = quote.id;
@@ -464,7 +506,7 @@ function buildProposalHtml(template: string, quote: QuoteRecord, customer: Custo
 
   if (quotePage) {
     const fragment = doc.createElement("template");
-    fragment.innerHTML = `${productSummaryPage(quote, calculations)}${sizingGuidePage(quote, customer)}`;
+    fragment.innerHTML = category === "Aircon" ? `${productSummaryPage(quote, calculations, category)}${sizingGuidePage(quote, customer)}` : productSummaryPage(quote, calculations, category);
     quotePage.before(fragment.content);
   }
 
@@ -472,7 +514,7 @@ function buildProposalHtml(template: string, quote: QuoteRecord, customer: Custo
   script.textContent = "if(window.lucide){window.lucide.createIcons();}";
   doc.body.appendChild(script);
   const style = doc.createElement("style");
-  style.textContent = ".cov-card-item span{display:block;max-width:100%;overflow-wrap:anywhere;line-height:1.35;}.cov-card{align-items:start;}.saved-customer-signature{display:block;max-width:320px;max-height:90px;margin:10px 0 6px;object-fit:contain;}";
+  style.textContent = ".cov-card-item span{display:block;max-width:100%;overflow-wrap:anywhere;line-height:1.35;}.cov-card{align-items:start;}.saved-customer-signature{display:block;max-width:320px;max-height:90px;margin:10px 0 6px;object-fit:contain;}.quote-total-hero{width:100%;margin:0 0 18px;border:1px solid #b9d7ca;background:#f4fbf7;border-radius:14px;padding:6px 12px;}.quote-total-panel{margin-left:auto;margin-top:20px;width:440px;border:1px solid #d8e6dc;border-radius:16px;background:#fbfdfb;padding:10px 14px;box-shadow:0 8px 20px rgba(15,23,42,.06);}.quote-total-panel .tot-line,.quote-total-hero .tot-line{border-bottom:1px solid #e1ece5;padding:10px 0;}.quote-total-panel .tot-line:last-child,.quote-total-hero .tot-line:last-child{border-bottom:0;}.quote-total-panel .tot-line .l,.quote-total-hero .tot-line .l{font-weight:700;color:#39483d;}.quote-total-panel .tot-line .v,.quote-total-hero .tot-line .v{font-weight:800;color:#0f172a;}.quote-total-panel .deduction .v{color:#0f7a45;}.quote-total-panel .final-price{margin:8px -6px 0;padding:12px 6px;border-radius:10px;background:#eef7ff;}.quote-total-panel .final-price .l,.quote-total-panel .final-price .v{color:#003CBB;font-size:16px;}.quote-savings-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:10px;}.quote-savings-card{border:1px solid #d9e2f2;border-radius:12px;background:#fff;padding:12px;}.quote-savings-card label{display:block;font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:#657267;font-weight:800;}.quote-savings-card .name{margin-top:8px;font-size:15px;font-weight:800;color:#0f172a;}";
   doc.head.appendChild(style);
   return `<!DOCTYPE html>${doc.documentElement.outerHTML}`;
 }
@@ -580,8 +622,8 @@ function SignaturePad({ value, onChange, autoName, autoFont }: { value?: string;
   );
 }
 
-function productSummaryPage(quote: QuoteRecord, calculations: Calculations) {
-  const rows = [...quote.items, ...quote.additionalServices].map((item) => `
+function productSummaryPage(quote: QuoteRecord, calculations: Calculations, category: string) {
+  const keyProducts = quote.items.map((item) => `
     <tr>
       <td>${escapeHtml(`${item.brand} ${item.model}`)}<span class="desc-sub">${escapeHtml(`${item.role} - ${item.area || "Whole home"}`)}</span></td>
       <td class="c">${item.quantity}</td>
@@ -590,29 +632,89 @@ function productSummaryPage(quote: QuoteRecord, calculations: Calculations) {
       <td class="r">${currency((item.productPrice + item.installPrice) * item.quantity)}</td>
     </tr>
   `).join("");
+  const additionalCharges = quote.additionalServices.map((item) => `
+    <tr>
+      <td>${escapeHtml(`${item.brand} ${item.model}`)}<span class="desc-sub">${escapeHtml(item.area || "Additional service")}</span></td>
+      <td class="c">${item.quantity}</td>
+      <td class="r">${currency(item.productPrice)}</td>
+      <td class="r">${currency(item.installPrice)}</td>
+      <td class="r">${currency((item.productPrice + item.installPrice) * item.quantity)}</td>
+    </tr>
+  `).join("");
+  const balanceRows = balanceOfSystemRows(category);
 
   return `
     <div class="page">
       <div class="quot-pad">
         <div class="sec-eyebrow"><i data-lucide="package-check"></i> Proposal Data</div>
-        <h1 class="sec-h1">Items <em>Summary</em></h1>
+        <h1 class="sec-h1">Quotation <em>Summary</em></h1>
         <div class="sec-rule"></div>
-        <p class="sec-lead">Product summary created from the selected MIDEA outdoor unit, indoor heads, installation items, and additional services.</p>
+        <p class="sec-lead">${escapeHtml(productSummaryLead(category))}</p>
+        <div class="totals-block quote-total-hero">
+          <div class="tot-line due"><span class="l">System Total <small>(incl. GST)</small></span><span class="v">${currency(calculations.systemTotalIncGst)}</span></div>
+        </div>
+        <h3 style="font-family:'Sora';font-size:15px;margin:18px 0 8px;">Key Products</h3>
         <table class="qt">
           <thead><tr><th>Item</th><th class="c">Qty</th><th class="r">Unit Price</th><th class="r">Install</th><th class="r">Total</th></tr></thead>
-          <tbody>${rows}</tbody>
+          <tbody>${keyProducts || `<tr><td colspan="5">Products to be confirmed.</td></tr>`}</tbody>
         </table>
-        <div class="totals-block" style="margin-left:auto;width:360px;">
-          <div class="tot-line"><span class="l">Total product cost</span><span class="v">${currency(calculations.productCost)}</span></div>
-          <div class="tot-line"><span class="l">Total install cost</span><span class="v">${currency(calculations.installCost)}</span></div>
-          <div class="tot-line veec"><span class="l">Government rebate / certificate discount</span><span class="v">-${currency(calculations.certificateDiscount)}</span></div>
-          <div class="tot-line due"><span class="l">Net cost incl. GST</span><span class="v">${currency(calculations.netIncGst)}</span></div>
+        <h3 style="font-family:'Sora';font-size:15px;margin:20px 0 8px;">Balance of System</h3>
+        <table class="qt">
+          <thead><tr><th>Item</th><th class="c">Qty</th><th class="r">Amount</th></tr></thead>
+          <tbody>${balanceRows}</tbody>
+        </table>
+        <h3 style="font-family:'Sora';font-size:15px;margin:20px 0 8px;">Additional Charges</h3>
+        <table class="qt">
+          <thead><tr><th>Item</th><th class="c">Qty</th><th class="r">Unit Price</th><th class="r">Install</th><th class="r">Total</th></tr></thead>
+          <tbody>${additionalCharges || `<tr><td colspan="5">No additional charges added.</td></tr>`}</tbody>
+        </table>
+        <div class="totals-block quote-total-panel">
+          <div class="tot-line"><span class="l">Product and install subtotal</span><span class="v">${currency(calculations.productCost + calculations.installCost)}</span></div>
+          <div class="tot-line"><span class="l">Minimum contribution adjustment</span><span class="v">${currency(quote.minimumContributionAdjustment)}</span></div>
+          <div class="tot-line"><span class="l">GST (${quote.gstRate}%)</span><span class="v">${currency(calculations.gstAmount)}</span></div>
+          <div class="tot-line due"><span class="l">System Total <small>(incl. GST)</small></span><span class="v">${currency(calculations.systemTotalIncGst)}</span></div>
+          <div class="tot-line veec deduction"><span class="l">Deductions</span><span class="v">-${currency(calculations.totalDeductions)}</span></div>
+          <div class="tot-line deduction"><span class="l">Certificate discount</span><span class="v">-${currency(calculations.certificateDiscount)}</span></div>
+          <div class="tot-line deduction"><span class="l">STC Panel Rebate</span><span class="v">-${currency(quote.stcPanelRebate ?? 0)}</span></div>
+          <div class="tot-line deduction"><span class="l">STC Battery Rebate</span><span class="v">-${currency(quote.stcBatteryRebate ?? 0)}</span></div>
+          <div class="tot-line deduction"><span class="l">Solar VIC Rebate</span><span class="v">-${currency(quote.solarVicRebate ?? 0)}</span></div>
+          <div class="tot-line deduction"><span class="l">Solar VIC PV Interest Free Loan</span><span class="v">-${currency(quote.solarVicLoan ?? 0)}</span></div>
+          <div class="tot-line due final-price"><span class="l">Final price incl. GST</span><span class="v">${currency(calculations.finalPriceIncGst)}</span></div>
+          <div class="tot-line"><span class="l">Deposit (${quote.depositPercent ?? 50}%)</span><span class="v">${currency(calculations.depositAmount)}</span></div>
+          <div class="tot-line"><span class="l">Balance due</span><span class="v">${currency(calculations.balanceDue)}</span></div>
+        </div>
+        <h3 style="font-family:'Sora';font-size:15px;margin:24px 0 8px;">Estimated System Performance &amp; Savings</h3>
+        <div class="quote-savings-grid">
+          <div class="quote-savings-card"><label>Annual Energy Production</label><div class="name">${(quote.annualEnergyProductionKwh ?? 0).toLocaleString()} kWh</div></div>
+          <div class="quote-savings-card"><label>Discounted Payback</label><div class="name">${quote.discountedPaybackYears ?? 0} year(s)</div></div>
+          <div class="quote-savings-card"><label>Annual Bill Savings</label><div class="name">${currency(quote.annualBillSavings ?? 0)}</div></div>
         </div>
       </div>
       <div class="page-foot-brand"><span>SavePlanet</span> - Items Summary</div>
       <div class="page-num">Appendix A</div>
     </div>
   `;
+}
+
+function productSummaryLead(category: string) {
+  if (category === "Aircon") return "Product summary created from the selected outdoor unit, indoor heads, installation items, and additional services.";
+  if (category === "Heat Pump") return "Product summary created from the selected hot water heat pump system, installation items, rebate, and additional services.";
+  return "Product summary created from the selected solar, inverter, battery, installation, rebate, and additional services.";
+}
+
+function balanceOfSystemRows(category: string) {
+  const items = category === "Aircon"
+    ? ["Copper pipework", "Drain and electrical connection", "Mounting and commissioning"]
+    : category === "Heat Pump"
+      ? ["Plumbing connection kit", "Electrical isolation and commissioning", "Decommissioning allowance"]
+      : ["AC cable run", "DC cable run", "Racking and balance equipment"];
+  return items.map((item) => `
+    <tr>
+      <td>${escapeHtml(item)}</td>
+      <td class="c">1</td>
+      <td class="r">${currency(0)}</td>
+    </tr>
+  `).join("");
 }
 
 function sizingGuidePage(quote: QuoteRecord, customer: Customer | undefined) {
@@ -713,14 +815,20 @@ function escapeHtml(value: string) {
 
 type Calculations = ReturnType<typeof calculateQuote>;
 
-function calculateQuote(items: QuoteLineItem[], addons: QuoteLineItem[], certificateRate: number, minimumContributionAdjustment: number, gstRate: number) {
-  const allItems = [...items, ...addons];
+function calculateQuote(quote: QuoteRecord) {
+  const allItems = [...quote.items, ...quote.additionalServices];
   const certificates = allItems.reduce((sum, item) => sum + item.certificates * item.quantity, 0);
-  const certificateDiscount = certificates * certificateRate;
+  const certificateDiscount = certificates * quote.certificateRate;
   const productCost = allItems.reduce((sum, item) => sum + item.productPrice * item.quantity, 0);
   const installCost = allItems.reduce((sum, item) => sum + item.installPrice * item.quantity, 0);
-  const totalCost = productCost + installCost + minimumContributionAdjustment;
-  const netExGst = Math.max(0, totalCost - certificateDiscount);
-  const netIncGst = netExGst * (1 + gstRate / 100);
-  return { certificates, certificateDiscount, productCost, installCost, totalCost, netExGst, netIncGst };
+  const totalCost = productCost + installCost + quote.minimumContributionAdjustment;
+  const systemTotalIncGst = totalCost * (1 + quote.gstRate / 100);
+  const gstAmount = systemTotalIncGst - totalCost;
+  const totalDeductions = certificateDiscount + (quote.stcPanelRebate ?? 0) + (quote.stcBatteryRebate ?? 0) + (quote.solarVicRebate ?? 0) + (quote.solarVicLoan ?? 0);
+  const finalPriceIncGst = Math.max(0, systemTotalIncGst - totalDeductions);
+  const depositAmount = finalPriceIncGst * ((quote.depositPercent ?? 50) / 100);
+  const balanceDue = Math.max(0, finalPriceIncGst - depositAmount);
+  const netExGst = Math.max(0, finalPriceIncGst / (1 + quote.gstRate / 100));
+  const netIncGst = finalPriceIncGst;
+  return { certificates, certificateDiscount, productCost, installCost, totalCost, systemTotalIncGst, gstAmount, totalDeductions, finalPriceIncGst, depositAmount, balanceDue, netExGst, netIncGst };
 }

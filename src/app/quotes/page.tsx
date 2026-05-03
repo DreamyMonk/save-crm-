@@ -2,13 +2,20 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { FileText, Save, Trash2 } from "lucide-react";
+import { Calculator, FileText, Save, Trash2 } from "lucide-react";
 import { CrmShell, PageHeader } from "@/components/crm-shell";
 import { Product, QuoteLineItem, QuoteRecord, currency } from "@/lib/crm-data";
 import { displayBrandForCategory, isAllowedBrandForCategory } from "@/lib/product-brand-rules";
 import { useCrmStore } from "@/lib/use-crm-store";
 
 const schemes = ["STC HP", "STC SOLAR + BATTERY", "VEU APP - VIC Appliances", "VEU HP - VIC Water Heating", "VEU RESI", "VEU SH - VIC Space Heating/Cooling", "Off Scheme"];
+const schemesByCategory: Record<string, string[]> = {
+  Aircon: ["VEU SH - VIC Space Heating/Cooling", "Off Scheme"],
+  "Heat Pump": ["VEU HP - VIC Water Heating", "STC HP", "Off Scheme"],
+  Solar: ["STC SOLAR + BATTERY", "Off Scheme"],
+  Inverter: ["STC SOLAR + BATTERY", "Off Scheme"],
+  "Solar Battery": ["STC SOLAR + BATTERY", "Off Scheme"],
+};
 const priceTiers = ["Contractor Price", "Retail Price", "Custom Price"];
 const installTiers = ["Tier 1 (Metro / Standard)", "Tier 2 (Regional)", "Tier 3 (Complex Install)", "Custom"];
 const baselineOptions = ["GAS Ducted Heater NO Air Con", "Gas heater + existing air con", "Electric resistance heater", "No existing system"];
@@ -23,6 +30,7 @@ export default function QuotesPage() {
   const [productType, setProductType] = useState("All");
   const [productConfiguration, setProductConfiguration] = useState("All");
   const [productSearch, setProductSearch] = useState("");
+  const [scheme, setScheme] = useState("VEU SH - VIC Space Heating/Cooling");
   const productCategories = useMemo(() => unique([...fallbackProductCategories, ...state.products.map((product) => product.category)]), [state.products]);
   const categoryCatalog = useMemo(() => {
     return state.products.filter((product) => {
@@ -30,6 +38,8 @@ export default function QuotesPage() {
       return product.category === productCategory && isAllowedBrandForCategory(productCategory, product.brandName);
     });
   }, [productCategory, state.products]);
+  const schemeOptions = schemesByCategory[productCategory] ?? schemes;
+  const activeScheme = schemeOptions.includes(scheme) ? scheme : schemeOptions[0];
   const brandOptions = useMemo(() => ["All", ...unique(categoryCatalog.map((item) => displayBrandForCategory(item.category, item.brandName)))], [categoryCatalog]);
   const activeBrand = brandOptions.includes(productBrand) ? productBrand : "All";
   const brandCatalog = useMemo(() => categoryCatalog.filter((product) => activeBrand === "All" || displayBrandForCategory(product.category, product.brandName) === activeBrand), [activeBrand, categoryCatalog]);
@@ -49,14 +59,10 @@ export default function QuotesPage() {
   const quoteProducts = filteredProducts;
   const [selectedCustomerId, setSelectedCustomerId] = useState(customers[0]?.id ?? "");
   const [description, setDescription] = useState(customers[0]?.name ?? "");
-  const [scheme, setScheme] = useState("VEU SH - VIC Space Heating/Cooling");
   const [activityDate, setActivityDate] = useState("2026-05-02");
   const [baseline, setBaseline] = useState(baselineOptions[0]);
   const [outdoorModel, setOutdoorModel] = useState("");
   const [headModel, setHeadModel] = useState("");
-  const [outdoorProductPrice, setOutdoorProductPrice] = useState(0);
-  const [outdoorInstallPrice, setOutdoorInstallPrice] = useState(0);
-  const [outdoorCertificates, setOutdoorCertificates] = useState(0);
   const [headArea, setHeadArea] = useState("Bedroom 1");
   const [headAreaM2, setHeadAreaM2] = useState(20);
   const [quantity, setQuantity] = useState(1);
@@ -66,14 +72,36 @@ export default function QuotesPage() {
   const [certificateRate, setCertificateRate] = useState(73.6);
   const [minimumContributionAdjustment, setMinimumContributionAdjustment] = useState(0);
   const [gstRate, setGstRate] = useState(10);
+  const [stcPanelRebate, setStcPanelRebate] = useState(0);
+  const [stcBatteryRebate, setStcBatteryRebate] = useState(0);
+  const [solarVicRebate, setSolarVicRebate] = useState(0);
+  const [solarVicLoan, setSolarVicLoan] = useState(0);
+  const [depositPercent, setDepositPercent] = useState(50);
+  const [annualEnergyProductionKwh, setAnnualEnergyProductionKwh] = useState(0);
+  const [discountedPaybackYears, setDiscountedPaybackYears] = useState(0);
+  const [annualBillSavings, setAnnualBillSavings] = useState(0);
   const [items, setItems] = useState<QuoteLineItem[]>([]);
   const [addons, setAddons] = useState<QuoteLineItem[]>([]);
   const [addonName, setAddonName] = useState("");
   const [addonQty, setAddonQty] = useState(1);
   const [addonPrice, setAddonPrice] = useState(0);
+  const [buildingAgeAnswer, setBuildingAgeAnswer] = useState("Yes");
+  const [inclusions, setInclusions] = useState("");
+  const [benefitForm, setBenefitForm] = useState("Point of sale discount");
   const [message, setMessage] = useState("");
-  const customer = customers.find((item) => item.id === selectedCustomerId);
-  const calculations = calculateQuote(items, addons, certificateRate, minimumContributionAdjustment, gstRate);
+  const [currentQuoteId, setCurrentQuoteId] = useState("");
+  const activeSelectedCustomerId = customers.some((item) => item.id === selectedCustomerId) ? selectedCustomerId : (customers[0]?.id ?? "");
+  const customer = customers.find((item) => item.id === activeSelectedCustomerId);
+  const calculations = calculateQuote(items, addons, {
+    certificateRate,
+    minimumContributionAdjustment,
+    gstRate,
+    stcPanelRebate,
+    stcBatteryRebate,
+    solarVicRebate,
+    solarVicLoan,
+    depositPercent,
+  });
   const isAirconCategory = productCategory === "Aircon";
   const selectedOutdoorModel = quoteProducts.some((product) => product.id === outdoorModel) ? outdoorModel : (quoteProducts[0]?.id ?? "");
   const selectedHeadModel = quoteProducts.some((product) => product.id === headModel) ? headModel : (quoteProducts[0]?.id ?? "");
@@ -84,6 +112,7 @@ export default function QuotesPage() {
     setProductBrand("All");
     setProductType("All");
     setProductConfiguration("All");
+    setScheme((schemesByCategory[value] ?? schemes)[0]);
     setOutdoorModel("");
     setHeadModel("");
   }
@@ -109,7 +138,7 @@ export default function QuotesPage() {
       return;
     }
     setItems((current) => [
-      lineFromProduct(product, "Outdoor Unit", baseline, 0, 1, outdoorProductPrice || product.price, outdoorInstallPrice, outdoorCertificates, "Outdoor unit"),
+      lineFromProduct(product, "Outdoor Unit", baseline, 0, 1, 0, 0, 0, "Outdoor unit included in combined system price"),
       ...current.filter((item) => item.role !== "Outdoor Unit"),
     ]);
     setMessage(`${product.model ?? product.productName} added as outdoor unit.`);
@@ -169,16 +198,27 @@ export default function QuotesPage() {
     setAddons((current) => current.filter((item) => item.id !== itemId));
   }
 
-  function saveQuote(status: QuoteRecord["status"], openProposal = false) {
-    if (!customer) {
-      setMessage("Select a customer first.");
-      return;
-    }
-    const quote: QuoteRecord = {
-      id: `Q-${1000 + state.quotes.length + 1}`,
-      customerId: customer.id,
-      description,
-      scheme,
+  function applyVictoriaRebates() {
+    const automatic = calculateVictoriaRebates(productCategory, items, addons, {
+      certificateRate,
+      minimumContributionAdjustment,
+      gstRate,
+      depositPercent,
+    });
+    setStcPanelRebate(automatic.stcPanelRebate);
+    setStcBatteryRebate(automatic.stcBatteryRebate);
+    setSolarVicRebate(automatic.solarVicRebate);
+    setSolarVicLoan(automatic.solarVicLoan);
+    setMessage(automatic.message);
+  }
+
+  function buildQuote(status: QuoteRecord["status"], quoteId: string): QuoteRecord {
+    return {
+      id: quoteId,
+      customerId: customer?.id ?? "",
+      productCategory: productCategory === "All" ? firstQuoteCategory(items, state.products) : productCategory as QuoteRecord["productCategory"],
+      description: description || customer?.name || customer?.businessName || "",
+      scheme: activeScheme,
       activityDate,
       priceTier: priceTiers[0],
       installationCostTier: installTiers[0],
@@ -187,11 +227,35 @@ export default function QuotesPage() {
       certificateRate,
       minimumContributionAdjustment,
       gstRate,
+      stcPanelRebate,
+      stcBatteryRebate,
+      solarVicRebate,
+      solarVicLoan,
+      depositPercent,
+      annualEnergyProductionKwh,
+      discountedPaybackYears,
+      annualBillSavings,
       status,
     };
-    setState({ ...state, quotes: [quote, ...state.quotes] });
+  }
+
+  function saveQuote(status: QuoteRecord["status"], openProposal = false, forceNew = false) {
+    if (!customer) {
+      setMessage("Select a customer first.");
+      return;
+    }
+    const existingQuote = !forceNew && currentQuoteId ? state.quotes.find((quote) => quote.id === currentQuoteId) : undefined;
+    const quoteId = existingQuote?.id ?? nextQuoteId(state.quotes);
+    const quote = buildQuote(status, quoteId);
+    setState({
+      ...state,
+      quotes: existingQuote
+        ? state.quotes.map((item) => (item.id === quote.id ? quote : item))
+        : [quote, ...state.quotes],
+    });
     window.localStorage.setItem(`saveplanet-quote-${quote.id}`, JSON.stringify(quote));
-    setMessage(status === "Draft" ? "Draft proposal saved." : "Quote saved.");
+    setCurrentQuoteId(quote.id);
+    setMessage(status === "Draft" ? "Draft proposal created." : existingQuote ? "Quote updated." : forceNew ? "New quote saved." : "Quote saved.");
     if (openProposal) {
       router.push(`/quotes/${quote.id}/proposal`);
     }
@@ -206,7 +270,7 @@ export default function QuotesPage() {
           <div className="grid gap-4 p-5 md:grid-cols-2 xl:grid-cols-3">
             <label className="space-y-1 text-sm">
               <span className="font-medium text-[#657267]">Customer</span>
-              <select value={selectedCustomerId} onChange={(event) => selectCustomer(event.target.value)} className="h-11 w-full rounded-lg border border-[#d7dfd0] bg-white px-3 outline-none">
+              <select value={activeSelectedCustomerId} onChange={(event) => selectCustomer(event.target.value)} className="h-11 w-full rounded-lg border border-[#d7dfd0] bg-white px-3 outline-none">
                 {customers.map((item) => (
                   <option key={item.id} value={item.id}>
                     [{item.id.replace("C-", "")}] {item.name || item.businessName}
@@ -215,7 +279,7 @@ export default function QuotesPage() {
               </select>
             </label>
             <Input label="Description" value={description} onChange={(event) => setDescription(event.target.value)} />
-            <Select label="Scheme" value={scheme} options={schemes} onChange={setScheme} />
+            <Select label="Scheme" value={activeScheme} options={schemeOptions} onChange={setScheme} />
             <Input label="Activity Date" type="date" value={activityDate} onChange={(event) => setActivityDate(event.target.value)} />
           </div>
         </section>
@@ -230,9 +294,6 @@ export default function QuotesPage() {
               {isAirconCategory ? (
                 <>
                   <Select label="Outdoor Unit (always outside)" value={selectedOutdoorModel} options={quoteProducts.map((item) => item.id)} labelFor={(value) => productLabel(productById(quoteProducts, value))} onChange={setOutdoorModel} />
-                  <NumberInput label="Outdoor Product Price, $" value={outdoorProductPrice} onChange={setOutdoorProductPrice} />
-                  <NumberInput label="Outdoor Install Cost, $" value={outdoorInstallPrice} onChange={setOutdoorInstallPrice} />
-                  <NumberInput label="Outdoor Certificates" value={outdoorCertificates} onChange={setOutdoorCertificates} />
                   <div className="pb-2">
                     <button onClick={addOutdoor} className="h-10 w-full rounded-lg bg-[#003CBB] px-4 text-sm font-semibold text-white">Add selected as outdoor unit</button>
                   </div>
@@ -321,9 +382,9 @@ export default function QuotesPage() {
         <section className="rounded-lg border border-[#d9e2f2] bg-white shadow-sm">
           <SectionTitle title="Questions" />
           <div className="grid gap-4 p-5 md:grid-cols-3">
-            <Select label="Is the building at least 2 years old?" value="Yes" options={["Yes", "No", "New Install - No decommissioning required"]} onChange={() => undefined} />
-            <Input label="Inclusions And Exclusions" placeholder="Optional" />
-            <Select label="Form of benefit provided?" value="Point of sale discount" options={["Point of sale discount", "Cashback", "Invoice credit"]} onChange={() => undefined} />
+            <Select label="Is the building at least 2 years old?" value={buildingAgeAnswer} options={["Yes", "No", "New Install - No decommissioning required"]} onChange={setBuildingAgeAnswer} />
+            <Input label="Inclusions And Exclusions" value={inclusions} onChange={(event) => setInclusions(event.target.value)} placeholder="Optional" />
+            <Select label="Form of benefit provided?" value={benefitForm} options={["Point of sale discount", "Cashback", "Invoice credit"]} onChange={setBenefitForm} />
           </div>
         </section>
 
@@ -334,16 +395,34 @@ export default function QuotesPage() {
               <NumberInput label="Certificate Rate" value={certificateRate} onChange={setCertificateRate} />
               <NumberInput label="Minimum Contribution Adjustment" value={minimumContributionAdjustment} onChange={setMinimumContributionAdjustment} />
               <NumberInput label="GST Rate %" value={gstRate} onChange={setGstRate} />
+              <NumberInput label="STC Panel Rebate" value={stcPanelRebate} onChange={setStcPanelRebate} />
+              <NumberInput label="STC Battery Rebate" value={stcBatteryRebate} onChange={setStcBatteryRebate} />
+              <NumberInput label="Solar VIC Rebate" value={solarVicRebate} onChange={setSolarVicRebate} />
+              <NumberInput label="Solar VIC Interest Free Loan" value={solarVicLoan} onChange={setSolarVicLoan} />
+              <NumberInput label="Deposit %" value={depositPercent} onChange={setDepositPercent} />
+              <NumberInput label="Annual Energy Production (kWh)" value={annualEnergyProductionKwh} onChange={setAnnualEnergyProductionKwh} />
+              <NumberInput label="Discounted Payback (years)" value={discountedPaybackYears} onChange={setDiscountedPaybackYears} />
+              <NumberInput label="Annual Bill Savings" value={annualBillSavings} onChange={setAnnualBillSavings} />
+            </div>
+            <div className="px-5 pb-4">
+              <button onClick={applyVictoriaRebates} className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-[#eef4ff] px-4 text-sm font-semibold text-[#003CBB]">
+                <Calculator size={16} /> Auto calculate Victorian rebates
+              </button>
+              <p className="mt-2 text-xs leading-5 text-[#657267]">
+                Uses current Victorian rules: Solar PV rebate up to $1,400, hot water rebate up to $1,000, and Solar Victoria PV loan matching the PV rebate when selected. VEU/STC certificate discount still uses the certificates and rate entered above.
+              </p>
             </div>
             <div className="grid gap-3 px-5 pb-5 md:grid-cols-2">
-              <Result label="VEECs Created" value={`${calculations.certificates.toFixed(2)} @ ${certificateRate.toFixed(2)}`} />
-              <Result label="Certificate discount, $" value={currency(calculations.certificateDiscount)} />
-              <Result label="Total product cost, $" value={currency(calculations.productCost)} />
-              <Result label="Total installation cost, $" value={currency(calculations.installCost)} />
-              <Result label="Minimum contribution adjustment, $" value={currency(minimumContributionAdjustment)} />
-              <Result label="Total cost, $" value={currency(calculations.totalCost)} />
-              <Result label="Total net cost (ex. GST), $" value={currency(calculations.netExGst)} />
-              <Result label="Total net cost (incl. GST), $" value={currency(calculations.netIncGst)} strong />
+              <Result label="Certificates Created" value={`${calculations.certificates.toFixed(2)} @ ${certificateRate.toFixed(2)}`} />
+              <Result label="System total (incl. GST)" value={currency(calculations.systemTotalIncGst)} />
+              <Result label="GST" value={currency(calculations.gstAmount)} />
+              <Result label="Total deductions / rebate applied" value={`-${currency(calculations.totalDeductions)}`} />
+              <Result label="Final price (incl. GST)" value={currency(calculations.finalPriceIncGst)} strong />
+              <Result label="Deposit" value={currency(calculations.depositAmount)} />
+              <Result label="Balance due" value={currency(calculations.balanceDue)} />
+              <Result label="Annual Energy Production" value={`${annualEnergyProductionKwh.toLocaleString()} kWh`} />
+              <Result label="Discounted Payback" value={`${discountedPaybackYears || 0} year(s)`} />
+              <Result label="Annual Bill Savings" value={currency(annualBillSavings)} />
             </div>
           </div>
           <div className="rounded-lg border border-[#d9e2f2] bg-white p-5 shadow-sm">
@@ -351,8 +430,8 @@ export default function QuotesPage() {
             {message ? <p className="mt-3 rounded-lg bg-[#eef4ff] p-3 text-sm font-semibold text-[#003CBB]">{message}</p> : null}
             <div className="mt-4 grid gap-2">
               <button onClick={() => saveQuote("Saved")} className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-[#003CBB] px-4 text-sm font-semibold text-white"><Save size={16} /> Save</button>
-              <button onClick={() => saveQuote("Saved")} className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-[#c7d3e8] bg-white px-4 text-sm font-semibold text-[#003CBB]"><Save size={16} /> Save as New</button>
-              <button onClick={() => saveQuote("Draft", true)} className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-[#c7d3e8] bg-white px-4 text-sm font-semibold"><FileText size={16} /> Draft Proposal</button>
+              <button onClick={() => saveQuote("Saved", false, true)} className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-[#c7d3e8] bg-white px-4 text-sm font-semibold text-[#003CBB]"><Save size={16} /> Save as New</button>
+              <button onClick={() => saveQuote("Draft", true, true)} className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-[#c7d3e8] bg-white px-4 text-sm font-semibold"><FileText size={16} /> Draft Proposal</button>
             </div>
           </div>
         </section>
@@ -379,6 +458,19 @@ function lineFromProduct(product: Product, role: QuoteLineItem["role"], area: st
   };
 }
 
+function firstQuoteCategory(items: QuoteLineItem[], products: Product[]) {
+  const productId = items.find((item) => item.productId)?.productId;
+  return products.find((product) => product.id === productId)?.category ?? "Aircon";
+}
+
+function nextQuoteId(quotes: QuoteRecord[]) {
+  const highest = quotes.reduce((max, quote) => {
+    const numericId = Number(quote.id.replace(/\D/g, ""));
+    return Number.isFinite(numericId) ? Math.max(max, numericId) : max;
+  }, 1000);
+  return `Q-${highest + 1}`;
+}
+
 function recommendedHeatingOutput(areaM2: number) {
   if (areaM2 <= 20) return "2.5 to 3 kW";
   if (areaM2 <= 40) return "3 to 5 kW";
@@ -386,16 +478,94 @@ function recommendedHeatingOutput(areaM2: number) {
   return "+8 kW";
 }
 
-function calculateQuote(items: QuoteLineItem[], addons: QuoteLineItem[], certificateRate: number, minimumContributionAdjustment: number, gstRate: number) {
+function calculateQuote(
+  items: QuoteLineItem[],
+  addons: QuoteLineItem[],
+  options: {
+    certificateRate: number;
+    minimumContributionAdjustment: number;
+    gstRate: number;
+    stcPanelRebate: number;
+    stcBatteryRebate: number;
+    solarVicRebate: number;
+    solarVicLoan: number;
+    depositPercent: number;
+  },
+) {
   const allItems = [...items, ...addons];
   const certificates = allItems.reduce((sum, item) => sum + item.certificates * item.quantity, 0);
-  const certificateDiscount = certificates * certificateRate;
+  const certificateDiscount = certificates * options.certificateRate;
   const productCost = allItems.reduce((sum, item) => sum + item.productPrice * item.quantity, 0);
   const installCost = allItems.reduce((sum, item) => sum + item.installPrice * item.quantity, 0);
-  const totalCost = productCost + installCost + minimumContributionAdjustment;
-  const netExGst = Math.max(0, totalCost - certificateDiscount);
-  const netIncGst = netExGst * (1 + gstRate / 100);
-  return { certificates, certificateDiscount, productCost, installCost, totalCost, netExGst, netIncGst };
+  const totalCost = productCost + installCost + options.minimumContributionAdjustment;
+  const systemTotalIncGst = totalCost * (1 + options.gstRate / 100);
+  const gstAmount = systemTotalIncGst - totalCost;
+  const totalDeductions = certificateDiscount + options.stcPanelRebate + options.stcBatteryRebate + options.solarVicRebate + options.solarVicLoan;
+  const finalPriceIncGst = Math.max(0, systemTotalIncGst - totalDeductions);
+  const depositAmount = finalPriceIncGst * (options.depositPercent / 100);
+  const balanceDue = Math.max(0, finalPriceIncGst - depositAmount);
+  const netExGst = Math.max(0, finalPriceIncGst / (1 + options.gstRate / 100));
+  const netIncGst = finalPriceIncGst;
+  return { certificates, certificateDiscount, productCost, installCost, totalCost, systemTotalIncGst, gstAmount, totalDeductions, finalPriceIncGst, depositAmount, balanceDue, netExGst, netIncGst };
+}
+
+function calculateVictoriaRebates(
+  category: string,
+  items: QuoteLineItem[],
+  addons: QuoteLineItem[],
+  options: {
+    certificateRate: number;
+    minimumContributionAdjustment: number;
+    gstRate: number;
+    depositPercent: number;
+  },
+) {
+  const base = calculateQuote(items, addons, {
+    ...options,
+    stcPanelRebate: 0,
+    stcBatteryRebate: 0,
+    solarVicRebate: 0,
+    solarVicLoan: 0,
+  });
+  const afterCertificateDiscount = Math.max(0, base.systemTotalIncGst - base.certificateDiscount);
+  const halfAfterCertificates = afterCertificateDiscount * 0.5;
+  const result = {
+    stcPanelRebate: 0,
+    stcBatteryRebate: 0,
+    solarVicRebate: 0,
+    solarVicLoan: 0,
+    message: "Victorian rebate fields recalculated.",
+  };
+
+  if (category === "Solar" || category === "Inverter") {
+    const pvRebate = Math.min(1400, halfAfterCertificates);
+    result.solarVicRebate = roundMoney(pvRebate);
+    result.solarVicLoan = roundMoney(pvRebate);
+    result.message = "Solar Victoria PV rebate applied: 50% after certificate discounts, capped at $1,400. PV interest-free loan matched to the rebate amount.";
+    return result;
+  }
+
+  if (category === "Heat Pump") {
+    result.solarVicRebate = roundMoney(Math.min(1000, halfAfterCertificates));
+    result.message = "Solar Victoria hot water rebate applied: 50% after STC/VEEC discounts, capped at $1,000. Locally made products may be eligible for up to $1,400 and should be checked manually.";
+    return result;
+  }
+
+  if (category === "Solar Battery") {
+    result.message = "Solar Victoria battery incentive is not auto-applied here because the interest-free battery loan is closed. Enter any separate eligible battery discount manually.";
+    return result;
+  }
+
+  if (category === "Aircon") {
+    result.message = "Aircon rebate is handled through the VEU certificate discount. Enter approved VEEC certificates and rate, then this calculator applies the discount automatically.";
+    return result;
+  }
+
+  return result;
+}
+
+function roundMoney(value: number) {
+  return Math.round(value * 100) / 100;
 }
 
 function productById(products: Product[], id: string) {

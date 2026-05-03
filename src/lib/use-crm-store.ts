@@ -97,7 +97,7 @@ export function useCrmStore() {
         if (!active) return;
         const localState = readLocalState();
         if (snapshot.exists()) {
-          const remoteState = mergeLocalProducts(normalizeState(snapshot.data() as CrmState), localState);
+          const remoteState = mergeLocalCollections(normalizeState(snapshot.data() as CrmState), localState);
           lastSavedState.current = JSON.stringify(remoteState);
           setState(remoteState);
         } else {
@@ -164,10 +164,18 @@ function readLocalState() {
   }
 }
 
-function mergeLocalProducts(remoteState: CrmState, localState: CrmState | null) {
+function mergeLocalCollections(remoteState: CrmState, localState: CrmState | null) {
   if (!localState) return remoteState;
-  if (remoteState.products.length > 0 || localState.products.length === 0) return remoteState;
-  return { ...remoteState, products: localState.products };
+  return {
+    ...remoteState,
+    products: mergeById(remoteState.products, localState.products),
+    customers: mergeById(remoteState.customers, localState.customers),
+  };
+}
+
+function mergeById<T extends { id: string }>(remoteItems: T[], localItems: T[]) {
+  const remoteIds = new Set(remoteItems.map((item) => item.id));
+  return [...remoteItems, ...localItems.filter((item) => !remoteIds.has(item.id))];
 }
 
 async function saveMergedState(state: CrmState) {

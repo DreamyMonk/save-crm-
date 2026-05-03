@@ -191,6 +191,7 @@ export type QuoteLineItem = {
 export type QuoteRecord = {
   id: string;
   customerId: string;
+  productCategory?: ProductCategory;
   description: string;
   scheme: string;
   activityDate: string;
@@ -201,6 +202,14 @@ export type QuoteRecord = {
   certificateRate: number;
   minimumContributionAdjustment: number;
   gstRate: number;
+  stcPanelRebate?: number;
+  stcBatteryRebate?: number;
+  solarVicRebate?: number;
+  solarVicLoan?: number;
+  depositPercent?: number;
+  annualEnergyProductionKwh?: number;
+  discountedPaybackYears?: number;
+  annualBillSavings?: number;
   status: "Draft" | "Saved";
   proposalSentAt?: string;
   proposalSentBy?: string;

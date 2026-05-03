@@ -5,7 +5,6 @@ const solarSystemBrands = ["Fox", "Goodwe", "So far", "Pylontech", "Solix"];
 
 const categoryBrands: Partial<Record<ProductCategory, string[]>> = {
   "Heat Pump": heatPumpBrands,
-  Solar: solarSystemBrands,
   Inverter: solarSystemBrands,
   "Solar Battery": solarSystemBrands,
 };

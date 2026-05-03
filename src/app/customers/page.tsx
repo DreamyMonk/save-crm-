@@ -49,6 +49,7 @@ export default function CustomersPage() {
   const { state, setState } = useCrmStore();
   const [search, setSearch] = useState("");
   const [message, setMessage] = useState("");
+  const [newCustomerType, setNewCustomerType] = useState<Customer["customerType"]>("Business");
 
   const customers = useMemo(() => {
     const term = search.toLowerCase();
@@ -61,6 +62,7 @@ export default function CustomersPage() {
     const customer = customerFromForm(form, `C-${1000 + state.customers.length + 1}`);
     setState({ ...state, customers: [...state.customers, customer] });
     event.currentTarget.reset();
+    setNewCustomerType("Business");
     setMessage(`${customer.name || customer.businessName || "Customer"} added.`);
   }
 
@@ -117,9 +119,9 @@ export default function CustomersPage() {
           </div>
 
           <FormSection title="Customer Details and Installation Address">
-            <Select name="customerType" label="Type" options={["Business", "Residential", "Parent"]} />
-            <Input name="parent" label="Parent" />
-            <Input name="businessName" label="Business Name" placeholder="Enter a location" />
+            <Select name="customerType" label="Type" options={["Business", "Residential", "Parent"]} value={newCustomerType} onChange={(value) => setNewCustomerType(value as Customer["customerType"])} />
+            {newCustomerType === "Parent" ? <Input name="parent" label="Parent / Group Name" /> : null}
+            {newCustomerType !== "Residential" ? <Input name="businessName" label="Business Name" placeholder="Enter business name" /> : null}
             <Input name="description" label="Description" />
             <Input name="buildingName" label="Building / Village / Park Name" />
             <Input name="unitType" label="Unit Type" />
@@ -145,11 +147,20 @@ export default function CustomersPage() {
           </FormSection>
 
           <FormSection title="Additional Information">
-            <Input name="abn" label="ABN" />
-            <Input name="industryType" label="Industry Type" />
-            <Input name="paymentTermsValue" label="Payment Terms" />
-            <Select name="paymentTermsUnit" label="Payment Unit" options={["days", "weeks", "months"]} />
-            <Input name="creditLimit" label="Credit Limit" />
+            {newCustomerType !== "Residential" ? (
+              <>
+                <Input name="abn" label="ABN" />
+                <Input name="industryType" label="Industry Type" />
+                <Input name="paymentTermsValue" label="Payment Terms" />
+                <Select name="paymentTermsUnit" label="Payment Unit" options={["days", "weeks", "months"]} />
+                <Input name="creditLimit" label="Credit Limit" />
+              </>
+            ) : (
+              <>
+                <input type="hidden" name="paymentTermsUnit" value="days" />
+                <Input name="paymentTermsValue" label="Payment Terms" placeholder="Optional" />
+              </>
+            )}
             <Input name="wantedProduct" label="Product they wanted" list="product-options" />
             <datalist id="product-options">
               {state.products.map((product) => (
@@ -367,11 +378,11 @@ function Input({ label, ...props }: React.InputHTMLAttributes<HTMLInputElement> 
   );
 }
 
-function Select({ label, name, options }: { label: string; name: string; options: string[] }) {
+function Select({ label, name, options, value, onChange }: { label: string; name: string; options: string[]; value?: string; onChange?: (value: string) => void }) {
   return (
     <label className="space-y-1 text-sm">
       <span className="font-medium text-[#657267]">{label}</span>
-      <select name={name} className="h-11 w-full rounded-lg border border-[#d7dfd0] bg-white px-3 outline-none">
+      <select name={name} value={value} onChange={(event) => onChange?.(event.target.value)} className="h-11 w-full rounded-lg border border-[#d7dfd0] bg-white px-3 outline-none">
         {options.map((option) => (
           <option key={option}>{option}</option>
         ))}
