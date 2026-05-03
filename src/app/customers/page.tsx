@@ -2,7 +2,7 @@
 
 import { FormEvent, useMemo, useState } from "react";
 import Link from "next/link";
-import { Download, Save, Search, Trash2, Upload, UserPlus } from "lucide-react";
+import { Download, Pencil, Save, Search, Trash2, Upload, UserPlus, X } from "lucide-react";
 import { CrmShell, PageHeader } from "@/components/crm-shell";
 import { Customer } from "@/lib/crm-data";
 import { useCrmStore } from "@/lib/use-crm-store";
@@ -50,6 +50,7 @@ export default function CustomersPage() {
   const [search, setSearch] = useState("");
   const [message, setMessage] = useState("");
   const [newCustomerType, setNewCustomerType] = useState<Customer["customerType"]>("Business");
+  const [editingCustomerId, setEditingCustomerId] = useState<string | null>(null);
   const assigneeOptions = useMemo(() => {
     const activeMembers = state.team.filter((member) => member.active).map((member) => member.name).filter(Boolean);
     return activeMembers.length ? activeMembers : ["Aarav Admin"];
@@ -59,6 +60,7 @@ export default function CustomersPage() {
     const term = search.toLowerCase();
     return state.customers.filter((customer) => customerSearchText(customer).toLowerCase().includes(term));
   }, [search, state.customers]);
+  const editingCustomer = useMemo(() => state.customers.find((customer) => customer.id === editingCustomerId) ?? null, [editingCustomerId, state.customers]);
 
   function addCustomer(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -70,11 +72,26 @@ export default function CustomersPage() {
     setMessage(`${customer.name || customer.businessName || "Customer"} added.`);
   }
 
-  function updateCustomer(customerId: string, updates: Partial<Customer>) {
+  function saveCustomerEdit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!editingCustomer) return;
+    const form = new FormData(event.currentTarget);
+    const updatedCustomer = customerFromForm(form, editingCustomer.id);
     setState({
       ...state,
-      customers: state.customers.map((customer) => (customer.id === customerId ? { ...customer, ...updates } : customer)),
+      customers: state.customers.map((customer) =>
+        customer.id === editingCustomer.id
+          ? {
+              ...customer,
+              ...updatedCustomer,
+              id: customer.id,
+              leadId: customer.leadId,
+            }
+          : customer,
+      ),
     });
+    setEditingCustomerId(null);
+    setMessage(`${updatedCustomer.name || updatedCustomer.businessName || "Customer"} updated.`);
   }
 
   function deleteCustomer(customerId: string) {
@@ -201,44 +218,35 @@ export default function CustomersPage() {
             </label>
           </div>
           <div className="overflow-x-auto">
-            <table className="min-w-[1900px] w-full border-collapse text-sm">
+            <table className="min-w-[1080px] w-full border-collapse text-sm">
               <thead className="bg-[#f6f8fc] text-left text-xs uppercase tracking-[0.08em] text-[#657267]">
                 <tr>
                   <Th>ID</Th>
                   <Th>Type</Th>
-                  <Th>Business Name</Th>
+                  <Th>Customer</Th>
                   <Th>Contact</Th>
                   <Th>Email</Th>
                   <Th>Phone</Th>
-                  <Th>Mobile</Th>
-                  <Th>Address</Th>
-                  <Th>Suburb</Th>
-                  <Th>State</Th>
-                  <Th>Postcode</Th>
                   <Th>Wanted Product</Th>
                   <Th>Assigned to</Th>
-                  <Th>ABN</Th>
                   <Th>Lead</Th>
-                  <Th>Delete</Th>
+                  <Th>Actions</Th>
                 </tr>
               </thead>
               <tbody>
                 {customers.map((customer) => (
                   <tr key={customer.id} className="border-t border-[#e5edf7]">
                     <Td>{customer.id}</Td>
-                    <EditableCell value={customer.customerType ?? "Business"} onChange={(value) => updateCustomer(customer.id, { customerType: value as Customer["customerType"] })} />
-                    <EditableCell value={customer.businessName ?? ""} onChange={(value) => updateCustomer(customer.id, { businessName: value, address: value })} />
-                    <EditableCell value={customer.name} onChange={(value) => updateCustomer(customer.id, { name: value })} />
-                    <EditableCell value={customer.email} onChange={(value) => updateCustomer(customer.id, { email: value })} />
-                    <EditableCell value={customer.phone} onChange={(value) => updateCustomer(customer.id, { phone: value })} />
-                    <EditableCell value={customer.mobile ?? ""} onChange={(value) => updateCustomer(customer.id, { mobile: value })} />
-                    <EditableCell value={customer.address} onChange={(value) => updateCustomer(customer.id, { address: value })} />
-                    <EditableCell value={customer.suburb ?? ""} onChange={(value) => updateCustomer(customer.id, { suburb: value })} />
-                    <EditableCell value={customer.stateName ?? ""} onChange={(value) => updateCustomer(customer.id, { stateName: value })} />
-                    <EditableCell value={customer.postcode ?? ""} onChange={(value) => updateCustomer(customer.id, { postcode: value })} />
-                    <EditableCell value={customer.wantedProduct} onChange={(value) => updateCustomer(customer.id, { wantedProduct: value })} />
-                    <EditableCell value={customer.salesAgent ?? "Aarav Admin"} onChange={(value) => updateCustomer(customer.id, { salesAgent: value })} />
-                    <EditableCell value={customer.abn ?? ""} onChange={(value) => updateCustomer(customer.id, { abn: value })} />
+                    <td className="whitespace-nowrap px-3 py-3">{customer.customerType ?? "Business"}</td>
+                    <td className="min-w-56 px-3 py-3">
+                      <p className="font-semibold text-[#0f172a]">{customer.businessName || customer.name || "Unnamed customer"}</p>
+                      {customer.address ? <p className="mt-1 max-w-72 truncate text-xs text-[#657267]">{customer.address}</p> : null}
+                    </td>
+                    <td className="whitespace-nowrap px-3 py-3">{customer.name || "-"}</td>
+                    <td className="whitespace-nowrap px-3 py-3">{customer.email || "-"}</td>
+                    <td className="whitespace-nowrap px-3 py-3">{customer.phone || customer.mobile || "-"}</td>
+                    <td className="min-w-48 px-3 py-3">{customer.wantedProduct || "-"}</td>
+                    <td className="whitespace-nowrap px-3 py-3">{customer.salesAgent || "Aarav Admin"}</td>
                     <td className="px-3 py-2">
                       {customer.leadId ? (
                         <Link href={`/leads/${customer.leadId}`} className="font-semibold text-[#003CBB]">
@@ -249,9 +257,14 @@ export default function CustomersPage() {
                       )}
                     </td>
                     <td className="px-2 py-2">
-                      <button onClick={() => deleteCustomer(customer.id)} className="grid size-8 place-items-center rounded-lg bg-rose-600 text-white" title="Delete customer">
+                      <div className="flex items-center gap-2">
+                        <button onClick={() => setEditingCustomerId(customer.id)} className="grid size-8 place-items-center rounded-lg border border-[#c7d3e8] bg-white text-[#003CBB]" title="Edit customer">
+                          <Pencil size={14} />
+                        </button>
+                        <button onClick={() => deleteCustomer(customer.id)} className="grid size-8 place-items-center rounded-lg bg-rose-600 text-white" title="Delete customer">
                         <Trash2 size={14} />
-                      </button>
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -260,6 +273,15 @@ export default function CustomersPage() {
           </div>
         </section>
       </div>
+      {editingCustomer ? (
+        <CustomerEditDrawer
+          customer={editingCustomer}
+          assigneeOptions={assigneeOptions}
+          products={state.products.map((product) => product.productName)}
+          onClose={() => setEditingCustomerId(null)}
+          onSubmit={saveCustomerEdit}
+        />
+      ) : null}
     </CrmShell>
   );
 }
@@ -373,6 +395,100 @@ function FormSection({ title, children }: { title: string; children: React.React
   );
 }
 
+function CustomerEditDrawer({
+  customer,
+  assigneeOptions,
+  products,
+  onClose,
+  onSubmit,
+}: {
+  customer: Customer;
+  assigneeOptions: string[];
+  products: string[];
+  onClose: () => void;
+  onSubmit: (event: FormEvent<HTMLFormElement>) => void;
+}) {
+  return (
+    <div className="fixed inset-0 z-50 bg-[#0f172a]/30">
+      <aside className="ml-auto flex h-full w-full max-w-4xl flex-col bg-white shadow-2xl">
+        <div className="flex items-start justify-between gap-4 border-b border-[#e5edf7] p-5">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#657267]">Edit customer</p>
+            <h2 className="mt-1 text-2xl font-bold text-[#0f172a]">{customer.businessName || customer.name || customer.id}</h2>
+          </div>
+          <button type="button" onClick={onClose} className="grid size-10 place-items-center rounded-lg border border-[#c7d3e8] bg-white text-[#0f172a]" title="Close editor">
+            <X size={18} />
+          </button>
+        </div>
+
+        <form key={customer.id} onSubmit={onSubmit} className="flex-1 overflow-y-auto">
+          <FormSection title="Customer Details and Installation Address">
+            <Select name="customerType" label="Type" options={["Business", "Residential", "Parent"]} defaultValue={customer.customerType ?? "Business"} />
+            <Input name="parent" label="Parent / Group Name" defaultValue={customer.parent ?? ""} />
+            <Input name="businessName" label="Business Name" defaultValue={customer.businessName ?? ""} />
+            <Input name="description" label="Description" defaultValue={customer.description ?? ""} />
+            <Input name="buildingName" label="Building / Village / Park Name" defaultValue={customer.buildingName ?? ""} />
+            <Input name="unitType" label="Unit Type" defaultValue={customer.unitType ?? ""} />
+            <Input name="unitNumber" label="Unit Number" defaultValue={customer.unitNumber ?? ""} />
+            <Input name="levelType" label="Level Type" defaultValue={customer.levelType ?? ""} />
+            <Input name="levelNumber" label="Level Number" defaultValue={customer.levelNumber ?? ""} />
+            <Input name="streetNumber" label="Street Number" defaultValue={customer.streetNumber ?? ""} />
+            <Input name="streetName" label="Street Name" defaultValue={customer.streetName ?? ""} />
+            <Input name="streetType" label="Street Type" defaultValue={customer.streetType ?? ""} />
+            <Input name="streetSuffix" label="Street Suffix" defaultValue={customer.streetSuffix ?? ""} />
+            <Input name="suburb" label="Suburb" defaultValue={customer.suburb ?? ""} />
+            <Input name="stateName" label="State" defaultValue={customer.stateName ?? ""} />
+            <Input name="postcode" label="Postcode" defaultValue={customer.postcode ?? ""} />
+          </FormSection>
+
+          <FormSection title="Contacts">
+            <Select name="contactType" label="Type" options={["Primary", "Billing", "Site", "Decision maker"]} defaultValue={customer.contactType ?? "Primary"} />
+            <Input name="firstName" label="First Name" defaultValue={customer.firstName ?? ""} />
+            <Input name="lastName" label="Last Name" defaultValue={customer.lastName ?? ""} />
+            <Input name="position" label="Position" defaultValue={customer.position ?? ""} />
+            <Input name="email" label="E-mail" type="email" defaultValue={customer.email ?? ""} />
+            <Input name="phone" label="Phone Number" defaultValue={customer.phone ?? ""} />
+            <Input name="mobile" label="Mobile Number" defaultValue={customer.mobile ?? ""} />
+          </FormSection>
+
+          <FormSection title="Sales Info and Status">
+            <Select name="rating" label="Rating" options={["Not Rated", "1", "2", "3", "4", "5"]} defaultValue={customer.rating ?? "Not Rated"} />
+            <Input name="salesSource" label="Sales Source" defaultValue={customer.salesSource ?? ""} />
+            <Input name="leadGenerator" label="Lead Generator" defaultValue={customer.leadGenerator ?? ""} />
+            <Select name="salesAgent" label="Assigned to" options={assigneeOptions} defaultValue={customer.salesAgent ?? "Aarav Admin"} />
+            <Input name="agent" label="Agent" defaultValue={customer.agent ?? ""} />
+            <Input name="secondSalesAgent" label="Second Sales Agent" defaultValue={customer.secondSalesAgent ?? ""} />
+          </FormSection>
+
+          <FormSection title="Additional Information">
+            <Input name="abn" label="ABN" defaultValue={customer.abn ?? ""} />
+            <Input name="industryType" label="Industry Type" defaultValue={customer.industryType ?? ""} />
+            <Input name="paymentTermsValue" label="Payment Terms" defaultValue={customer.paymentTermsValue ?? ""} />
+            <Select name="paymentTermsUnit" label="Payment Unit" options={["days", "weeks", "months"]} defaultValue={customer.paymentTermsUnit ?? "days"} />
+            <Input name="creditLimit" label="Credit Limit" defaultValue={customer.creditLimit ?? ""} />
+            <Input name="wantedProduct" label="Product they wanted" list="edit-product-options" defaultValue={customer.wantedProduct ?? ""} />
+            <datalist id="edit-product-options">
+              {products.map((product) => (
+                <option key={product} value={product} />
+              ))}
+            </datalist>
+          </FormSection>
+
+          <div className="sticky bottom-0 flex justify-end gap-3 border-t border-[#e5edf7] bg-white p-4">
+            <button type="button" onClick={onClose} className="h-11 rounded-lg border border-[#c7d3e8] bg-white px-4 text-sm font-semibold text-[#0f172a]">
+              Cancel
+            </button>
+            <button className="inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-[#003CBB] px-5 text-sm font-semibold text-white">
+              <Save size={16} />
+              Save changes
+            </button>
+          </div>
+        </form>
+      </aside>
+    </div>
+  );
+}
+
 function Input({ label, ...props }: React.InputHTMLAttributes<HTMLInputElement> & { label: string }) {
   return (
     <label className="space-y-1 text-sm">
@@ -382,11 +498,26 @@ function Input({ label, ...props }: React.InputHTMLAttributes<HTMLInputElement> 
   );
 }
 
-function Select({ label, name, options, value, onChange }: { label: string; name: string; options: string[]; value?: string; onChange?: (value: string) => void }) {
+function Select({
+  label,
+  name,
+  options,
+  value,
+  defaultValue,
+  onChange,
+}: {
+  label: string;
+  name: string;
+  options: string[];
+  value?: string;
+  defaultValue?: string;
+  onChange?: (value: string) => void;
+}) {
+  const selectProps = value === undefined ? { defaultValue } : { value };
   return (
     <label className="space-y-1 text-sm">
       <span className="font-medium text-[#657267]">{label}</span>
-      <select name={name} value={value} onChange={(event) => onChange?.(event.target.value)} className="h-11 w-full rounded-lg border border-[#d7dfd0] bg-white px-3 outline-none">
+      <select name={name} {...selectProps} onChange={(event) => onChange?.(event.target.value)} className="h-11 w-full rounded-lg border border-[#d7dfd0] bg-white px-3 outline-none">
         {options.map((option) => (
           <option key={option}>{option}</option>
         ))}
@@ -401,14 +532,6 @@ function Th({ children }: { children: React.ReactNode }) {
 
 function Td({ children }: { children: React.ReactNode }) {
   return <td className="whitespace-nowrap px-3 py-2 font-semibold text-[#003CBB]">{children}</td>;
-}
-
-function EditableCell({ value, onChange }: { value: string; onChange: (value: string) => void }) {
-  return (
-    <td className="min-w-40 px-2 py-2">
-      <input value={value} onChange={(event) => onChange(event.target.value)} className="h-9 w-full rounded-md border border-transparent bg-transparent px-2 outline-none focus:border-[#003CBB] focus:bg-white" />
-    </td>
-  );
 }
 
 function customerSearchText(customer: Customer) {
