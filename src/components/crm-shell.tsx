@@ -40,6 +40,7 @@ const navItems: { href: string; label: string; icon: typeof BarChart3; module: M
 ];
 
 const publicRoutePrefixes = ["/proposal", "/verify"] as const;
+const adminFallbackEmails = ["info@saveplanet.com.au", "admin@admin.com"];
 
 export function CrmShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -56,8 +57,8 @@ function ShellFrame({ children, email }: { children: React.ReactNode; email: str
   const { state } = useCrmStore();
   const normalizedEmail = email?.trim().toLowerCase();
   const member = state.team.find((item) => item.email?.trim().toLowerCase() === normalizedEmail && item.active);
-  const defaultAdminModules = state.team.find((item) => item.role === "Admin" && item.email?.trim().toLowerCase() === "info@saveplanet.com.au")?.modules ?? [];
-  const allowedModules = member ? member.modules : normalizedEmail === "info@saveplanet.com.au" ? defaultAdminModules : [];
+  const defaultAdminModules = state.team.find((item) => item.role === "Admin" && adminFallbackEmails.includes(item.email?.trim().toLowerCase() ?? ""))?.modules ?? [];
+  const allowedModules = member ? member.modules : normalizedEmail && adminFallbackEmails.includes(normalizedEmail) ? defaultAdminModules : [];
   const visibleNav = navItems.filter((item) => allowedModules.includes(item.module));
   const activeModule = navItems.find((item) => {
     const matchHref = item.matchHref ?? item.href;
