@@ -19,9 +19,10 @@ export default function AccessPage() {
 
   async function addUser(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    const formElement = event.currentTarget;
     setMessage("");
     setCreatingUser(true);
-    const form = new FormData(event.currentTarget);
+    const form = new FormData(formElement);
     const email = String(form.get("email") || "").trim();
     const password = String(form.get("password") || "");
     const name = String(form.get("name") || email).trim();
@@ -45,7 +46,7 @@ export default function AccessPage() {
         modules,
         active: true,
       });
-      event.currentTarget.reset();
+      formElement.reset();
       setMessage(`User ${email} created and added to access manager.`);
     } catch (error) {
       const code = firebaseErrorCode(error);
@@ -58,7 +59,7 @@ export default function AccessPage() {
           modules,
           active: true,
         });
-        event.currentTarget.reset();
+        formElement.reset();
         setMessage(`${email} already has a Firebase login. CRM access was added/updated.`);
         return;
       }

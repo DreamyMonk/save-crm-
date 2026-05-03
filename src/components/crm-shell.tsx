@@ -54,8 +54,10 @@ export function CrmShell({ children }: { children: React.ReactNode }) {
 function ShellFrame({ children, email }: { children: React.ReactNode; email: string | null; pathnameKey: string }) {
   const pathname = usePathname();
   const { state } = useCrmStore();
-  const member = state.team.find((item) => item.email?.toLowerCase() === email?.toLowerCase() && item.active);
-  const allowedModules = member ? member.modules : navItems.map((item) => item.module);
+  const normalizedEmail = email?.trim().toLowerCase();
+  const member = state.team.find((item) => item.email?.trim().toLowerCase() === normalizedEmail && item.active);
+  const defaultAdminModules = state.team.find((item) => item.role === "Admin" && item.email?.trim().toLowerCase() === "info@saveplanet.com.au")?.modules ?? [];
+  const allowedModules = member ? member.modules : normalizedEmail === "info@saveplanet.com.au" ? defaultAdminModules : [];
   const visibleNav = navItems.filter((item) => allowedModules.includes(item.module));
   const activeModule = navItems.find((item) => {
     const matchHref = item.matchHref ?? item.href;
