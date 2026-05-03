@@ -1,3 +1,5 @@
+import { seedProducts } from "./seed-products";
+
 export type ModuleKey = "dashboard" | "leads" | "customers" | "products" | "quotes" | "invoices" | "access" | "reports" | "pipelines" | "calendar" | "settings";
 
 export type Stage = {
@@ -385,7 +387,7 @@ export const initialCrmState: CrmState = {
       active: true,
     },
   ],
-  products: [],
+  products: seedProducts,
   quotes: [],
   customers: [
     {

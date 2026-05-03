@@ -25,7 +25,7 @@ import { useCrmStore } from "@/lib/use-crm-store";
 const navItems: { href: string; label: string; icon: typeof BarChart3; module: ModuleKey }[] = [
   { href: "/", label: "Dashboard", icon: BarChart3, module: "dashboard" },
   { href: "/leads", label: "Leads", icon: KanbanSquare, module: "leads" },
-  { href: "/customers", label: "Customers", icon: Users, module: "customers" },
+  { href: "/customers", label: "All customer", icon: Users, module: "customers" },
   { href: "/products", label: "Products", icon: Package, module: "products" },
   { href: "/quotes", label: "Quotes", icon: PencilRuler, module: "quotes" },
   { href: "/proposals", label: "Proposals", icon: FileText, module: "quotes" },

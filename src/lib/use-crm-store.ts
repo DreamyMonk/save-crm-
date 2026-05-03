@@ -39,7 +39,7 @@ function normalizeState(state: CrmState): CrmState {
       contactType: customer.contactType ?? "Primary",
       salesAgent: customer.salesAgent ?? "Aarav Admin",
     })),
-    products: state.products ?? initialCrmState.products,
+    products: mergeById(state.products ?? [], initialCrmState.products),
     quotes: state.quotes ?? initialCrmState.quotes,
     invoices: state.invoices ?? initialCrmState.invoices,
     appointments: state.appointments ?? initialCrmState.appointments,

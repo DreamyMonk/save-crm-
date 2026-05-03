@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ExternalLink, Search } from "lucide-react";
+import { ExternalLink, Search, X } from "lucide-react";
 import { useMemo, useState } from "react";
 import { CrmShell, PageHeader } from "@/components/crm-shell";
 import { QuoteRecord } from "@/lib/crm-data";
@@ -15,6 +15,7 @@ export default function ProposalsPage() {
   const [rangeStart, setRangeStart] = useState("");
   const [rangeEnd, setRangeEnd] = useState("");
   const [selectedQuoteId, setSelectedQuoteId] = useState("");
+  const [detailsOpen, setDetailsOpen] = useState(false);
   const proposalRows = useMemo(() => {
     const term = proposalSearch.trim().toLowerCase();
     return state.quotes
@@ -93,7 +94,7 @@ export default function ProposalsPage() {
               />
             </label>
           </div>
-          <div className="grid gap-0 xl:grid-cols-[minmax(0,1fr)_380px]">
+          <div>
             <div className="overflow-x-auto">
               <table className="w-full min-w-[980px] text-sm">
                 <thead className="bg-[#f6f8fc] text-left text-xs uppercase tracking-[0.04em] text-[#657267]">
@@ -114,7 +115,7 @@ export default function ProposalsPage() {
                   {proposalRows.map(({ quote, customerName, agent, proposalName, status }) => (
                     <tr key={quote.id} className={`border-t border-[#e5edf7] ${selectedRow?.quote.id === quote.id ? "bg-[#eef4ff]" : ""}`}>
                       <Td>
-                        <button onClick={() => setSelectedQuoteId(quote.id)} className="text-left">
+                        <button onClick={() => { setSelectedQuoteId(quote.id); setDetailsOpen(true); }} className="text-left">
                           <span className="block font-semibold text-[#0f172a]">{proposalName}</span>
                           <span className="text-xs font-medium text-[#003CBB]">{quote.id}</span>
                         </button>
@@ -129,7 +130,7 @@ export default function ProposalsPage() {
                       <Td>{quote.proposalChangeRequestHtml ? formatDateTime(quote.proposalChangeRequestedAt) : "-"}</Td>
                       <Td>
                         <div className="flex items-center gap-2">
-                          <button onClick={() => setSelectedQuoteId(quote.id)} className="inline-flex h-9 items-center rounded-lg border border-[#c7d3e8] px-3 text-xs font-semibold text-[#003CBB]">
+                          <button onClick={() => { setSelectedQuoteId(quote.id); setDetailsOpen(true); }} className="inline-flex h-9 items-center rounded-lg border border-[#c7d3e8] px-3 text-xs font-semibold text-[#003CBB]">
                             View
                           </button>
                           <Link href={`/proposal/${quote.id}`} className="inline-flex h-9 items-center gap-2 rounded-lg bg-[#003CBB] px-3 text-xs font-semibold text-white">
@@ -147,32 +148,40 @@ export default function ProposalsPage() {
                 </tbody>
               </table>
             </div>
-            <aside className="border-t border-[#e5edf7] p-5 xl:border-l xl:border-t-0">
-              <h3 className="text-lg font-semibold">Proposal details</h3>
-              {selectedRow ? (
-                <div className="mt-4 space-y-4">
-                  <Detail label="Proposal" value={`${selectedRow.proposalName} (${selectedRow.quote.id})`} />
-                  <Detail label="Customer" value={selectedRow.customerName} />
-                  <Detail label="Agent" value={selectedRow.agent} />
-                  <Detail label="Status" value={selectedRow.status} />
-                  <Link href={`/proposal/${selectedRow.quote.id}`} className="inline-flex h-10 items-center gap-2 rounded-lg bg-[#003CBB] px-4 text-sm font-semibold text-white">
-                    <ExternalLink size={16} /> Open proposal
-                  </Link>
-                  <div>
-                    <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[#657267]">Client changes</p>
-                    {selectedRow.quote.proposalChangeRequestHtml ? (
-                      <div className="mt-2 max-h-[360px] overflow-auto rounded-lg border border-[#d9e2f2] bg-[#f8fbff] p-4 text-sm leading-6 text-[#0f172a]" dangerouslySetInnerHTML={{ __html: selectedRow.quote.proposalChangeRequestHtml }} />
-                    ) : (
-                      <p className="mt-2 rounded-lg border border-dashed border-[#c7d3e8] bg-[#f8fbff] p-4 text-sm text-[#657267]">No change request submitted yet.</p>
-                    )}
-                  </div>
-                </div>
-              ) : (
-                <p className="mt-3 text-sm text-[#657267]">Select a proposal to view details.</p>
-              )}
-            </aside>
           </div>
         </section>
+        {detailsOpen && selectedRow ? (
+          <div className="fixed inset-0 z-50 bg-[#0f172a]/30" onClick={() => setDetailsOpen(false)}>
+            <aside
+              className="ml-auto flex h-full w-full max-w-[420px] flex-col border-l border-[#d9e2f2] bg-white shadow-2xl"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <div className="flex items-center justify-between border-b border-[#e5edf7] p-5">
+                <h3 className="text-lg font-semibold">Proposal details</h3>
+                <button onClick={() => setDetailsOpen(false)} className="grid size-9 place-items-center rounded-lg border border-[#c7d3e8] text-[#003CBB]" aria-label="Close proposal details">
+                  <X size={18} />
+                </button>
+              </div>
+              <div className="flex-1 space-y-4 overflow-y-auto p-5">
+                <Detail label="Proposal" value={`${selectedRow.proposalName} (${selectedRow.quote.id})`} />
+                <Detail label="Customer" value={selectedRow.customerName} />
+                <Detail label="Agent" value={selectedRow.agent} />
+                <Detail label="Status" value={selectedRow.status} />
+                <Link href={`/proposal/${selectedRow.quote.id}`} className="inline-flex h-10 items-center gap-2 rounded-lg bg-[#003CBB] px-4 text-sm font-semibold text-white">
+                  <ExternalLink size={16} /> Open proposal
+                </Link>
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[#657267]">Client changes</p>
+                  {selectedRow.quote.proposalChangeRequestHtml ? (
+                    <div className="mt-2 max-h-[420px] overflow-auto rounded-lg border border-[#d9e2f2] bg-[#f8fbff] p-4 text-sm leading-6 text-[#0f172a]" dangerouslySetInnerHTML={{ __html: selectedRow.quote.proposalChangeRequestHtml }} />
+                  ) : (
+                    <p className="mt-2 rounded-lg border border-dashed border-[#c7d3e8] bg-[#f8fbff] p-4 text-sm text-[#657267]">No change request submitted yet.</p>
+                  )}
+                </div>
+              </div>
+            </aside>
+          </div>
+        ) : null}
       </div>
     </CrmShell>
   );

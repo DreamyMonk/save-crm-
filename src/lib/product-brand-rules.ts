@@ -1,9 +1,11 @@
 import { ProductCategory } from "@/lib/crm-data";
 
+const airconBrands = ["Midea", "Emerald", "Mitsubishi", "Daikin", "Eco genica", "Rinnai"];
 const heatPumpBrands = ["Powerbay", "Emerald", "Neo power", "Midea", "Eco genica"];
 const solarSystemBrands = ["Fox", "Goodwe", "So far", "Pylontech", "Solix"];
 
 const categoryBrands: Partial<Record<ProductCategory, string[]>> = {
+  Aircon: airconBrands,
   "Heat Pump": heatPumpBrands,
   Inverter: solarSystemBrands,
   "Solar Battery": solarSystemBrands,
@@ -16,10 +18,13 @@ const brandAliases: Record<string, string[]> = {
   Pylontech: ["pylontech"],
   Solix: ["solix", "ankersolix"],
   Powerbay: ["powerbay"],
-  Emerald: ["emerald"],
+  Emerald: ["emerald", "emeraldenergy"],
   "Neo power": ["neopower"],
   Midea: ["midea"],
   "Eco genica": ["ecogenica"],
+  Mitsubishi: ["mitsubishi", "mitsubishielectric", "mitsubishiheavyindustries"],
+  Daikin: ["daikin"],
+  Rinnai: ["rinnai"],
 };
 
 export function allowedBrandsForCategory(category: string) {

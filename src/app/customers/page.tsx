@@ -137,6 +137,16 @@ export default function CustomersPage() {
             <Input name="postcode" label="Postcode" />
           </FormSection>
 
+          <FormSection title="Contacts">
+            <Select name="contactType" label="Type" options={["Primary", "Billing", "Site", "Decision maker"]} />
+            <Input name="firstName" label="First Name" />
+            <Input name="lastName" label="Last Name" />
+            <Input name="position" label="Position" />
+            <Input name="email" label="E-mail" type="email" />
+            <Input name="phone" label="Phone Number" />
+            <Input name="mobile" label="Mobile Number" />
+          </FormSection>
+
           <FormSection title="Sales Info and Status">
             <Select name="rating" label="Rating" options={["Not Rated", "1", "2", "3", "4", "5"]} />
             <Input name="salesSource" label="Sales Source" />
@@ -167,16 +177,6 @@ export default function CustomersPage() {
                 <option key={product.id} value={product.productName} />
               ))}
             </datalist>
-          </FormSection>
-
-          <FormSection title="Contacts">
-            <Select name="contactType" label="Type" options={["Primary", "Billing", "Site", "Decision maker"]} />
-            <Input name="firstName" label="First Name" />
-            <Input name="lastName" label="Last Name" />
-            <Input name="position" label="Position" />
-            <Input name="email" label="E-mail" type="email" />
-            <Input name="phone" label="Phone Number" />
-            <Input name="mobile" label="Mobile Number" />
           </FormSection>
 
           {message ? <p className="mx-4 rounded-lg bg-[#eef4ff] p-3 text-sm font-medium text-[#003CBB]">{message}</p> : null}
