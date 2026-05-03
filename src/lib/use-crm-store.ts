@@ -16,10 +16,16 @@ function normalizeState(state: CrmState): CrmState {
   return {
     ...initialCrmState,
     ...state,
-    team: (state.team ?? initialCrmState.team).map((member) => ({
-      ...member,
-      modules: normalizeMemberModules(member.modules, member.role),
-    })),
+    team: (state.team ?? initialCrmState.team).map((member) => {
+      const normalizedMember = {
+        ...member,
+        email: member.role === "Admin" && ["admin@saveplanet.local", "admin@admin.com"].includes(member.email?.toLowerCase() ?? "") ? "Info@saveplanet.com.au" : member.email,
+      };
+      return {
+        ...normalizedMember,
+        modules: normalizeMemberModules(normalizedMember.modules, normalizedMember.role),
+      };
+    }),
     leads: (state.leads ?? initialCrmState.leads).map((lead) => ({
       ...lead,
       customFields: lead.customFields ?? [],

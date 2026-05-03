@@ -16,16 +16,18 @@ import {
   Settings2,
   Sparkles,
   UserCircle,
+  UserPlus,
   Users,
 } from "lucide-react";
 import { AuthGate, SignOutButton } from "./auth-gate";
 import { ModuleKey } from "@/lib/crm-data";
 import { useCrmStore } from "@/lib/use-crm-store";
 
-const navItems: { href: string; label: string; icon: typeof BarChart3; module: ModuleKey }[] = [
+const navItems: { href: string; label: string; icon: typeof BarChart3; module: ModuleKey; matchHref?: string }[] = [
   { href: "/", label: "Dashboard", icon: BarChart3, module: "dashboard" },
   { href: "/leads", label: "Leads", icon: KanbanSquare, module: "leads" },
-  { href: "/customers", label: "All customer", icon: Users, module: "customers" },
+  { href: "/customers#all-customers", label: "All customer", icon: Users, module: "customers", matchHref: "/customers" },
+  { href: "/customers#new-customer", label: "Add customer", icon: UserPlus, module: "customers", matchHref: "/customers" },
   { href: "/products", label: "Products", icon: Package, module: "products" },
   { href: "/quotes", label: "Quotes", icon: PencilRuler, module: "quotes" },
   { href: "/proposals", label: "Proposals", icon: FileText, module: "quotes" },
@@ -55,7 +57,10 @@ function ShellFrame({ children, email }: { children: React.ReactNode; email: str
   const member = state.team.find((item) => item.email?.toLowerCase() === email?.toLowerCase() && item.active);
   const allowedModules = member ? member.modules : navItems.map((item) => item.module);
   const visibleNav = navItems.filter((item) => allowedModules.includes(item.module));
-  const activeModule = navItems.find((item) => item.href === "/" ? pathname === "/" : pathname.startsWith(item.href))?.module ?? "dashboard";
+  const activeModule = navItems.find((item) => {
+    const matchHref = item.matchHref ?? item.href;
+    return matchHref === "/" ? pathname === "/" : pathname.startsWith(matchHref);
+  })?.module ?? "dashboard";
   const hasAccess = allowedModules.includes(activeModule);
 
   return (
@@ -78,7 +83,8 @@ function ShellFrame({ children, email }: { children: React.ReactNode; email: str
           <nav className="space-y-2 px-4 py-5">
             {visibleNav.map((item) => {
               const Icon = item.icon;
-              const active = item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
+              const matchHref = item.matchHref ?? item.href;
+              const active = item.href.includes("#") ? false : matchHref === "/" ? pathname === "/" : pathname.startsWith(matchHref);
               return (
                 <Link
                   key={item.href}

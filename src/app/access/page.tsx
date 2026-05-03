@@ -3,7 +3,7 @@
 import { deleteApp, initializeApp } from "firebase/app";
 import { createUserWithEmailAndPassword, getAuth } from "firebase/auth";
 import { ShieldCheck, Trash2, UserPlus } from "lucide-react";
-import { FormEvent, useState } from "react";
+import { FormEvent, useRef, useState } from "react";
 import { CrmShell, PageHeader } from "@/components/crm-shell";
 import { ModuleKey, TeamMember, moduleLabels } from "@/lib/crm-data";
 import { firebaseConfig } from "@/lib/firebase";
@@ -14,38 +14,69 @@ const defaultModules: ModuleKey[] = ["dashboard", "leads"];
 export default function AccessPage() {
   const { state, setState } = useCrmStore();
   const [message, setMessage] = useState("");
+  const [creatingUser, setCreatingUser] = useState(false);
+  const createUserCounter = useRef(0);
 
   async function addUser(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setMessage("");
+    setCreatingUser(true);
     const form = new FormData(event.currentTarget);
-    const email = String(form.get("email") || "");
+    const email = String(form.get("email") || "").trim();
     const password = String(form.get("password") || "");
+    const name = String(form.get("name") || email).trim();
+    const role = String(form.get("role") || "Sales Agent");
     const selectedModules = (Object.keys(moduleLabels) as ModuleKey[]).filter((module) => form.get(module) === "on");
+    const modules = selectedModules.length ? selectedModules : defaultModules;
 
+    let secondaryApp: ReturnType<typeof initializeApp> | undefined;
     try {
-      const secondaryApp = initializeApp(firebaseConfig, `create-user-${Date.now()}`);
+      createUserCounter.current += 1;
+      secondaryApp = initializeApp(firebaseConfig, `create-user-${safeFirebaseAppName(email)}-${createUserCounter.current}`);
       const secondaryAuth = getAuth(secondaryApp);
       const credential = await createUserWithEmailAndPassword(secondaryAuth, email, password);
       await secondaryAuth.signOut();
-      await deleteApp(secondaryApp);
-
-      const member: TeamMember = {
-        id: credential.user.uid,
+      upsertAccessMember({
+        id: existingMemberId(state.team, email) ?? credential.user.uid,
         uid: credential.user.uid,
-        name: String(form.get("name") || email),
+        name,
         email,
-        role: String(form.get("role") || "Sales Agent"),
-        modules: selectedModules.length ? selectedModules : defaultModules,
+        role,
+        modules,
         active: true,
-      };
-
-      setState({ ...state, team: [...state.team, member] });
+      });
       event.currentTarget.reset();
       setMessage(`User ${email} created and added to access manager.`);
     } catch (error) {
+      const code = firebaseErrorCode(error);
+      if (code === "auth/email-already-in-use") {
+        upsertAccessMember({
+          id: existingMemberId(state.team, email) ?? fallbackMemberId(email),
+          name,
+          email,
+          role,
+          modules,
+          active: true,
+        });
+        event.currentTarget.reset();
+        setMessage(`${email} already has a Firebase login. CRM access was added/updated.`);
+        return;
+      }
       setMessage(error instanceof Error ? error.message : "Could not create user");
+    } finally {
+      if (secondaryApp) await deleteApp(secondaryApp).catch(() => undefined);
+      setCreatingUser(false);
     }
+  }
+
+  function upsertAccessMember(member: TeamMember) {
+    const existingId = existingMemberId(state.team, member.email ?? "");
+    setState({
+      ...state,
+      team: existingId
+        ? state.team.map((item) => (item.id === existingId ? { ...item, ...member, id: existingId } : item))
+        : [...state.team, member],
+    });
   }
 
   function toggleModule(memberId: string, module: ModuleKey) {
@@ -113,8 +144,8 @@ export default function AccessPage() {
             </div>
           </div>
           {message ? <p className="mt-4 rounded-lg bg-[#eef4ff] p-3 text-sm font-medium text-[#003CBB]">{message}</p> : null}
-          <button className="mt-4 inline-flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-[#003CBB] px-4 text-sm font-semibold text-white">
-            <UserPlus size={16} /> Create user
+          <button disabled={creatingUser} className="mt-4 inline-flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-[#003CBB] px-4 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:bg-[#8aa8ee]">
+            <UserPlus size={16} /> {creatingUser ? "Creating user..." : "Create user"}
           </button>
         </form>
 
@@ -181,4 +212,21 @@ function Input({ label, ...props }: React.InputHTMLAttributes<HTMLInputElement> 
       <input {...props} className="h-11 w-full rounded-lg border border-[#d7dfd0] px-3 outline-none" />
     </label>
   );
+}
+
+function existingMemberId(team: TeamMember[], email: string) {
+  const normalized = email.trim().toLowerCase();
+  return team.find((member) => member.email?.trim().toLowerCase() === normalized)?.id;
+}
+
+function fallbackMemberId(email: string) {
+  return `team-${email.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")}`;
+}
+
+function safeFirebaseAppName(email: string) {
+  return email.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "user";
+}
+
+function firebaseErrorCode(error: unknown) {
+  return typeof error === "object" && error && "code" in error ? String((error as { code?: unknown }).code) : "";
 }

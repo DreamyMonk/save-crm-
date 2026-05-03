@@ -151,11 +151,10 @@ function ProposalWorkspace({ publicView = false, allowAnonymous = false }: { pub
     iframeRef.current?.contentWindow?.print();
   }
 
-  async function sendProposalLink() {
+  function markProposalSent() {
     if (!quote) return;
     const sentAt = new Date().toISOString();
     const sender = findSenderMember(state, quote, customer, user);
-    const link = `${window.location.origin}/proposal/${quote.id}`;
     const updatedQuote: QuoteRecord = {
       ...quote,
       proposalSentAt: quote.proposalSentAt ?? sentAt,
@@ -163,19 +162,41 @@ function ProposalWorkspace({ publicView = false, allowAnonymous = false }: { pub
       status: "Saved" as const,
     };
     persistQuoteUpdate(updatedQuote);
+    return updatedQuote;
+  }
+
+  async function copyProposalLink() {
+    if (!quote) return;
+    const link = `${window.location.origin}/proposal/${quote.id}`;
+    markProposalSent();
     await navigator.clipboard?.writeText(link);
+    setMessage("Public proposal link copied.");
+  }
+
+  async function sendProposalEmail() {
+    if (!quote) return;
+    const link = `${window.location.origin}/proposal/${quote.id}`;
+    const updatedQuote = markProposalSent() ?? quote;
 
     if (!customer?.email) {
-      setMessage("Public proposal link copied. Customer email is missing, so no email was sent.");
+      setMessage("Customer email is missing, so no proposal email was sent.");
       return;
     }
 
-    const emailSent = await sendResendEmail(state, {
+    const customerEmailSent = await sendResendEmail(state, {
       recipients: [{ email: customer.email, name: customerName(customer) }],
-      subject: `SavePlanet proposal ${quote.id}`,
-      text: `Hi ${customerName(customer)},\n\nYour SavePlanet proposal is ready.\n\nOpen it here:\n${link}\n\nYou can view, download, and sign the proposal from this link.\n\nThanks,\nSavePlanet`,
+      subject: `Your SavePlanet proposal is ready - ${quote.id}`,
+      text: proposalEmailBody(customer, quote, link),
     });
-    setMessage(emailSent ? "Public proposal link copied and emailed to the customer." : "Public proposal link copied. Customer email failed, please check Resend settings.");
+    const internalRecipients = proposalNotificationRecipients(state, updatedQuote, customer, user);
+    const internalEmailSent = internalRecipients.length
+      ? await sendResendEmail(state, {
+          recipients: internalRecipients,
+          subject: `Proposal sent: ${quote.id}`,
+          text: proposalSentNotificationBody(customer, updatedQuote, link),
+        })
+      : true;
+    setMessage(customerEmailSent && internalEmailSent ? "Proposal email sent to the customer, admin, and sales agent." : "Proposal email partly failed. Please check Resend settings.");
   }
 
   async function saveSignature() {
@@ -194,7 +215,7 @@ function ProposalWorkspace({ publicView = false, allowAnonymous = false }: { pub
       return;
     }
 
-    const recipients = signingNotificationRecipients(state, updatedQuote, customer, user);
+    const recipients = proposalNotificationRecipients(state, updatedQuote, customer, user);
     if (!recipients.length) {
       setMessage("Signature saved. Add real admin and agent emails in Access Manager to receive notifications.");
       return;
@@ -242,8 +263,11 @@ function ProposalWorkspace({ publicView = false, allowAnonymous = false }: { pub
             <button onClick={saveProposal} className="inline-flex h-10 items-center gap-2 rounded-lg bg-[#003CBB] px-4 text-sm font-semibold text-white">
               <Save size={16} /> Save proposal
             </button>
-            <button onClick={sendProposalLink} className="inline-flex h-10 items-center gap-2 rounded-lg bg-[#eef4ff] px-4 text-sm font-semibold text-[#003CBB]">
-              <Send size={16} /> Send proposal
+            <button onClick={copyProposalLink} className="inline-flex h-10 items-center gap-2 rounded-lg bg-[#eef4ff] px-4 text-sm font-semibold text-[#003CBB]">
+              <Copy size={16} /> Copy link
+            </button>
+            <button onClick={sendProposalEmail} className="inline-flex h-10 items-center gap-2 rounded-lg bg-[#003CBB] px-4 text-sm font-semibold text-white">
+              <Send size={16} /> Send
             </button>
             <button onClick={downloadPdf} className="inline-flex h-10 items-center gap-2 rounded-lg bg-[#0f172a] px-4 text-sm font-semibold text-white">
               <Download size={16} /> Download PDF
@@ -296,8 +320,8 @@ function ProposalWorkspace({ publicView = false, allowAnonymous = false }: { pub
             <button onClick={saveSignature} className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-[#003CBB] px-4 text-sm font-semibold text-white">
               <Save size={16} /> Save signature
             </button>
-            {!effectivePublicView ? <button onClick={sendProposalLink} className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-[#c7d3e8] bg-white px-4 text-sm font-semibold text-[#003CBB]">
-              <Copy size={16} /> Send and copy link
+            {!effectivePublicView ? <button onClick={copyProposalLink} className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-[#c7d3e8] bg-white px-4 text-sm font-semibold text-[#003CBB]">
+              <Copy size={16} /> Copy proposal link
             </button> : null}
           </div>
         </section>
@@ -373,7 +397,7 @@ function findSenderMember(state: CrmState, quote: QuoteRecord, customer: Custome
   );
 }
 
-function signingNotificationRecipients(state: CrmState, quote: QuoteRecord, customer: Customer | undefined, user: User | null) {
+function proposalNotificationRecipients(state: CrmState, quote: QuoteRecord, customer: Customer | undefined, user: User | null) {
   const recipients = new Map<string, { email: string; name?: string }>();
   const addMember = (member?: TeamMember) => {
     if (!member?.email || !isDeliverableEmail(member.email)) return;
@@ -384,6 +408,38 @@ function signingNotificationRecipients(state: CrmState, quote: QuoteRecord, cust
   addMember(findSenderMember(state, quote, customer, user));
 
   return Array.from(recipients.values());
+}
+
+function proposalSentNotificationBody(customer: Customer | undefined, quote: QuoteRecord, link: string) {
+  return `Proposal ${quote.id} was sent to ${customerName(customer)}.
+
+Customer: ${customerName(customer)}
+Customer email: ${customer?.email || "Not provided"}
+Sent by: ${quote.proposalSentBy || "SavePlanet Team"}
+Status: Sent
+
+Public proposal link:
+${link}
+
+Open proposal tracking:
+${window.location.origin}/proposals`;
+}
+
+function proposalEmailBody(customer: Customer | undefined, quote: QuoteRecord, link: string) {
+  return `Hi ${customerName(customer)},
+
+Your SavePlanet proposal is ready for review.
+
+Proposal: ${quote.id}
+Customer: ${customerName(customer)}
+
+Open your proposal here:
+${link}
+
+From this secure link you can view the proposal, download the PDF, request changes, or sign it online.
+
+Thanks,
+SavePlanet`;
 }
 
 function isDeliverableEmail(email: string) {

@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Calculator, FileText, Save, Trash2 } from "lucide-react";
+import { Calculator, Save, Trash2 } from "lucide-react";
 import { CrmShell, PageHeader } from "@/components/crm-shell";
 import { Product, QuoteLineItem, QuoteRecord, currency } from "@/lib/crm-data";
 import { displayBrandForCategory, isAllowedBrandForCategory } from "@/lib/product-brand-rules";
@@ -422,9 +422,7 @@ export default function QuotesPage() {
             <h2 className="font-semibold">Final actions</h2>
             {message ? <p className="mt-3 rounded-lg bg-[#eef4ff] p-3 text-sm font-semibold text-[#003CBB]">{message}</p> : null}
             <div className="mt-4 grid gap-2">
-              <button onClick={() => saveQuote("Saved")} className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-[#003CBB] px-4 text-sm font-semibold text-white"><Save size={16} /> Save</button>
-              <button onClick={() => saveQuote("Saved", false, true)} className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-[#c7d3e8] bg-white px-4 text-sm font-semibold text-[#003CBB]"><Save size={16} /> Save as New</button>
-              <button onClick={() => saveQuote("Draft", true, true)} className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-[#c7d3e8] bg-white px-4 text-sm font-semibold"><FileText size={16} /> Draft Proposal</button>
+              <button onClick={() => saveQuote("Saved", true)} className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-[#003CBB] px-4 text-sm font-semibold text-white"><Save size={16} /> Save</button>
             </div>
           </div>
         </section>

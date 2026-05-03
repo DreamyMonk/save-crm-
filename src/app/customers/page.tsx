@@ -50,6 +50,10 @@ export default function CustomersPage() {
   const [search, setSearch] = useState("");
   const [message, setMessage] = useState("");
   const [newCustomerType, setNewCustomerType] = useState<Customer["customerType"]>("Business");
+  const assigneeOptions = useMemo(() => {
+    const activeMembers = state.team.filter((member) => member.active).map((member) => member.name).filter(Boolean);
+    return activeMembers.length ? activeMembers : ["Aarav Admin"];
+  }, [state.team]);
 
   const customers = useMemo(() => {
     const term = search.toLowerCase();
@@ -99,7 +103,7 @@ export default function CustomersPage() {
     <CrmShell>
       <PageHeader eyebrow="Customer database" title="Customers" />
       <div className="space-y-6 p-4 md:p-8">
-        <form onSubmit={addCustomer} className="rounded-lg border border-[#d9e2f2] bg-white shadow-sm">
+        <form id="new-customer" onSubmit={addCustomer} className="scroll-mt-24 rounded-lg border border-[#d9e2f2] bg-white shadow-sm">
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#e5edf7] p-4">
             <div className="flex items-center gap-2">
               <UserPlus size={18} />
@@ -151,7 +155,7 @@ export default function CustomersPage() {
             <Select name="rating" label="Rating" options={["Not Rated", "1", "2", "3", "4", "5"]} />
             <Input name="salesSource" label="Sales Source" />
             <Input name="leadGenerator" label="Lead Generator" />
-            <Input name="salesAgent" label="Sales Agent" defaultValue="Aarav Admin" />
+            <Select name="salesAgent" label="Assigned to" options={assigneeOptions} />
             <Input name="agent" label="Agent" />
             <Input name="secondSalesAgent" label="Second Sales Agent" />
           </FormSection>
@@ -188,7 +192,7 @@ export default function CustomersPage() {
           </div>
         </form>
 
-        <section className="rounded-lg border border-[#d9e2f2] bg-white shadow-sm">
+        <section id="all-customers" className="scroll-mt-24 rounded-lg border border-[#d9e2f2] bg-white shadow-sm">
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#e5edf7] p-4">
             <h2 className="font-semibold">Added customers</h2>
             <label className="relative">
@@ -212,7 +216,7 @@ export default function CustomersPage() {
                   <Th>State</Th>
                   <Th>Postcode</Th>
                   <Th>Wanted Product</Th>
-                  <Th>Sales Agent</Th>
+                  <Th>Assigned to</Th>
                   <Th>ABN</Th>
                   <Th>Lead</Th>
                   <Th>Delete</Th>

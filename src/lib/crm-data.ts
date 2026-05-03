@@ -356,7 +356,7 @@ export const initialCrmState: CrmState = {
   team: [
     {
       id: "admin",
-      email: "admin@saveplanet.local",
+      email: "Info@saveplanet.com.au",
       name: "Aarav Admin",
       role: "Admin",
       modules: ["dashboard", "leads", "customers", "products", "quotes", "invoices", "access", "reports", "pipelines", "calendar", "settings"],
