@@ -174,7 +174,7 @@ export type Product = {
 
 export type QuoteLineItem = {
   id: string;
-  role: "Outdoor Unit" | "Indoor Head" | "Accessory" | "Install";
+  role: "Product" | "Outdoor Unit" | "Indoor Head" | "Accessory" | "Install";
   productId?: string;
   model: string;
   brand: string;

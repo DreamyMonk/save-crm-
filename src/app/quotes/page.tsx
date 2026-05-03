@@ -17,7 +17,7 @@ export default function QuotesPage() {
   const { state, setState } = useCrmStore();
   const router = useRouter();
   const customers = state.customers;
-  const [productCategory, setProductCategory] = useState("All");
+  const [productCategory, setProductCategory] = useState("Aircon");
   const [productBrand, setProductBrand] = useState("All");
   const [productType, setProductType] = useState("All");
   const [productConfiguration, setProductConfiguration] = useState("All");
@@ -67,8 +67,10 @@ export default function QuotesPage() {
   const [message, setMessage] = useState("");
   const customer = customers.find((item) => item.id === selectedCustomerId);
   const calculations = calculateQuote(items, addons, certificateRate, minimumContributionAdjustment, gstRate);
+  const isAirconCategory = productCategory === "Aircon";
   const selectedOutdoorModel = quoteProducts.some((product) => product.id === outdoorModel) ? outdoorModel : (quoteProducts[0]?.id ?? "");
   const selectedHeadModel = quoteProducts.some((product) => product.id === headModel) ? headModel : (quoteProducts[0]?.id ?? "");
+  const selectedProductModel = quoteProducts.some((product) => product.id === headModel) ? headModel : (quoteProducts[0]?.id ?? "");
 
   function selectCustomer(customerId: string) {
     const nextCustomer = customers.find((item) => item.id === customerId);
@@ -98,6 +100,16 @@ export default function QuotesPage() {
     }
     setItems((current) => [...current, lineFromProduct(product, "Indoor Head", headArea, headAreaM2, quantity, productPrice || product.price, installPrice, certificates, "Indoor + outdoor combined system price")]);
     setMessage(`${product.model ?? product.productName} added with combined indoor/outdoor system price.`);
+  }
+
+  function addProductLine() {
+    const product = quoteProducts.find((item) => item.id === selectedProductModel);
+    if (!product) {
+      setMessage("Import or select a product first.");
+      return;
+    }
+    setItems((current) => [...current, lineFromProduct(product, "Product", product.category, 0, quantity, productPrice || product.price, installPrice, certificates, `${product.category} product line`)]);
+    setMessage(`${product.model ?? product.productName} added as a product line.`);
   }
 
   function addService() {
@@ -192,17 +204,30 @@ export default function QuotesPage() {
               <Input label="Search product" value={productSearch} onChange={(event) => setProductSearch(event.target.value)} placeholder="Brand, model, class..." />
               <Select label="Product Type" value={activeProductType} options={productTypeOptions} onChange={setProductType} />
               <Select label="Product Configuration" value={activeProductConfiguration} options={productConfigurationOptions} onChange={setProductConfiguration} />
-              <Select label="Outdoor Unit (always outside)" value={selectedOutdoorModel} options={quoteProducts.map((item) => item.id)} labelFor={(value) => productLabel(productById(quoteProducts, value))} onChange={setOutdoorModel} />
-              <button onClick={addOutdoor} className="h-10 rounded-lg bg-[#003CBB] px-4 text-sm font-semibold text-white">Add selected as outdoor unit</button>
-              <Select label="Indoor Head (up to 4)" value={selectedHeadModel} options={quoteProducts.map((item) => item.id)} labelFor={(value) => productLabel(productById(quoteProducts, value))} onChange={setHeadModel} />
-              <Select label="Original Equipment" value={baseline} options={baselineOptions} onChange={setBaseline} />
-              <Input label="Area" value={headArea} onChange={(event) => setHeadArea(event.target.value)} />
-              <NumberInput label="Area (m2)" value={headAreaM2} onChange={setHeadAreaM2} />
-              <NumberInput label="Upgrade Quantity" value={quantity} onChange={setQuantity} />
-              <NumberInput label="Combined indoor + outdoor price (per unit), $" value={productPrice} onChange={setProductPrice} />
-              <NumberInput label="Install Cost, $" value={installPrice} onChange={setInstallPrice} />
-              <NumberInput label="Certificates" value={certificates} onChange={setCertificates} />
-              <button onClick={addHead} className="h-10 rounded-lg bg-[#003CBB] px-4 text-sm font-semibold text-white">Add combined system line</button>
+              {isAirconCategory ? (
+                <>
+                  <Select label="Outdoor Unit (always outside)" value={selectedOutdoorModel} options={quoteProducts.map((item) => item.id)} labelFor={(value) => productLabel(productById(quoteProducts, value))} onChange={setOutdoorModel} />
+                  <button onClick={addOutdoor} className="h-10 rounded-lg bg-[#003CBB] px-4 text-sm font-semibold text-white">Add selected as outdoor unit</button>
+                  <Select label="Indoor Head (up to 4)" value={selectedHeadModel} options={quoteProducts.map((item) => item.id)} labelFor={(value) => productLabel(productById(quoteProducts, value))} onChange={setHeadModel} />
+                  <Select label="Original Equipment" value={baseline} options={baselineOptions} onChange={setBaseline} />
+                  <Input label="Area" value={headArea} onChange={(event) => setHeadArea(event.target.value)} />
+                  <NumberInput label="Area (m2)" value={headAreaM2} onChange={setHeadAreaM2} />
+                  <NumberInput label="Upgrade Quantity" value={quantity} onChange={setQuantity} />
+                  <NumberInput label="Combined indoor + outdoor price (per unit), $" value={productPrice} onChange={setProductPrice} />
+                  <NumberInput label="Install Cost, $" value={installPrice} onChange={setInstallPrice} />
+                  <NumberInput label="Certificates" value={certificates} onChange={setCertificates} />
+                  <button onClick={addHead} className="h-10 rounded-lg bg-[#003CBB] px-4 text-sm font-semibold text-white">Add combined system line</button>
+                </>
+              ) : (
+                <>
+                  <Select label="Product" value={selectedProductModel} options={quoteProducts.map((item) => item.id)} labelFor={(value) => productLabel(productById(quoteProducts, value))} onChange={setHeadModel} />
+                  <NumberInput label="Quantity" value={quantity} onChange={setQuantity} />
+                  <NumberInput label="Product Price (per unit), $" value={productPrice} onChange={setProductPrice} />
+                  <NumberInput label="Install Cost, $" value={installPrice} onChange={setInstallPrice} />
+                  <NumberInput label="Certificates" value={certificates} onChange={setCertificates} />
+                  <button onClick={addProductLine} className="h-10 rounded-lg bg-[#003CBB] px-4 text-sm font-semibold text-white">Add product line</button>
+                </>
+              )}
             </div>
 
             <div className="overflow-x-auto rounded-lg border border-[#e5edf7]">

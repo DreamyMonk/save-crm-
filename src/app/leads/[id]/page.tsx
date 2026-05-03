@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useState } from "react";
-import { CalendarDays, ClipboardList, Mail, Pencil, Phone, Plus, Save, Trash2, UserPlus } from "lucide-react";
+import { CalendarDays, ClipboardList, Pencil, Plus, Save, Trash2, UserPlus } from "lucide-react";
 import { ButtonLink, CrmShell, PageHeader } from "@/components/crm-shell";
 import { RichTextEditor } from "@/components/rich-text-editor";
 import { CommunicationPreferences, CustomField, Lead, currency, defaultCommunicationPreferences } from "@/lib/crm-data";
@@ -13,7 +13,6 @@ import { useCrmStore } from "@/lib/use-crm-store";
 export default function LeadDetailPage() {
   const params = useParams<{ id: string }>();
   const { state, setState } = useCrmStore();
-  const [callStatus, setCallStatus] = useState("");
   const [customerStatus, setCustomerStatus] = useState("");
   const lead = state.leads.find((item) => item.id === params.id);
 
@@ -64,38 +63,6 @@ export default function LeadDetailPage() {
 
   function removeCustomField(fieldId: string) {
     updateLead({ customFields: (currentLead.customFields ?? []).filter((field) => field.id !== fieldId) });
-  }
-
-  async function startCall() {
-    const preferences = currentLead.communicationPreferences ?? defaultCommunicationPreferences();
-    if (preferences.dndAllChannels || !preferences.callsAndVoicemail) {
-      setCallStatus("Call blocked by lead preferences.");
-      return;
-    }
-
-    setCallStatus("Calling agent first...");
-    const response = await fetch("/api/twilio/call", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        twilio: state.settings.twilio,
-        leadPhone: currentLead.phone,
-        leadName: currentLead.contact,
-      }),
-    });
-    const result = await response.json().catch(() => ({}));
-    const nextStatus = response.ok ? `Call started${result.callSid ? ` (${result.callSid})` : ""}.` : result.error ?? "Call failed.";
-    setCallStatus(nextStatus);
-    updateLead({
-      notes: [
-        ...currentLead.notes,
-        {
-          id: `N-${leadId}-${currentLead.notes.length + 1}`,
-          body: nextStatus,
-          createdAt: "Now",
-        },
-      ],
-    });
   }
 
   function addLeadToCustomers() {
@@ -156,13 +123,9 @@ export default function LeadDetailPage() {
         actions={
           <>
             <ButtonLink href={`/calendar/new?lead=${lead.id}`} variant="light"><CalendarDays size={16} /> Schedule</ButtonLink>
-            <button onClick={startCall} className="inline-flex h-11 items-center gap-2 rounded-lg bg-[#003CBB] px-4 text-sm font-semibold text-white shadow-sm">
-              <Phone size={16} /> Call
-            </button>
             <button onClick={addLeadToCustomers} className="inline-flex h-11 items-center gap-2 rounded-lg border border-[#d7dfd0] bg-white px-4 text-sm font-semibold text-[#0f172a] shadow-sm">
               <UserPlus size={16} /> Add customer
             </button>
-            <ButtonLink href={`/leads/${lead.id}/mail`}><Mail size={16} /> Send email</ButtonLink>
             <ButtonLink href={`/leads/${lead.id}/tasks`} variant="light"><ClipboardList size={16} /> Tasks/notes</ButtonLink>
           </>
         }
@@ -213,7 +176,6 @@ export default function LeadDetailPage() {
 
         <aside className="space-y-4">
           <Panel title="Lead owner" lines={[owner, pipeline?.name ?? "No pipeline", lead.priority]} />
-          {callStatus ? <Panel title="Calling" lines={[callStatus]} /> : null}
           {customerStatus ? <Panel title="Customer database" lines={[customerStatus]} /> : null}
           <CommunicationPanel
             preferences={lead.communicationPreferences ?? defaultCommunicationPreferences()}

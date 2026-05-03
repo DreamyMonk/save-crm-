@@ -1,9 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { ClipboardList, Mail, Phone, Plus, Search, Settings2 } from "lucide-react";
+import { ClipboardList, Plus, Search, Settings2 } from "lucide-react";
 import { ButtonLink, CrmShell, PageHeader } from "@/components/crm-shell";
-import { Lead, currency, defaultCommunicationPreferences } from "@/lib/crm-data";
+import { Lead, currency } from "@/lib/crm-data";
 import { useCrmStore } from "@/lib/use-crm-store";
 import { useMemo, useState } from "react";
 
@@ -13,7 +13,6 @@ export default function LeadsPage() {
   const [search, setSearch] = useState("");
   const [owner, setOwner] = useState("all");
   const [priority, setPriority] = useState("all");
-  const [callStatus, setCallStatus] = useState("");
 
   const activePipeline = state.pipelines.find((pipeline) => pipeline.id === pipelineId) ?? state.pipelines[0];
   const assignable = state.team.filter((member) => member.active && member.modules.includes("leads"));
@@ -34,46 +33,6 @@ export default function LeadsPage() {
     setState({
       ...state,
       leads: state.leads.map((lead) => (lead.id === leadId ? { ...lead, stageId } : lead)),
-    });
-  }
-
-  async function startCall(lead: Lead) {
-    const preferences = lead.communicationPreferences ?? defaultCommunicationPreferences();
-    if (preferences.dndAllChannels || !preferences.callsAndVoicemail) {
-      setCallStatus(`${lead.contact}: call blocked by preferences`);
-      return;
-    }
-
-    setCallStatus(`${lead.contact}: calling agent first...`);
-    const response = await fetch("/api/twilio/call", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        twilio: state.settings.twilio,
-        leadPhone: lead.phone,
-        leadName: lead.contact,
-      }),
-    });
-    const result = await response.json().catch(() => ({}));
-    const nextStatus = response.ok ? `${lead.contact}: call started${result.callSid ? ` (${result.callSid})` : ""}` : `${lead.contact}: ${result.error ?? "call failed"}`;
-    setCallStatus(nextStatus);
-    setState({
-      ...state,
-      leads: state.leads.map((item) =>
-        item.id === lead.id
-          ? {
-              ...item,
-              notes: [
-                ...item.notes,
-                {
-                  id: `N-${item.id}-${item.notes.length + 1}`,
-                  body: nextStatus,
-                  createdAt: "Now",
-                },
-              ],
-            }
-          : item,
-      ),
     });
   }
 
@@ -128,8 +87,6 @@ export default function LeadsPage() {
             </select>
           </div>
         </div>
-        {callStatus ? <p className="rounded-lg border border-[#d7e3ff] bg-[#eef4ff] px-4 py-3 text-sm font-semibold text-[#003CBB]">{callStatus}</p> : null}
-
         <div className="grid auto-cols-[340px] grid-flow-col gap-4 overflow-x-auto pb-4">
           {activePipeline?.stages.map((stage) => {
             const stageLeads = visibleLeads.filter((lead) => lead.stageId === stage.id);
@@ -153,7 +110,7 @@ export default function LeadsPage() {
                 </div>
                 <div className="space-y-3 p-3">
                   {stageLeads.map((lead) => (
-                    <LeadCard key={lead.id} lead={lead} owner={state.team.find((member) => member.id === lead.assignedTo)?.name ?? "Unassigned"} onCall={startCall} />
+                    <LeadCard key={lead.id} lead={lead} owner={state.team.find((member) => member.id === lead.assignedTo)?.name ?? "Unassigned"} />
                   ))}
                 </div>
               </section>
@@ -165,7 +122,7 @@ export default function LeadsPage() {
   );
 }
 
-function LeadCard({ lead, owner, onCall }: { lead: Lead; owner: string; onCall: (lead: Lead) => void }) {
+function LeadCard({ lead, owner }: { lead: Lead; owner: string }) {
   return (
     <article
       draggable
@@ -181,16 +138,10 @@ function LeadCard({ lead, owner, onCall }: { lead: Lead; owner: string; onCall: 
         <span className="rounded-md bg-[#eef4ff] px-2 py-1 text-xs font-semibold text-[#003CBB]">{lead.priority}</span>
         <span className="text-sm font-semibold">{currency(lead.amount)}</span>
       </div>
-      <div className="mt-3 grid grid-cols-3 gap-2 border-t border-[#edf2e9] pt-3">
-        <Link href={`/leads/${lead.id}/mail`} className="inline-flex h-9 items-center justify-center rounded-lg bg-[#003CBB] text-white transition hover:bg-[#002f93]" title="Send email">
-          <Mail size={16} />
-        </Link>
+      <div className="mt-3 border-t border-[#edf2e9] pt-3">
         <Link href={`/leads/${lead.id}/tasks`} className="inline-flex h-9 items-center justify-center rounded-lg border border-[#d7e3ff] bg-white text-[#003CBB] transition hover:bg-[#eef4ff]" title="Tasks and notes">
           <ClipboardList size={16} />
         </Link>
-        <button onClick={() => onCall(lead)} className="inline-flex h-9 items-center justify-center rounded-lg border border-[#d7e3ff] bg-white text-[#003CBB] transition hover:bg-[#eef4ff]" title="Call lead">
-          <Phone size={16} />
-        </button>
       </div>
       <div className="mt-3 flex items-center justify-between gap-3 text-xs text-[#657267]">
         <span className="truncate">{owner}</span>
