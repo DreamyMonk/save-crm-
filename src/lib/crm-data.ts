@@ -272,6 +272,7 @@ export type ProposalPackage = {
 
 export type Customer = {
   id: string;
+  updatedAt?: string;
   customerType?: "Business" | "Residential" | "Parent";
   parent?: string;
   businessName?: string;

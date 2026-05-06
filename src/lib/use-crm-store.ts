@@ -282,7 +282,7 @@ function mergeLocalCollections(remoteState: CrmState, localState: CrmState | nul
     ...remoteState,
     team: mergeByUpdatedAccess(remoteState.team, localState.team),
     products: mergeById(remoteState.products, localState.products),
-    customers: mergeById(remoteState.customers, localState.customers),
+    customers: mergeByLatestUpdate(remoteState.customers, localState.customers),
     quotes: mergeById(remoteState.quotes, localState.quotes),
     proposalPackages: mergeById(remoteState.proposalPackages, localState.proposalPackages),
   };
@@ -320,6 +320,26 @@ function mergeById<T extends { id: string }>(remoteItems: T[], localItems: T[]) 
   return [...remoteItems, ...localItems.filter((item) => !remoteIds.has(item.id))];
 }
 
+function mergeByLatestUpdate<T extends { id: string; updatedAt?: string }>(remoteItems: T[], localItems: T[]) {
+  const items = new Map<string, T>();
+  for (const item of remoteItems) {
+    items.set(item.id, item);
+  }
+  for (const localItem of localItems) {
+    const remoteItem = items.get(localItem.id);
+    if (!remoteItem || timestamp(localItem.updatedAt) >= timestamp(remoteItem.updatedAt)) {
+      items.set(localItem.id, localItem);
+    }
+  }
+  return Array.from(items.values());
+}
+
+function timestamp(value?: string) {
+  if (!value) return 0;
+  const parsed = Date.parse(value);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
 async function saveMergedState(state: CrmState) {
   const ref = doc(getFirebaseDb(), ...crmDocumentPath);
   const snapshot = await getDoc(ref);
@@ -327,6 +347,7 @@ async function saveMergedState(state: CrmState) {
   const mergedState = {
     ...state,
     products: state.products.length === 0 && remoteState.products.length > 0 ? remoteState.products : state.products,
+    customers: mergeByLatestUpdate(remoteState.customers, state.customers),
     quotes: state.quotes.length === 0 && remoteState.quotes.length > 0 ? remoteState.quotes : state.quotes,
     proposalPackages: state.proposalPackages.length === 0 && remoteState.proposalPackages.length > 0 ? remoteState.proposalPackages : state.proposalPackages,
   };

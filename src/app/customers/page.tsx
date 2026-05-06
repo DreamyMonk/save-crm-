@@ -65,8 +65,8 @@ export default function CustomersPage() {
   function addCustomer(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
-    const customer = customerFromForm(form, `C-${1000 + state.customers.length + 1}`);
-    setState({ ...state, customers: [...state.customers, customer] });
+    const customer = { ...customerFromForm(form, `C-${1000 + state.customers.length + 1}`), updatedAt: new Date().toISOString() };
+    setState((currentState) => ({ ...currentState, customers: [...currentState.customers, customer] }));
     event.currentTarget.reset();
     setNewCustomerType("Business");
     setMessage(`${customer.name || customer.businessName || "Customer"} added.`);
@@ -76,26 +76,28 @@ export default function CustomersPage() {
     event.preventDefault();
     if (!editingCustomer) return;
     const form = new FormData(event.currentTarget);
-    const updatedCustomer = customerFromForm(form, editingCustomer.id);
-    setState({
-      ...state,
-      customers: state.customers.map((customer) =>
-        customer.id === editingCustomer.id
-          ? {
-              ...customer,
-              ...updatedCustomer,
-              id: customer.id,
-              leadId: customer.leadId,
-            }
-          : customer,
-      ),
+    const updatedCustomer = { ...customerFromForm(form, editingCustomer.id), updatedAt: new Date().toISOString() };
+    setState((currentState) => {
+      return {
+        ...currentState,
+        customers: currentState.customers.map((customer) =>
+          customer.id === editingCustomer.id
+            ? {
+                ...customer,
+                ...updatedCustomer,
+                id: customer.id,
+                leadId: customer.leadId,
+              }
+            : customer,
+        ),
+      };
     });
     setEditingCustomerId(null);
     setMessage(`${updatedCustomer.name || updatedCustomer.businessName || "Customer"} updated.`);
   }
 
   function deleteCustomer(customerId: string) {
-    setState({ ...state, customers: state.customers.filter((customer) => customer.id !== customerId) });
+    setState((currentState) => ({ ...currentState, customers: currentState.customers.filter((customer) => customer.id !== customerId) }));
     setMessage("Customer deleted.");
   }
 
@@ -110,8 +112,8 @@ export default function CustomersPage() {
     const [headers, ...body] = rows;
     const imported = body
       .filter((row) => row.some(Boolean))
-      .map((row, index) => customerFromCsv(headers, row, `C-${1000 + state.customers.length + index + 1}`));
-    setState({ ...state, customers: [...state.customers, ...imported] });
+      .map((row, index) => ({ ...customerFromCsv(headers, row, `C-${1000 + state.customers.length + index + 1}`), updatedAt: new Date().toISOString() }));
+    setState((currentState) => ({ ...currentState, customers: [...currentState.customers, ...imported] }));
     setMessage(`${imported.length} customers imported.`);
     event.currentTarget.value = "";
   }
