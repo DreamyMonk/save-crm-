@@ -103,6 +103,41 @@ export default function QuotesPage() {
   const selectedOutdoorModel = quoteProducts.some((product) => product.id === outdoorModel) ? outdoorModel : (quoteProducts[0]?.id ?? "");
   const selectedHeadModel = quoteProducts.some((product) => product.id === headModel) ? headModel : (quoteProducts[0]?.id ?? "");
   const selectedProductModel = quoteProducts.some((product) => product.id === headModel) ? headModel : (quoteProducts[0]?.id ?? "");
+  const isSolarCategory = productCategory === "Solar" || productCategory === "Inverter" || productCategory === "Solar Battery";
+  const isHeatPumpCategory = productCategory === "Heat Pump";
+  const solarPanels = state.products.filter((product) => product.category === "Solar");
+  const solarInverters = state.products.filter((product) => product.category === "Inverter");
+  const solarBatteries = state.products.filter((product) => product.category === "Solar Battery");
+  const heatPumpProducts = state.products.filter((product) => product.category === "Heat Pump");
+  const [solarPanelProduct, setSolarPanelProduct] = useState(solarPanels[0]?.id ?? "");
+  const [solarPanelQty, setSolarPanelQty] = useState(0);
+  const [solarPanelPrice, setSolarPanelPrice] = useState(0);
+  const [solarInverterProduct, setSolarInverterProduct] = useState(solarInverters[0]?.id ?? "");
+  const [solarInverterQty, setSolarInverterQty] = useState(0);
+  const [solarInverterPrice, setSolarInverterPrice] = useState(0);
+  const [solarBatteryProduct, setSolarBatteryProduct] = useState(solarBatteries[0]?.id ?? "");
+  const [solarBatteryQty, setSolarBatteryQty] = useState(0);
+  const [solarBatteryPrice, setSolarBatteryPrice] = useState(0);
+  const [solarInstall, setSolarInstall] = useState(0);
+  const [solarGstOn, setSolarGstOn] = useState("yes");
+  const [solarStcCount, setSolarStcCount] = useState(0);
+  const [solarStcPrice, setSolarStcPrice] = useState(40);
+  const [solarVeuCount, setSolarVeuCount] = useState(0);
+  const [solarVeuPrice, setSolarVeuPrice] = useState(75);
+  const [solarAdditionalDiscount, setSolarAdditionalDiscount] = useState(0);
+  const [heatPumpProduct, setHeatPumpProduct] = useState(heatPumpProducts[0]?.id ?? "");
+  const [heatPumpQty, setHeatPumpQty] = useState(0);
+  const [heatPumpPrice, setHeatPumpPrice] = useState(0);
+  const [heatPumpInstall, setHeatPumpInstall] = useState(0);
+  const [heatPumpGstOn, setHeatPumpGstOn] = useState("yes");
+  const [heatPumpVeuCount, setHeatPumpVeuCount] = useState(0);
+  const [heatPumpVeuRate, setHeatPumpVeuRate] = useState(75);
+  const [heatPumpStcCount, setHeatPumpStcCount] = useState(0);
+  const [heatPumpStcRate, setHeatPumpStcRate] = useState(40);
+  const activeSolarPanelProduct = solarPanels.some((product) => product.id === solarPanelProduct) ? solarPanelProduct : (solarPanels[0]?.id ?? "");
+  const activeSolarInverterProduct = solarInverters.some((product) => product.id === solarInverterProduct) ? solarInverterProduct : (solarInverters[0]?.id ?? "");
+  const activeSolarBatteryProduct = solarBatteries.some((product) => product.id === solarBatteryProduct) ? solarBatteryProduct : (solarBatteries[0]?.id ?? "");
+  const activeHeatPumpProduct = heatPumpProducts.some((product) => product.id === heatPumpProduct) ? heatPumpProduct : (heatPumpProducts[0]?.id ?? "");
 
   function changeProductCategory(value: string) {
     setProductCategory(value);
@@ -112,6 +147,11 @@ export default function QuotesPage() {
     setScheme((schemesByCategory[value] ?? schemes)[0]);
     setOutdoorModel("");
     setHeadModel("");
+  }
+
+  function setSelectedProductPrice(productId: string, setter: (value: number) => void) {
+    const product = state.products.find((item) => item.id === productId);
+    setter(product?.price ?? 0);
   }
 
   function changeProductBrand(value: string) {
@@ -163,6 +203,44 @@ export default function QuotesPage() {
     }
     setItems((current) => [...current, lineFromProduct(product, "Product", product.category, 0, quantity, productPrice || product.price, installPrice, certificates, `${product.category} product line`)]);
     setMessage(`${product.model ?? product.productName} added as a product line.`);
+  }
+
+  function buildSolarSystem() {
+    const nextItems: QuoteLineItem[] = [];
+    const panel = state.products.find((item) => item.id === activeSolarPanelProduct);
+    const inverter = state.products.find((item) => item.id === activeSolarInverterProduct);
+    const battery = state.products.find((item) => item.id === activeSolarBatteryProduct);
+    if (panel && solarPanelQty > 0) nextItems.push(lineFromProduct(panel, "Product", "Solar Panels", 0, solarPanelQty, solarPanelPrice || panel.price, 0, 0, "Solar panel product"));
+    if (inverter && solarInverterQty > 0) nextItems.push(lineFromProduct(inverter, "Product", "Inverter", 0, solarInverterQty, solarInverterPrice || inverter.price, 0, 0, "Inverter product"));
+    if (battery && solarBatteryQty > 0) nextItems.push(lineFromProduct(battery, "Product", "Battery", 0, solarBatteryQty, solarBatteryPrice || battery.price, 0, 0, "Battery product"));
+    if (solarInstall > 0) nextItems.push(customLine("Install", "Installation", "Solar installation", 1, 0, solarInstall, 0, "Installation cost"));
+    if (!nextItems.length) {
+      setMessage("Select at least one solar product before generating items.");
+      return;
+    }
+    const totalCertificates = solarStcCount + solarVeuCount;
+    const totalCertificateValue = solarStcCount * solarStcPrice + solarVeuCount * solarVeuPrice;
+    setCertificateRate(totalCertificates ? totalCertificateValue / totalCertificates : certificateRate);
+    setRebate(Number(rebate) + solarAdditionalDiscount);
+    setGstRate(solarGstOn === "yes" ? 10 : 0);
+    setItems(nextItems.map((item, index) => index === 0 ? { ...item, certificates: totalCertificates } : item));
+    setMessage("Solar panel, inverter, battery, installation, and rebate fields copied into quote items.");
+  }
+
+  function buildHeatPumpSystem() {
+    const product = state.products.find((item) => item.id === activeHeatPumpProduct);
+    if (!product || heatPumpQty <= 0) {
+      setMessage("Select a heat pump product and quantity first.");
+      return;
+    }
+    const totalCertificates = heatPumpVeuCount + heatPumpStcCount;
+    const totalCertificateValue = heatPumpVeuCount * heatPumpVeuRate + heatPumpStcCount * heatPumpStcRate;
+    setCertificateRate(totalCertificates ? totalCertificateValue / totalCertificates : certificateRate);
+    setGstRate(heatPumpGstOn === "yes" ? 10 : 0);
+    setItems([
+      lineFromProduct(product, "Product", "Heat Pump", 0, heatPumpQty, heatPumpPrice || product.price, heatPumpInstall, totalCertificates, "Hot-water heat pump with VEU/STC rebate fields"),
+    ]);
+    setMessage("Heat pump product, installation, and rebate fields copied into quote items.");
   }
 
   function addService() {
@@ -279,7 +357,57 @@ export default function QuotesPage() {
               <Select label="Category" value={productCategory} options={productCategories} onChange={changeProductCategory} />
               <Select label="Brand" value={activeBrand} options={brandOptions} onChange={changeProductBrand} />
               <Input label="Search product" value={productSearch} onChange={(event) => setProductSearch(event.target.value)} placeholder="Brand, model, class..." />
-              {isAirconCategory ? (
+              {isSolarCategory ? (
+                <>
+                  <ModuleCard title="Solar Panels" badge="Required">
+                    <Select label="Panel Product" value={activeSolarPanelProduct} options={solarPanels.map((item) => item.id)} labelFor={(value) => productLabel(productById(solarPanels, value))} onChange={(value) => { setSolarPanelProduct(value); setSelectedProductPrice(value, setSolarPanelPrice); }} />
+                    <NumberInput label="Quantity" value={solarPanelQty} onChange={setSolarPanelQty} />
+                    <NumberInput label="Price per unit (AUD)" value={solarPanelPrice} onChange={setSolarPanelPrice} />
+                  </ModuleCard>
+                  <ModuleCard title="Inverter" badge="Required">
+                    <Select label="Inverter Product" value={activeSolarInverterProduct} options={solarInverters.map((item) => item.id)} labelFor={(value) => productLabel(productById(solarInverters, value))} onChange={(value) => { setSolarInverterProduct(value); setSelectedProductPrice(value, setSolarInverterPrice); }} />
+                    <NumberInput label="Quantity" value={solarInverterQty} onChange={setSolarInverterQty} />
+                    <NumberInput label="Price per unit (AUD)" value={solarInverterPrice} onChange={setSolarInverterPrice} />
+                  </ModuleCard>
+                  <ModuleCard title="Battery" badge="Optional">
+                    <Select label="Battery Product" value={activeSolarBatteryProduct} options={solarBatteries.map((item) => item.id)} labelFor={(value) => productLabel(productById(solarBatteries, value))} onChange={(value) => { setSolarBatteryProduct(value); setSelectedProductPrice(value, setSolarBatteryPrice); }} />
+                    <NumberInput label="Quantity" value={solarBatteryQty} onChange={setSolarBatteryQty} />
+                    <NumberInput label="Price per unit (AUD)" value={solarBatteryPrice} onChange={setSolarBatteryPrice} />
+                  </ModuleCard>
+                  <ModuleCard title="Installation" badge="GST">
+                    <NumberInput label="Installation Cost (AUD)" value={solarInstall} onChange={setSolarInstall} />
+                    <Select label="Apply GST (10%)" value={solarGstOn} options={["yes", "no"]} labelFor={(value) => value === "yes" ? "Yes - include GST" : "No"} onChange={setSolarGstOn} />
+                  </ModuleCard>
+                  <ModuleCard title="Rebates" badge="Auto-deducted">
+                    <NumberInput label="STC Count" value={solarStcCount} onChange={setSolarStcCount} />
+                    <NumberInput label="STC Price (AUD per certificate)" value={solarStcPrice} onChange={setSolarStcPrice} />
+                    <NumberInput label="VEU Count (battery only)" value={solarVeuCount} onChange={setSolarVeuCount} />
+                    <NumberInput label="VEU Price (AUD per certificate)" value={solarVeuPrice} onChange={setSolarVeuPrice} />
+                    <NumberInput label="Solar Victoria Rebate (AUD)" value={rebate} onChange={setRebate} />
+                    <NumberInput label="Solar Victoria Loan (AUD)" value={solarVicLoan} onChange={setSolarVicLoan} />
+                    <NumberInput label="Additional Discount (AUD)" value={solarAdditionalDiscount} onChange={setSolarAdditionalDiscount} />
+                  </ModuleCard>
+                  <button onClick={buildSolarSystem} className="h-10 rounded-lg bg-[#003CBB] px-4 text-sm font-semibold text-white">Generate solar quote items</button>
+                </>
+              ) : isHeatPumpCategory ? (
+                <>
+                  <ModuleCard title="Product" badge="Heat Pump">
+                    <Select label="Product" value={activeHeatPumpProduct} options={heatPumpProducts.map((item) => item.id)} labelFor={(value) => productLabel(productById(heatPumpProducts, value))} onChange={(value) => { setHeatPumpProduct(value); setSelectedProductPrice(value, setHeatPumpPrice); }} />
+                    <NumberInput label="Quantity" value={heatPumpQty} onChange={setHeatPumpQty} />
+                    <NumberInput label="Price per unit (AUD)" value={heatPumpPrice} onChange={setHeatPumpPrice} />
+                    <NumberInput label="Installation Cost (AUD)" value={heatPumpInstall} onChange={setHeatPumpInstall} />
+                    <Select label="Apply GST (10%)" value={heatPumpGstOn} options={["yes", "no"]} labelFor={(value) => value === "yes" ? "Yes - include GST" : "No"} onChange={setHeatPumpGstOn} />
+                  </ModuleCard>
+                  <ModuleCard title="Rebates" badge="VEU + STC">
+                    <NumberInput label="VEU Count" value={heatPumpVeuCount} onChange={setHeatPumpVeuCount} />
+                    <NumberInput label="VEU Rate (AUD)" value={heatPumpVeuRate} onChange={setHeatPumpVeuRate} />
+                    <NumberInput label="STC Count" value={heatPumpStcCount} onChange={setHeatPumpStcCount} />
+                    <NumberInput label="STC Rate (AUD)" value={heatPumpStcRate} onChange={setHeatPumpStcRate} />
+                    <NumberInput label="Solar Victoria Rebate (AUD)" value={rebate} onChange={setRebate} />
+                  </ModuleCard>
+                  <button onClick={buildHeatPumpSystem} className="h-10 rounded-lg bg-[#003CBB] px-4 text-sm font-semibold text-white">Generate heat pump quote items</button>
+                </>
+              ) : isAirconCategory ? (
                 <>
                   <Select label="Outdoor Unit (always outside)" value={selectedOutdoorModel} options={quoteProducts.map((item) => item.id)} labelFor={(value) => productLabel(productById(quoteProducts, value))} onChange={setOutdoorModel} />
                   <div className="pb-2">
@@ -445,6 +573,23 @@ function lineFromProduct(product: Product, role: QuoteLineItem["role"], area: st
   };
 }
 
+function customLine(role: QuoteLineItem["role"], brand: string, model: string, quantity: number, productPrice: number, installPrice: number, certificates: number, notes: string): QuoteLineItem {
+  return {
+    id: `${role}-${brand}-${model}-${Date.now()}`,
+    role,
+    model,
+    brand,
+    area: brand,
+    areaM2: 0,
+    recommendedHeatingOutput: "",
+    quantity,
+    productPrice,
+    installPrice,
+    certificates,
+    notes,
+  };
+}
+
 function firstQuoteCategory(items: QuoteLineItem[], products: Product[]) {
   const productId = items.find((item) => item.productId)?.productId;
   return products.find((product) => product.id === productId)?.category ?? "Aircon";
@@ -570,6 +715,18 @@ function unique(values: string[]) {
 
 function SectionTitle({ title }: { title: string }) {
   return <h2 className="border-b border-[#e5edf7] bg-[#f6f8fc] px-5 py-3 font-semibold">{title}</h2>;
+}
+
+function ModuleCard({ title, badge, children }: { title: string; badge: string; children: React.ReactNode }) {
+  return (
+    <div className="rounded-lg border border-[#d9e2f2] bg-[#f8fbff] p-4">
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <h3 className="font-semibold text-[#0f172a]">{title}</h3>
+        <span className="rounded-full bg-white px-2.5 py-1 text-xs font-semibold text-[#003CBB] shadow-sm">{badge}</span>
+      </div>
+      <div className="grid gap-3">{children}</div>
+    </div>
+  );
 }
 
 function Input(props: React.InputHTMLAttributes<HTMLInputElement> & { label: string }) {
