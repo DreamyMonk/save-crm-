@@ -407,7 +407,8 @@ export const initialCrmState: CrmState = {
   team: [
     {
       id: "admin",
-      email: "Info@saveplanet.com.au",
+      uid: "hardcoded-admin",
+      email: "admin@admin.com",
       name: "Aarav Admin",
       role: "Admin",
       modules: ["dashboard", "leads", "customers", "products", "quotes", "invoices", "access", "reports", "pipelines", "calendar", "settings"],
@@ -641,7 +642,7 @@ export const initialCrmState: CrmState = {
     logoUrl: "",
     resend: {
       apiKey: "re_97hKau6B_Cf1FuK2idgSEibPvtNvaATNq",
-      fromEmail: "noreply@saveplanet.au",
+      fromEmail: "info@saveplanet.com.au",
       fromName: "SavePlanet CRM",
       enabled: true,
     },

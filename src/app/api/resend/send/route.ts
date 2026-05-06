@@ -15,7 +15,7 @@ type ResendRecipient = {
 };
 
 const HARDCODED_RESEND_API_KEY = "re_97hKau6B_Cf1FuK2idgSEibPvtNvaATNq";
-const HARDCODED_RESEND_FROM_EMAIL = "noreply@saveplanet.au";
+const HARDCODED_RESEND_FROM_EMAIL = "info@saveplanet.com.au";
 
 export async function POST(request: Request) {
   try {

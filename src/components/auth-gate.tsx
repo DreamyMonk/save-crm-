@@ -8,11 +8,24 @@ import { LockKeyhole, LogOut, Sparkles } from "lucide-react";
 import { getFirebaseAuth } from "@/lib/firebase";
 import { useCrmStore } from "@/lib/use-crm-store";
 
-export function AuthGate({ children }: { children: (user: User) => React.ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
-  const [checking, setChecking] = useState(true);
+type CrmAuthUser = Pick<User, "email" | "uid">;
+
+const hardcodedAdminEmail = "admin@admin.com";
+const hardcodedAdminPassword = "admin@admin.com";
+const localAdminStorageKey = "saveplanet-hardcoded-admin";
+const hardcodedAdminUser: CrmAuthUser = {
+  email: hardcodedAdminEmail,
+  uid: "hardcoded-admin",
+};
+
+export function AuthGate({ children }: { children: (user: CrmAuthUser) => React.ReactNode }) {
+  const [user, setUser] = useState<CrmAuthUser | null>(() => readHardcodedAdminUser());
+  const [checking, setChecking] = useState(() => !readHardcodedAdminUser());
 
   useEffect(() => {
+    if (readHardcodedAdminUser()) {
+      return () => undefined;
+    }
     return onAuthStateChanged(getFirebaseAuth(), (currentUser) => {
       setUser(currentUser);
       setChecking(false);
@@ -50,6 +63,11 @@ export function UserLoginModule() {
     const password = String(form.get("password") || "");
 
     try {
+      if (isHardcodedAdminLogin(email, password)) {
+        window.localStorage.setItem(localAdminStorageKey, "true");
+        window.location.reload();
+        return;
+      }
       await signInWithEmailAndPassword(getFirebaseAuth(), email, password);
     } catch (authError) {
       setError(authError instanceof Error ? authError.message : "Authentication failed");
@@ -156,10 +174,22 @@ export function CreateFirstAdminModule() {
 export function SignOutButton() {
   return (
     <button
-      onClick={() => void signOut(getFirebaseAuth())}
+      onClick={() => {
+        window.localStorage.removeItem(localAdminStorageKey);
+        void signOut(getFirebaseAuth());
+      }}
       className="inline-flex h-10 items-center gap-2 rounded-lg border border-white/10 px-3 text-sm font-semibold text-white/72 hover:bg-white/10 hover:text-white"
     >
       <LogOut size={16} /> Sign out
     </button>
   );
+}
+
+function isHardcodedAdminLogin(email: string, password: string) {
+  return email.trim().toLowerCase() === hardcodedAdminEmail && password === hardcodedAdminPassword;
+}
+
+function readHardcodedAdminUser() {
+  if (typeof window === "undefined") return null;
+  return window.localStorage.getItem(localAdminStorageKey) === "true" ? hardcodedAdminUser : null;
 }

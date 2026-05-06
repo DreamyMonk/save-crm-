@@ -13,20 +13,17 @@ type SyncState = "loading" | "firebase" | "local" | "saving";
 function normalizeState(state: CrmState): CrmState {
   const legacyEmailKey = "mail" + "jet";
   const legacyEmailSettings = (state.settings as unknown as Record<string, CrmState["settings"]["resend"] | undefined> | undefined)?.[legacyEmailKey];
+  const normalizedTeam = ensureHardcodedAdmin(
+    (state.team ?? initialCrmState.team).map((member) => ({
+      ...member,
+      modules: normalizeMemberModules(member.modules),
+    })),
+  );
   return {
     ...initialCrmState,
     ...state,
     pipelines: normalizePipelines(state.pipelines ?? initialCrmState.pipelines),
-    team: (state.team ?? initialCrmState.team).map((member) => {
-      const normalizedMember = {
-        ...member,
-        email: member.role === "Admin" && ["admin@saveplanet.local", "admin@admin.com"].includes(member.email?.toLowerCase() ?? "") ? "Info@saveplanet.com.au" : member.email,
-      };
-      return {
-        ...normalizedMember,
-        modules: normalizeMemberModules(normalizedMember.modules),
-      };
-    }),
+    team: normalizedTeam,
     leads: (state.leads ?? initialCrmState.leads).map((lead) => ({
       ...lead,
       leadSource: normalizeLeadSource(lead.leadSource ?? lead.source),
@@ -67,6 +64,8 @@ function normalizeState(state: CrmState): CrmState {
       resend: {
         ...initialCrmState.settings.resend,
         ...(state.settings?.resend ?? legacyEmailSettings ?? {}),
+        fromEmail: "info@saveplanet.com.au",
+        enabled: true,
       },
       twilio: {
         ...initialCrmState.settings.twilio,
@@ -163,6 +162,22 @@ function templateTypeForCategory(category: QuoteRecord["productCategory"]): Prop
 function normalizeMemberModules(modules: CrmState["team"][number]["modules"]) {
   const validModules = new Set(Object.keys(initialCrmStateModuleLabels()) as ModuleKey[]);
   return Array.from(new Set((modules ?? []).filter((module): module is ModuleKey => validModules.has(module))));
+}
+
+function ensureHardcodedAdmin(team: CrmState["team"]) {
+  const adminModules = Object.keys(initialCrmStateModuleLabels()) as ModuleKey[];
+  const existingIndex = team.findIndex((member) => member.uid === "hardcoded-admin" || member.email?.trim().toLowerCase() === "admin@admin.com");
+  const hardcodedAdmin = {
+    id: existingIndex >= 0 ? team[existingIndex].id : "admin",
+    uid: "hardcoded-admin",
+    email: "admin@admin.com",
+    name: existingIndex >= 0 ? team[existingIndex].name : "Aarav Admin",
+    role: "Admin",
+    modules: existingIndex >= 0 && team[existingIndex].modules.length ? team[existingIndex].modules : adminModules,
+    active: true,
+  };
+  if (existingIndex < 0) return [hardcodedAdmin, ...team];
+  return team.map((member, index) => (index === existingIndex ? { ...member, ...hardcodedAdmin } : member));
 }
 
 export function useCrmStore() {
