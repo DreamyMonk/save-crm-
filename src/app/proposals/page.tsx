@@ -21,27 +21,37 @@ export default function ProposalsPage() {
     return state.quotes
       .map((quote) => {
         const customer = state.customers.find((item) => item.id === quote.customerId);
+        const proposalPackage = state.proposalPackages.find((item) => item.quoteId === quote.id);
         const agent = quote.proposalSentBy || customer?.salesAgent || "Not sent";
         const customerName = customer?.name || customer?.businessName || "Unknown customer";
         const proposalName = quote.description || quote.id;
         return {
           quote,
+          proposalPackage,
           agent,
           customerName,
           proposalName,
-          status: proposalStatus(quote),
+          status: proposalPackage?.status ?? proposalStatus(quote),
         };
       })
       .filter(({ quote, customerName, agent, proposalName }) => {
         const matchesSearch = !term || [quote.id, proposalName, agent, customerName].join(" ").toLowerCase().includes(term);
         return matchesSearch && matchesStatusFilter(quote, statusFilter) && matchesDateFilter(quote, dateFilter, rangeStart, rangeEnd);
       });
-  }, [dateFilter, proposalSearch, rangeEnd, rangeStart, state.customers, state.quotes, statusFilter]);
+  }, [dateFilter, proposalSearch, rangeEnd, rangeStart, state.customers, state.proposalPackages, state.quotes, statusFilter]);
   const selectedRow = proposalRows.find((row) => row.quote.id === selectedQuoteId) ?? proposalRows[0];
-  const sentCount = state.quotes.filter((quote) => quote.proposalSentAt).length;
-  const openedCount = state.quotes.filter((quote) => quote.proposalOpenedAt).length;
-  const signedCount = state.quotes.filter((quote) => quote.customerSignedAt).length;
-  const changesCount = state.quotes.filter((quote) => quote.proposalChangeRequestHtml).length;
+  const packageRows = state.proposalPackages.length
+    ? state.proposalPackages
+    : state.quotes.map((quote) => ({
+        sentAt: quote.proposalSentAt,
+        openedAt: quote.proposalOpenedAt,
+        signedAt: quote.customerSignedAt,
+        changeRequestHtml: quote.proposalChangeRequestHtml,
+      }));
+  const sentCount = packageRows.filter((proposalPackage) => proposalPackage.sentAt).length;
+  const openedCount = packageRows.filter((proposalPackage) => proposalPackage.openedAt).length;
+  const signedCount = packageRows.filter((proposalPackage) => proposalPackage.signedAt).length;
+  const changesCount = packageRows.filter((proposalPackage) => proposalPackage.changeRequestHtml).length;
 
   return (
     <CrmShell>
@@ -164,8 +174,11 @@ export default function ProposalsPage() {
               </div>
               <div className="flex-1 space-y-4 overflow-y-auto p-5">
                 <Detail label="Proposal" value={`${selectedRow.proposalName} (${selectedRow.quote.id})`} />
+                <Detail label="Package" value={selectedRow.proposalPackage?.id ?? `PP-${selectedRow.quote.id}`} />
+                <Detail label="Invoice" value={selectedRow.proposalPackage?.invoiceId ?? "Not generated yet"} />
                 <Detail label="Customer" value={selectedRow.customerName} />
                 <Detail label="Agent" value={selectedRow.agent} />
+                <Detail label="Substitute agent" value={selectedRow.proposalPackage?.substituteAgent || "Not assigned"} />
                 <Detail label="Status" value={selectedRow.status} />
                 <Link href={`/proposal/${selectedRow.quote.id}`} className="inline-flex h-10 items-center gap-2 rounded-lg bg-[#003CBB] px-4 text-sm font-semibold text-white">
                   <ExternalLink size={16} /> Open proposal

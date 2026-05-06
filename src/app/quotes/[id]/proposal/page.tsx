@@ -9,6 +9,7 @@ import { CrmShell, PageHeader } from "@/components/crm-shell";
 import { RichTextEditor } from "@/components/rich-text-editor";
 import { CrmState, Customer, Product, ProductCategory, QuoteLineItem, QuoteRecord, TeamMember, currency } from "@/lib/crm-data";
 import { getFirebaseAuth } from "@/lib/firebase";
+import { invoiceFromQuote, syncProposalCollections } from "@/lib/proposal-packages";
 import { useCrmStore } from "@/lib/use-crm-store";
 
 const templateUrls = {
@@ -66,14 +67,14 @@ function ProposalWorkspace({ publicView = false, allowAnonymous = false }: { pub
     return calculateQuote(quote);
   }, [quote]);
   const changeRequestHtml = quote ? (changeRequestDrafts[quote.id] ?? quote.proposalChangeRequestHtml ?? "") : "";
-  const persistQuoteUpdate = useCallback((updatedQuote: QuoteRecord) => {
-    const exists = state.quotes.some((item) => item.id === updatedQuote.id);
-    setState({
-      ...state,
-      quotes: exists
-        ? state.quotes.map((item) => (item.id === updatedQuote.id ? updatedQuote : item))
-        : [...state.quotes, updatedQuote],
-    });
+  const proposalPackage = state.proposalPackages.find((item) => item.quoteId === quote?.id || item.publicToken === id);
+  const persistQuoteUpdate = useCallback((updatedQuote: QuoteRecord, invoiceAmount?: number) => {
+    const nextCustomer = state.customers.find((item) => item.id === updatedQuote.customerId);
+    const packageRecord = state.proposalPackages.find((item) => item.quoteId === updatedQuote.id || item.publicToken === updatedQuote.id);
+    const invoice = invoiceAmount === undefined
+      ? undefined
+      : invoiceFromQuote(updatedQuote, nextCustomer, invoiceAmount, updatedQuote.proposalSentBy || packageRecord?.sentBy || nextCustomer?.salesAgent || "SavePlanet Team");
+    setState(syncProposalCollections(state, updatedQuote, nextCustomer, invoice));
     window.localStorage.setItem(`saveplanet-quote-${updatedQuote.id}`, JSON.stringify(updatedQuote));
   }, [setState, state]);
 
@@ -152,7 +153,7 @@ function ProposalWorkspace({ publicView = false, allowAnonymous = false }: { pub
   }
 
   function markProposalSent() {
-    if (!quote) return;
+    if (!quote || !calculations) return;
     const sentAt = new Date().toISOString();
     const sender = findSenderMember(state, quote, customer, user);
     const updatedQuote: QuoteRecord = {
@@ -161,7 +162,7 @@ function ProposalWorkspace({ publicView = false, allowAnonymous = false }: { pub
       proposalSentBy: quote.proposalSentBy ?? sender?.name ?? customer?.salesAgent ?? user?.email ?? "SavePlanet Team",
       status: "Saved" as const,
     };
-    persistQuoteUpdate(updatedQuote);
+    persistQuoteUpdate(updatedQuote, calculations.finalPriceIncGst);
     return updatedQuote;
   }
 
@@ -288,8 +289,15 @@ function ProposalWorkspace({ publicView = false, allowAnonymous = false }: { pub
           <div>
             <div className="flex items-center gap-2">
               <PenLine size={18} />
-              <h2 className="font-semibold">Customer signature</h2>
-            </div>
+            <h2 className="font-semibold">Customer signature</h2>
+          </div>
+            {!effectivePublicView ? (
+              <div className="mt-3 grid gap-2 rounded-lg border border-[#e5edf7] bg-[#f8fbff] p-3 text-sm md:grid-cols-3">
+                <StatusLine label="Package" value={proposalPackage?.id ?? `PP-${quote.id}`} />
+                <StatusLine label="Status" value={proposalPackage?.status ?? "Draft"} />
+                <StatusLine label="Invoice" value={proposalPackage?.invoiceId ?? "Created when sent"} />
+              </div>
+            ) : null}
             <p className="mt-1 text-sm text-[#657267]">{effectivePublicView ? "Sign here to confirm that you have reviewed this proposal. Your signature will appear in the proposal customer signature area." : "Customer can sign here from the shared proposal link. Saved signature appears automatically in the proposal customer signature area."}</p>
             <SignaturePad value={quote.customerSignatureDataUrl} onChange={setSignatureDataUrl} autoName={autoSignName} autoFont={autoSignFont} />
             <div className="mt-4 rounded-lg border border-[#e5edf7] bg-[#f8fbff] p-4">
@@ -406,6 +414,7 @@ function proposalNotificationRecipients(state: CrmState, quote: QuoteRecord, cus
 
   state.team.filter((member) => member.active && member.role.toLowerCase() === "admin").forEach(addMember);
   addMember(findSenderMember(state, quote, customer, user));
+  addMember(state.team.find((member) => member.active && member.name === customer?.secondSalesAgent));
 
   return Array.from(recipients.values());
 }
@@ -804,6 +813,15 @@ function SignaturePad({ value, onChange, autoName, autoFont }: { value?: string;
           Clear signature
         </button>
       </div>
+    </div>
+  );
+}
+
+function StatusLine({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[#657267]">{label}</p>
+      <p className="mt-1 font-semibold text-[#0f172a]">{value}</p>
     </div>
   );
 }

@@ -224,6 +224,31 @@ export type QuoteRecord = {
   customerSignedAt?: string;
 };
 
+export type ProposalPackageStatus = "Draft" | "Sent" | "Opened" | "Changes requested" | "Signed" | "Won";
+
+export type ProposalPackage = {
+  id: string;
+  quoteId: string;
+  invoiceId?: string;
+  customerId: string;
+  leadId?: string;
+  productCategory?: ProductCategory;
+  templateType: "solar" | "aircon" | "heatpump";
+  publicToken: string;
+  status: ProposalPackageStatus;
+  assignedAgent: string;
+  substituteAgent?: string;
+  sentBy?: string;
+  sentAt?: string;
+  openedAt?: string;
+  openCount: number;
+  signedAt?: string;
+  signatureDataUrl?: string;
+  changeRequestHtml?: string;
+  changeRequestedAt?: string;
+  lastActivityAt?: string;
+};
+
 export type Customer = {
   id: string;
   customerType?: "Business" | "Residential" | "Parent";
@@ -308,6 +333,7 @@ export type CrmState = {
   customers: Customer[];
   products: Product[];
   quotes: QuoteRecord[];
+  proposalPackages: ProposalPackage[];
   team: TeamMember[];
   invoices: Invoice[];
   appointments: Appointment[];
@@ -389,6 +415,7 @@ export const initialCrmState: CrmState = {
   ],
   products: seedProducts,
   quotes: [],
+  proposalPackages: [],
   customers: [
     {
       id: "C-1001",

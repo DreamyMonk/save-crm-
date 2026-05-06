@@ -6,6 +6,7 @@ import { Calculator, Save, Trash2 } from "lucide-react";
 import { CrmShell, PageHeader } from "@/components/crm-shell";
 import { Product, QuoteLineItem, QuoteRecord, currency } from "@/lib/crm-data";
 import { displayBrandForCategory, isAllowedBrandForCategory } from "@/lib/product-brand-rules";
+import { syncProposalCollections } from "@/lib/proposal-packages";
 import { useCrmStore } from "@/lib/use-crm-store";
 
 const schemes = ["STC HP", "STC SOLAR + BATTERY", "VEU APP - VIC Appliances", "VEU HP - VIC Water Heating", "VEU RESI", "VEU SH - VIC Space Heating/Cooling", "Off Scheme"];
@@ -239,12 +240,7 @@ export default function QuotesPage() {
     const existingQuote = !forceNew && currentQuoteId ? state.quotes.find((quote) => quote.id === currentQuoteId) : undefined;
     const quoteId = existingQuote?.id ?? nextQuoteId(state.quotes);
     const quote = buildQuote(status, quoteId);
-    setState({
-      ...state,
-      quotes: existingQuote
-        ? state.quotes.map((item) => (item.id === quote.id ? quote : item))
-        : [quote, ...state.quotes],
-    });
+    setState(syncProposalCollections(state, quote, customer));
     window.localStorage.setItem(`saveplanet-quote-${quote.id}`, JSON.stringify(quote));
     setCurrentQuoteId(quote.id);
     setMessage(status === "Draft" ? "Draft proposal created." : existingQuote ? "Quote updated." : forceNew ? "New quote saved." : "Quote saved.");

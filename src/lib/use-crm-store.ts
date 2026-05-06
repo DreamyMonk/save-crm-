@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { doc, getDoc, setDoc } from "firebase/firestore";
-import { CrmState, ModuleKey, initialCrmState } from "./crm-data";
+import { CrmState, ModuleKey, ProposalPackage, QuoteRecord, initialCrmState } from "./crm-data";
 import { getFirebaseDb } from "./firebase";
 
 const storageKey = "saveplanet-crm-state-v2";
@@ -47,6 +47,7 @@ function normalizeState(state: CrmState): CrmState {
     })),
     products: mergeById(state.products ?? [], initialCrmState.products),
     quotes: state.quotes ?? initialCrmState.quotes,
+    proposalPackages: normalizeProposalPackages(state),
     invoices: state.invoices ?? initialCrmState.invoices,
     appointments: state.appointments ?? initialCrmState.appointments,
     settings: {
@@ -64,6 +65,55 @@ function normalizeState(state: CrmState): CrmState {
       },
     },
   };
+}
+
+function normalizeProposalPackages(state: CrmState) {
+  const quotes = state.quotes ?? initialCrmState.quotes;
+  const existingPackages = state.proposalPackages ?? [];
+  const packageByQuote = new Map(existingPackages.map((proposalPackage) => [proposalPackage.quoteId, proposalPackage]));
+  return quotes.map((quote) => packageFromQuote(quote, packageByQuote.get(quote.id), state));
+}
+
+function packageFromQuote(quote: QuoteRecord, existingPackage: ProposalPackage | undefined, state: CrmState): ProposalPackage {
+  const customer = (state.customers ?? initialCrmState.customers).find((item) => item.id === quote.customerId);
+  const status = quote.customerSignedAt
+    ? "Signed"
+    : quote.proposalChangeRequestHtml
+      ? "Changes requested"
+      : quote.proposalOpenedAt
+        ? "Opened"
+        : quote.proposalSentAt
+          ? "Sent"
+          : "Draft";
+
+  return {
+    id: existingPackage?.id ?? `PP-${quote.id}`,
+    quoteId: quote.id,
+    invoiceId: existingPackage?.invoiceId,
+    customerId: quote.customerId,
+    leadId: customer?.leadId,
+    productCategory: quote.productCategory,
+    templateType: templateTypeForCategory(quote.productCategory),
+    publicToken: existingPackage?.publicToken ?? quote.id,
+    status,
+    assignedAgent: customer?.salesAgent || existingPackage?.assignedAgent || "Aarav Admin",
+    substituteAgent: customer?.secondSalesAgent || existingPackage?.substituteAgent,
+    sentBy: quote.proposalSentBy ?? existingPackage?.sentBy,
+    sentAt: quote.proposalSentAt ?? existingPackage?.sentAt,
+    openedAt: quote.proposalOpenedAt ?? existingPackage?.openedAt,
+    openCount: quote.proposalOpenCount ?? existingPackage?.openCount ?? 0,
+    signedAt: quote.customerSignedAt ?? existingPackage?.signedAt,
+    signatureDataUrl: quote.customerSignatureDataUrl ?? existingPackage?.signatureDataUrl,
+    changeRequestHtml: quote.proposalChangeRequestHtml ?? existingPackage?.changeRequestHtml,
+    changeRequestedAt: quote.proposalChangeRequestedAt ?? existingPackage?.changeRequestedAt,
+    lastActivityAt: quote.customerSignedAt ?? quote.proposalChangeRequestedAt ?? quote.proposalOpenedAt ?? quote.proposalSentAt ?? quote.activityDate,
+  };
+}
+
+function templateTypeForCategory(category: QuoteRecord["productCategory"]): ProposalPackage["templateType"] {
+  if (category === "Aircon") return "aircon";
+  if (category === "Heat Pump") return "heatpump";
+  return "solar";
 }
 
 function normalizeMemberModules(modules: CrmState["team"][number]["modules"], role: string) {
@@ -177,6 +227,7 @@ function mergeLocalCollections(remoteState: CrmState, localState: CrmState | nul
     products: mergeById(remoteState.products, localState.products),
     customers: mergeById(remoteState.customers, localState.customers),
     quotes: mergeById(remoteState.quotes, localState.quotes),
+    proposalPackages: mergeById(remoteState.proposalPackages, localState.proposalPackages),
   };
 }
 
@@ -193,6 +244,7 @@ async function saveMergedState(state: CrmState) {
     ...state,
     products: state.products.length === 0 && remoteState.products.length > 0 ? remoteState.products : state.products,
     quotes: state.quotes.length === 0 && remoteState.quotes.length > 0 ? remoteState.quotes : state.quotes,
+    proposalPackages: state.proposalPackages.length === 0 && remoteState.proposalPackages.length > 0 ? remoteState.proposalPackages : state.proposalPackages,
   };
   await setDoc(ref, mergedState);
   return mergedState;
