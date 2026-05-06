@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import { onAuthStateChanged, User } from "firebase/auth";
 import { ArrowLeft, Copy, Download, PenLine, Save, Send } from "lucide-react";
 import { CrmShell, PageHeader } from "@/components/crm-shell";
@@ -37,6 +37,7 @@ export function PublicProposalPage() {
 
 function ProposalWorkspace({ publicView = false, allowAnonymous = false }: { publicView?: boolean; allowAnonymous?: boolean }) {
   const { id } = useParams<{ id: string }>();
+  const searchParams = useSearchParams();
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const openTrackedRef = useRef(false);
   const { state, setState, ready } = useCrmStore();
@@ -48,8 +49,10 @@ function ProposalWorkspace({ publicView = false, allowAnonymous = false }: { pub
   const [autoSignName, setAutoSignName] = useState("");
   const [autoSignFont, setAutoSignFont] = useState(signatureFonts[0].value);
   const [changeRequestDrafts, setChangeRequestDrafts] = useState<Record<string, string>>({});
+  const proposalSnapshot = useMemo(() => decodeProposalSnapshot(searchParams.get("snapshot")), [searchParams]);
   const effectivePublicView = publicView || (allowAnonymous && authChecked && !user);
   const quote = useMemo(() => {
+    if (proposalSnapshot?.quote.id === id) return proposalSnapshot.quote;
     const fromState = state.quotes.find((item) => item.id === id);
     if (fromState) return fromState;
     if (typeof window === "undefined") return undefined;
@@ -60,8 +63,8 @@ function ProposalWorkspace({ publicView = false, allowAnonymous = false }: { pub
     } catch {
       return undefined;
     }
-  }, [id, state.quotes]);
-  const customer = state.customers.find((item) => item.id === quote?.customerId);
+  }, [id, proposalSnapshot, state.quotes]);
+  const customer = proposalSnapshot?.quote.id === id ? proposalSnapshot.customer : state.customers.find((item) => item.id === quote?.customerId);
   const quoteCategory = quote ? resolveQuoteCategory(quote, state.products) : "Aircon";
   const calculations = useMemo(() => {
     if (!quote) return undefined;
@@ -169,18 +172,18 @@ function ProposalWorkspace({ publicView = false, allowAnonymous = false }: { pub
 
   async function copyProposalLink() {
     if (!quote) return;
-    const link = `${window.location.origin}/proposal/${quote.id}`;
     const updatedQuote = markProposalSent() ?? quote;
     await publishProposalSnapshot(updatedQuote, customer);
+    const link = publicProposalLink(updatedQuote, customer);
     await navigator.clipboard?.writeText(link);
     setMessage("Public proposal link copied.");
   }
 
   async function sendProposalEmail() {
     if (!quote) return;
-    const link = `${window.location.origin}/proposal/${quote.id}`;
     const updatedQuote = markProposalSent() ?? quote;
     await publishProposalSnapshot(updatedQuote, customer);
+    const link = publicProposalLink(updatedQuote, customer);
 
     if (!customer?.email) {
       setMessage("Customer email is missing, so no proposal email was sent.");
@@ -410,6 +413,34 @@ async function publishProposalSnapshot(quote: QuoteRecord, customer: Customer | 
     window.localStorage.setItem(`saveplanet-proposal-customer-${quote.id}`, JSON.stringify(customer ?? null));
   }
   await new Promise((resolve) => setTimeout(resolve, 900));
+}
+
+function publicProposalLink(quote: QuoteRecord, customer: Customer | undefined) {
+  const snapshot = encodeProposalSnapshot({ quote, customer });
+  return `${window.location.origin}/proposal/${quote.id}?snapshot=${snapshot}`;
+}
+
+function encodeProposalSnapshot(snapshot: { quote: QuoteRecord; customer?: Customer }) {
+  const json = JSON.stringify(snapshot);
+  const bytes = new TextEncoder().encode(json);
+  let binary = "";
+  bytes.forEach((byte) => {
+    binary += String.fromCharCode(byte);
+  });
+  return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+}
+
+function decodeProposalSnapshot(value: string | null): { quote: QuoteRecord; customer?: Customer } | null {
+  if (!value || typeof window === "undefined") return null;
+  try {
+    const padded = value.replace(/-/g, "+").replace(/_/g, "/").padEnd(Math.ceil(value.length / 4) * 4, "=");
+    const binary = atob(padded);
+    const bytes = Uint8Array.from(binary, (char) => char.charCodeAt(0));
+    const snapshot = JSON.parse(new TextDecoder().decode(bytes)) as { quote?: QuoteRecord; customer?: Customer };
+    return snapshot.quote?.id ? { quote: snapshot.quote, customer: snapshot.customer } : null;
+  } catch {
+    return null;
+  }
 }
 
 function findSenderMember(state: CrmState, quote: QuoteRecord, customer: Customer | undefined, user: User | null) {
