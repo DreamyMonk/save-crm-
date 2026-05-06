@@ -642,7 +642,7 @@ export const initialCrmState: CrmState = {
     logoUrl: "",
     resend: {
       apiKey: "re_a3T4duJB_JgskL85WLQfVMWacL31ineQh",
-      fromEmail: "info@saveplanet.com.au",
+      fromEmail: "noreply@saveplanet.au",
       fromName: "SavePlanet CRM",
       enabled: true,
     },

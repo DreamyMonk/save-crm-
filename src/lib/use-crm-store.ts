@@ -64,7 +64,7 @@ function normalizeState(state: CrmState): CrmState {
       resend: {
         ...initialCrmState.settings.resend,
         ...(state.settings?.resend ?? legacyEmailSettings ?? {}),
-        fromEmail: "info@saveplanet.com.au",
+        fromEmail: "noreply@saveplanet.au",
         enabled: true,
       },
       twilio: {
