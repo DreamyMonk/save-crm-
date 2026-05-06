@@ -46,6 +46,19 @@ export type MailMessage = {
   createdAt: string;
 };
 
+export type LeadSource = "Manual" | "Meta Ads" | "Google Ads" | "Website" | "Referral" | "Walk-in" | "Campaign";
+
+export type LeadSalesPhase = "Enquiry" | "First call" | "Business pitch" | "Proposal pending" | "Proposal sent" | "Signed won" | "Lost";
+
+export type LeadActivity = {
+  id: string;
+  type: "Call" | "Follow-up" | "Meeting" | "Pitch" | "Proposal" | "Note";
+  summary: string;
+  outcome: string;
+  createdAt: string;
+  createdBy: string;
+};
+
 export type ProposalElementType =
   | "heading"
   | "paragraph"
@@ -95,13 +108,21 @@ export type Lead = {
   email: string;
   phone: string;
   source: string;
+  leadSource?: LeadSource;
+  salesPhase?: LeadSalesPhase;
   pipelineId: string;
   stageId: string;
   amount: number;
+  ticketSize?: number;
+  productInterest?: string;
   probability: number;
   assignedTo: string;
+  substituteAssignedTo?: string;
   priority: "Hot" | "Warm" | "Cold";
   nextAction: string;
+  callCount?: number;
+  lastContactedAt?: string;
+  activities?: LeadActivity[];
   tasks: Task[];
   notes: Note[];
   mails: MailMessage[];
@@ -362,9 +383,13 @@ export const initialCrmState: CrmState = {
       description: "Default sales flow for new opportunities.",
       stages: [
         { id: "new", name: "New Lead", color: "bg-sky-500" },
+        { id: "first-call", name: "First Call", color: "bg-cyan-500" },
         { id: "discussion", name: "In Discussion", color: "bg-amber-500" },
+        { id: "pitch", name: "Business Pitch", color: "bg-blue-500" },
+        { id: "quote-pending", name: "Quote Pending", color: "bg-indigo-500" },
         { id: "proposal", name: "Proposal", color: "bg-violet-500" },
         { id: "closed", name: "Closed Won", color: "bg-emerald-500" },
+        { id: "lost", name: "Lost", color: "bg-rose-500" },
       ],
     },
     {

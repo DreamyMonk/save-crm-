@@ -16,12 +16,25 @@ export default function ReportsPage() {
   const won = filteredLeads.filter((lead) => lead.stageId.includes("closed") || lead.stageId.includes("install"));
 
   function downloadCsv() {
-    const header = ["Lead", "Company", "Pipeline", "Stage", "Amount", "Probability", "Owner"];
+    const header = ["Lead", "Company", "Source", "Sales phase", "Pipeline", "Stage", "Amount", "Ticket size", "Probability", "Owner", "Calls", "Last contacted"];
     const rows = filteredLeads.map((lead) => {
       const pipeline = state.pipelines.find((item) => item.id === lead.pipelineId);
       const stage = pipeline?.stages.find((item) => item.id === lead.stageId);
       const owner = state.team.find((member) => member.id === lead.assignedTo);
-      return [lead.title, lead.company, pipeline?.name ?? lead.pipelineId, stage?.name ?? lead.stageId, String(lead.amount), String(lead.probability), owner?.name ?? ""];
+      return [
+        lead.title,
+        lead.company,
+        lead.leadSource ?? lead.source,
+        lead.salesPhase ?? "",
+        pipeline?.name ?? lead.pipelineId,
+        stage?.name ?? lead.stageId,
+        String(lead.amount),
+        String(lead.ticketSize ?? lead.amount),
+        String(lead.probability),
+        owner?.name ?? "",
+        String(lead.callCount ?? 0),
+        lead.lastContactedAt ?? "",
+      ];
     });
     const csv = [header, ...rows].map((row) => row.map((cell) => `"${cell.replaceAll('"', '""')}"`).join(",")).join("\n");
     const url = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
@@ -49,6 +62,12 @@ export default function ReportsPage() {
           <Summary label="Weighted forecast" value={currency(weighted)} />
           <Summary label="Won opportunities" value={String(won.length)} />
           <Summary label="Total leads" value={String(filteredLeads.length)} />
+        </div>
+        <div className="grid gap-4 md:grid-cols-4">
+          <Summary label="Manual leads" value={String(filteredLeads.filter((lead) => (lead.leadSource ?? lead.source) === "Manual").length)} />
+          <Summary label="Meta ad leads" value={String(filteredLeads.filter((lead) => (lead.leadSource ?? lead.source) === "Meta Ads").length)} />
+          <Summary label="Google ad leads" value={String(filteredLeads.filter((lead) => (lead.leadSource ?? lead.source) === "Google Ads").length)} />
+          <Summary label="Agent calls logged" value={String(filteredLeads.reduce((sum, lead) => sum + (lead.callCount ?? 0), 0))} />
         </div>
         <AnalyticsDashboard
           leads={state.leads}

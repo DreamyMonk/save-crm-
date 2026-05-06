@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { doc, getDoc, setDoc } from "firebase/firestore";
-import { CrmState, ModuleKey, ProposalPackage, QuoteRecord, initialCrmState } from "./crm-data";
+import { CrmState, Lead, LeadSalesPhase, LeadSource, ModuleKey, ProposalPackage, QuoteRecord, initialCrmState } from "./crm-data";
 import { getFirebaseDb } from "./firebase";
 
 const storageKey = "saveplanet-crm-state-v2";
@@ -16,6 +16,7 @@ function normalizeState(state: CrmState): CrmState {
   return {
     ...initialCrmState,
     ...state,
+    pipelines: normalizePipelines(state.pipelines ?? initialCrmState.pipelines),
     team: (state.team ?? initialCrmState.team).map((member) => {
       const normalizedMember = {
         ...member,
@@ -28,6 +29,14 @@ function normalizeState(state: CrmState): CrmState {
     }),
     leads: (state.leads ?? initialCrmState.leads).map((lead) => ({
       ...lead,
+      leadSource: normalizeLeadSource(lead.leadSource ?? lead.source),
+      salesPhase: normalizeSalesPhase(lead.salesPhase, lead.stageId),
+      ticketSize: lead.ticketSize ?? lead.amount,
+      productInterest: lead.productInterest ?? lead.customFields?.find((field) => field.label.toLowerCase().includes("product"))?.value ?? lead.title,
+      substituteAssignedTo: lead.substituteAssignedTo ?? "",
+      callCount: lead.callCount ?? lead.activities?.filter((activity) => activity.type === "Call").length ?? 0,
+      lastContactedAt: lead.lastContactedAt ?? lead.activities?.[0]?.createdAt,
+      activities: lead.activities ?? [],
       customFields: lead.customFields ?? [],
       proposal: lead.proposal,
       communicationPreferences: lead.communicationPreferences ?? {
@@ -65,6 +74,41 @@ function normalizeState(state: CrmState): CrmState {
       },
     },
   };
+}
+
+const salesStages = initialCrmState.pipelines.find((pipeline) => pipeline.id === "sales")?.stages ?? [];
+
+function normalizePipelines(pipelines: CrmState["pipelines"]) {
+  return pipelines.map((pipeline) => {
+    if (pipeline.id !== "sales") return pipeline;
+    const stageIds = new Set(pipeline.stages.map((stage) => stage.id));
+    return {
+      ...pipeline,
+      stages: [...pipeline.stages, ...salesStages.filter((stage) => !stageIds.has(stage.id))],
+    };
+  });
+}
+
+function normalizeLeadSource(value?: string): LeadSource {
+  const normalized = (value || "Manual").toLowerCase();
+  if (normalized.includes("meta")) return "Meta Ads";
+  if (normalized.includes("google")) return "Google Ads";
+  if (normalized.includes("website")) return "Website";
+  if (normalized.includes("referral")) return "Referral";
+  if (normalized.includes("walk")) return "Walk-in";
+  if (normalized.includes("campaign")) return "Campaign";
+  return "Manual";
+}
+
+function normalizeSalesPhase(value: Lead["salesPhase"], stageId: string): LeadSalesPhase {
+  if (value) return value;
+  if (stageId === "first-call" || stageId === "discussion") return "First call";
+  if (stageId === "pitch") return "Business pitch";
+  if (stageId === "quote-pending") return "Proposal pending";
+  if (stageId === "proposal") return "Proposal sent";
+  if (stageId === "closed" || stageId === "install") return "Signed won";
+  if (stageId === "lost") return "Lost";
+  return "Enquiry";
 }
 
 function normalizeProposalPackages(state: CrmState) {

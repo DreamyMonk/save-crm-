@@ -3,10 +3,10 @@
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useState } from "react";
-import { CalendarDays, ClipboardList, Pencil, Plus, Save, Trash2, UserPlus } from "lucide-react";
+import { CalendarDays, ClipboardList, Pencil, PhoneCall, Plus, Save, Trash2, UserPlus } from "lucide-react";
 import { ButtonLink, CrmShell, PageHeader } from "@/components/crm-shell";
 import { RichTextEditor } from "@/components/rich-text-editor";
-import { CommunicationPreferences, CustomField, Lead, currency, defaultCommunicationPreferences } from "@/lib/crm-data";
+import { CommunicationPreferences, CustomField, Lead, LeadActivity, LeadSalesPhase, LeadSource, currency, defaultCommunicationPreferences } from "@/lib/crm-data";
 import { htmlToPlainText } from "@/lib/text";
 import { useCrmStore } from "@/lib/use-crm-store";
 
@@ -14,6 +14,9 @@ export default function LeadDetailPage() {
   const params = useParams<{ id: string }>();
   const { state, setState } = useCrmStore();
   const [customerStatus, setCustomerStatus] = useState("");
+  const [activityType, setActivityType] = useState<LeadActivity["type"]>("Call");
+  const [activitySummary, setActivitySummary] = useState("");
+  const [activityOutcome, setActivityOutcome] = useState("");
   const lead = state.leads.find((item) => item.id === params.id);
 
   if (!lead) {
@@ -32,6 +35,24 @@ export default function LeadDetailPage() {
 
   function update(field: keyof Lead, value: string | number) {
     updateLead({ [field]: value });
+  }
+
+  function updateAssignment(memberId: string, field: "assignedTo" | "substituteAssignedTo") {
+    const member = state.team.find((item) => item.id === memberId);
+    updateLead({
+      [field]: memberId,
+      activities: [
+        {
+          id: `A-${leadId}-${(currentLead.activities ?? []).length + 1}`,
+          type: "Note",
+          summary: `${field === "assignedTo" ? "Primary" : "Substitute"} sales person set to ${member?.name ?? "None"}.`,
+          outcome: "Allocation updated from lead profile.",
+          createdAt: new Date().toISOString(),
+          createdBy: "Admin",
+        },
+        ...(currentLead.activities ?? []),
+      ],
+    });
   }
 
   function updateLead(updates: Partial<Lead>) {
@@ -78,14 +99,15 @@ export default function LeadDetailPage() {
 
     setState({
       ...state,
-      customers: [
+          customers: [
         ...state.customers,
         {
           id: `C-${1000 + state.customers.length + 1}`,
           customerType: "Business",
           businessName: currentLead.company,
           contactType: "Primary",
-          salesAgent: "Aarav Admin",
+          salesAgent: state.team.find((member) => member.id === currentLead.assignedTo)?.name ?? "Aarav Admin",
+          secondSalesAgent: state.team.find((member) => member.id === currentLead.substituteAssignedTo)?.name ?? "",
           firstName: currentLead.contact.split(" ")[0] ?? currentLead.contact,
           lastName: currentLead.contact.split(" ").slice(1).join(" "),
           name: currentLead.contact,
@@ -113,6 +135,35 @@ export default function LeadDetailPage() {
       ),
     });
     setCustomerStatus("Added to customer database.");
+  }
+
+  function addActivity() {
+    if (!activitySummary.trim()) return;
+    const createdAt = new Date().toISOString();
+    const activity: LeadActivity = {
+      id: `A-${leadId}-${(currentLead.activities ?? []).length + 1}`,
+      type: activityType,
+      summary: activitySummary,
+      outcome: activityOutcome || "Progress updated.",
+      createdAt,
+      createdBy: owner,
+    };
+    const isCall = activityType === "Call";
+    updateLead({
+      activities: [activity, ...(currentLead.activities ?? [])],
+      callCount: (currentLead.callCount ?? 0) + (isCall ? 1 : 0),
+      lastContactedAt: createdAt,
+      notes: [
+        {
+          id: `N-${leadId}-${currentLead.notes.length + 1}`,
+          body: `${activity.type}: ${activity.summary} - ${activity.outcome}`,
+          createdAt,
+        },
+        ...currentLead.notes,
+      ],
+    });
+    setActivitySummary("");
+    setActivityOutcome("");
   }
 
   return (
@@ -150,8 +201,22 @@ export default function LeadDetailPage() {
             <Field label="Email" value={lead.email} onChange={(value) => update("email", value)} />
             <Field label="Phone" value={lead.phone} onChange={(value) => update("phone", value)} />
             <Field label="Source" value={lead.source} onChange={(value) => update("source", value)} />
+            <label className="space-y-1 text-sm">
+              <span className="font-medium text-[#657267]">Lead source</span>
+              <select value={lead.leadSource ?? lead.source} onChange={(event) => updateLead({ leadSource: event.target.value as LeadSource, source: event.target.value })} className="h-11 w-full rounded-lg border border-[#d7dfd0] px-3 outline-none">
+                {(["Manual", "Meta Ads", "Google Ads", "Website", "Referral", "Walk-in", "Campaign"] as LeadSource[]).map((source) => <option key={source}>{source}</option>)}
+              </select>
+            </label>
             <Field label="Amount" value={lead.amount} type="number" onChange={(value) => update("amount", Number(value))} />
+            <Field label="Ticket size" value={lead.ticketSize ?? lead.amount} type="number" onChange={(value) => update("ticketSize", Number(value))} />
+            <Field label="Product needed" value={lead.productInterest ?? lead.title} onChange={(value) => update("productInterest", value)} />
             <Field label="Probability" value={lead.probability} type="number" onChange={(value) => update("probability", Number(value))} />
+            <label className="space-y-1 text-sm">
+              <span className="font-medium text-[#657267]">Sales phase</span>
+              <select value={lead.salesPhase ?? "Enquiry"} onChange={(event) => updateLead({ salesPhase: event.target.value as LeadSalesPhase })} className="h-11 w-full rounded-lg border border-[#d7dfd0] px-3 outline-none">
+                {(["Enquiry", "First call", "Business pitch", "Proposal pending", "Proposal sent", "Signed won", "Lost"] as LeadSalesPhase[]).map((phase) => <option key={phase}>{phase}</option>)}
+              </select>
+            </label>
             <label className="space-y-1 text-sm">
               <span className="font-medium text-[#657267]">Stage</span>
               <select value={lead.stageId} onChange={(event) => update("stageId", event.target.value)} className="h-11 w-full rounded-lg border border-[#d7dfd0] px-3 outline-none">
@@ -160,7 +225,14 @@ export default function LeadDetailPage() {
             </label>
             <label className="space-y-1 text-sm">
               <span className="font-medium text-[#657267]">Assigned to</span>
-              <select value={lead.assignedTo} onChange={(event) => update("assignedTo", event.target.value)} className="h-11 w-full rounded-lg border border-[#d7dfd0] px-3 outline-none">
+              <select value={lead.assignedTo} onChange={(event) => updateAssignment(event.target.value, "assignedTo")} className="h-11 w-full rounded-lg border border-[#d7dfd0] px-3 outline-none">
+                {members.map((member) => <option key={member.id} value={member.id}>{member.name}</option>)}
+              </select>
+            </label>
+            <label className="space-y-1 text-sm">
+              <span className="font-medium text-[#657267]">Substitute sales person</span>
+              <select value={lead.substituteAssignedTo ?? ""} onChange={(event) => updateAssignment(event.target.value, "substituteAssignedTo")} className="h-11 w-full rounded-lg border border-[#d7dfd0] px-3 outline-none">
+                <option value="">None</option>
                 {members.map((member) => <option key={member.id} value={member.id}>{member.name}</option>)}
               </select>
             </label>
@@ -175,8 +247,34 @@ export default function LeadDetailPage() {
         </section>
 
         <aside className="space-y-4">
-          <Panel title="Lead owner" lines={[owner, pipeline?.name ?? "No pipeline", lead.priority]} />
+          <Panel title="Lead owner" lines={[owner, pipeline?.name ?? "No pipeline", lead.priority, `Calls: ${lead.callCount ?? 0}`]} />
           {customerStatus ? <Panel title="Customer database" lines={[customerStatus]} /> : null}
+          <section className="rounded-lg border border-[#dce3d5] bg-white p-4 shadow-sm">
+            <div className="flex items-center gap-2">
+              <PhoneCall size={17} />
+              <h2 className="font-semibold">Agent activity</h2>
+            </div>
+            <div className="mt-3 grid gap-2">
+              <select value={activityType} onChange={(event) => setActivityType(event.target.value as LeadActivity["type"])} className="h-10 rounded-lg border border-[#d7dfd0] px-3 text-sm outline-none">
+                {(["Call", "Follow-up", "Meeting", "Pitch", "Proposal", "Note"] as LeadActivity["type"][]).map((type) => <option key={type}>{type}</option>)}
+              </select>
+              <input value={activitySummary} onChange={(event) => setActivitySummary(event.target.value)} placeholder="What happened?" className="h-10 rounded-lg border border-[#d7dfd0] px-3 text-sm outline-none" />
+              <input value={activityOutcome} onChange={(event) => setActivityOutcome(event.target.value)} placeholder="Outcome / next progress" className="h-10 rounded-lg border border-[#d7dfd0] px-3 text-sm outline-none" />
+              <button onClick={addActivity} className="h-10 rounded-lg bg-[#003CBB] px-3 text-sm font-semibold text-white">Add activity</button>
+            </div>
+            <div className="mt-4 space-y-3">
+              {(lead.activities ?? []).slice(0, 8).map((activity) => (
+                <div key={activity.id} className="rounded-lg border border-[#edf2e9] p-3 text-sm">
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="font-semibold">{activity.type}</p>
+                    <span className="text-xs text-[#657267]">{formatActivityDate(activity.createdAt)}</span>
+                  </div>
+                  <p className="mt-1 text-[#0f172a]">{activity.summary}</p>
+                  <p className="mt-1 text-xs text-[#657267]">{activity.outcome}</p>
+                </div>
+              ))}
+            </div>
+          </section>
           <CommunicationPanel
             preferences={lead.communicationPreferences ?? defaultCommunicationPreferences()}
             updatePreference={updatePreference}
@@ -206,6 +304,12 @@ export default function LeadDetailPage() {
       </div>
     </CrmShell>
   );
+}
+
+function formatActivityDate(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleString("en-AU", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" });
 }
 
 function Field({ label, value, type = "text", onChange }: { label: string; value: string | number; type?: string; onChange: (value: string) => void }) {

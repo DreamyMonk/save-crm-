@@ -15,6 +15,10 @@ export default function DashboardPage() {
   const weighted = openLeads.reduce((sum, lead) => sum + lead.amount * (lead.probability / 100), 0);
   const closed = state.leads.filter((lead) => lead.stageId.includes("closed")).reduce((sum, lead) => sum + lead.amount, 0);
   const due = state.invoices.filter((invoice) => invoice.status !== "Paid").reduce((sum, invoice) => sum + invoiceBalance(invoice), 0);
+  const metaLeads = state.leads.filter((lead) => (lead.leadSource ?? lead.source) === "Meta Ads").length;
+  const googleLeads = state.leads.filter((lead) => (lead.leadSource ?? lead.source) === "Google Ads").length;
+  const unassigned = state.leads.filter((lead) => !lead.assignedTo).length;
+  const signedPackages = state.proposalPackages.filter((proposalPackage) => proposalPackage.signedAt).length;
 
   return (
     <CrmShell>
@@ -36,6 +40,12 @@ export default function DashboardPage() {
           <Metric label="Weighted forecast" value={currency(weighted)} note="Probability based" icon={<CircleDollarSign size={18} />} />
           <Metric label="Closed sales" value={currency(closed)} note="Won opportunities" icon={<CheckCircle2 size={18} />} />
           <Metric label="Invoice due" value={currency(due)} note="Sent and overdue" icon={<ReceiptText size={18} />} />
+        </div>
+        <div className="grid gap-4 md:grid-cols-4">
+          <Metric label="Meta leads" value={String(metaLeads)} note="Fetched or tagged from Meta" icon={<KanbanSquare size={18} />} />
+          <Metric label="Google leads" value={String(googleLeads)} note="Fetched or tagged from Google" icon={<KanbanSquare size={18} />} />
+          <Metric label="Unassigned leads" value={String(unassigned)} note="Needs admin allocation" icon={<Plus size={18} />} />
+          <Metric label="Signed sales" value={String(signedPackages)} note="Signed proposal packages" icon={<CheckCircle2 size={18} />} />
         </div>
         <AnalyticsDashboard
           leads={state.leads}

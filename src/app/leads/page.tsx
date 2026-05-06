@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { ClipboardList, Plus, Search, Settings2 } from "lucide-react";
 import { ButtonLink, CrmShell, PageHeader } from "@/components/crm-shell";
-import { Lead, currency } from "@/lib/crm-data";
+import { Lead, LeadSource, currency } from "@/lib/crm-data";
+import { isDeliverableEmail, sendResendEmail } from "@/lib/send-email";
 import { useCrmStore } from "@/lib/use-crm-store";
 import { useMemo, useState } from "react";
 
@@ -13,6 +14,8 @@ export default function LeadsPage() {
   const [search, setSearch] = useState("");
   const [owner, setOwner] = useState("all");
   const [priority, setPriority] = useState("all");
+  const [source, setSource] = useState("all");
+  const [message, setMessage] = useState("");
 
   const activePipeline = state.pipelines.find((pipeline) => pipeline.id === pipelineId) ?? state.pipelines[0];
   const assignable = state.team.filter((member) => member.active && member.modules.includes("leads"));
@@ -24,16 +27,50 @@ export default function LeadsPage() {
         lead.pipelineId === activePipeline?.id &&
         text.includes(search.toLowerCase()) &&
         (owner === "all" || lead.assignedTo === owner) &&
+        (source === "all" || (lead.leadSource ?? lead.source) === source) &&
         (priority === "all" || lead.priority === priority)
       );
     });
-  }, [activePipeline?.id, owner, priority, search, state.leads]);
+  }, [activePipeline?.id, owner, priority, search, source, state.leads]);
 
   function moveLead(leadId: string, stageId: string) {
     setState({
       ...state,
       leads: state.leads.map((lead) => (lead.id === leadId ? { ...lead, stageId } : lead)),
     });
+  }
+
+  async function assignLead(leadId: string, memberId: string) {
+    const lead = state.leads.find((item) => item.id === leadId);
+    const member = state.team.find((item) => item.id === memberId);
+    if (!lead || !member) return;
+    const assignedAt = new Date().toISOString();
+    const nextLead: Lead = {
+      ...lead,
+      assignedTo: memberId,
+      activities: [
+        {
+          id: `A-${lead.id}-${(lead.activities ?? []).length + 1}`,
+          type: "Note",
+          summary: `Lead assigned to ${member.name}.`,
+          outcome: "Allocation updated by admin.",
+          createdAt: assignedAt,
+          createdBy: "Admin",
+        },
+        ...(lead.activities ?? []),
+      ],
+    };
+    setState({ ...state, leads: state.leads.map((item) => (item.id === leadId ? nextLead : item)) });
+    if (isDeliverableEmail(member.email)) {
+      const sent = await sendResendEmail(state, {
+        recipients: [{ email: member.email!, name: member.name }],
+        subject: `New lead assigned: ${lead.title}`,
+        text: `Hi ${member.name},\n\nA lead has been assigned to you in SavePlanet CRM.\n\nLead: ${lead.title}\nCustomer: ${lead.contact}\nCompany: ${lead.company}\nSource: ${lead.leadSource ?? lead.source}\nTicket size: ${currency(lead.ticketSize ?? lead.amount)}\n\nPlease open the CRM and update call/follow-up activity.`,
+      });
+      setMessage(sent ? `Assigned to ${member.name} and email sent.` : `Assigned to ${member.name}. Email failed.`);
+    } else {
+      setMessage(`Assigned to ${member.name}. Add a real email in Access Manager for notifications.`);
+    }
   }
 
   return (
@@ -85,8 +122,13 @@ export default function LeadsPage() {
               <option>Warm</option>
               <option>Cold</option>
             </select>
+            <select value={source} onChange={(event) => setSource(event.target.value)} className="h-10 rounded-lg border border-[#d7dfd0] bg-white px-3 text-sm outline-none">
+              <option value="all">All sources</option>
+              {(["Manual", "Meta Ads", "Google Ads", "Website", "Referral", "Walk-in", "Campaign"] as LeadSource[]).map((item) => <option key={item}>{item}</option>)}
+            </select>
           </div>
         </div>
+        {message ? <p className="rounded-lg bg-[#eef4ff] p-3 text-sm font-semibold text-[#003CBB]">{message}</p> : null}
         <div className="grid auto-cols-[340px] grid-flow-col gap-4 overflow-x-auto pb-4">
           {activePipeline?.stages.map((stage) => {
             const stageLeads = visibleLeads.filter((lead) => lead.stageId === stage.id);
@@ -110,7 +152,7 @@ export default function LeadsPage() {
                 </div>
                 <div className="space-y-3 p-3">
                   {stageLeads.map((lead) => (
-                    <LeadCard key={lead.id} lead={lead} owner={state.team.find((member) => member.id === lead.assignedTo)?.name ?? "Unassigned"} />
+                    <LeadCard key={lead.id} lead={lead} owner={state.team.find((member) => member.id === lead.assignedTo)?.name ?? "Unassigned"} members={assignable} onAssign={assignLead} />
                   ))}
                 </div>
               </section>
@@ -122,7 +164,7 @@ export default function LeadsPage() {
   );
 }
 
-function LeadCard({ lead, owner }: { lead: Lead; owner: string }) {
+function LeadCard({ lead, owner, members, onAssign }: { lead: Lead; owner: string; members: { id: string; name: string }[]; onAssign: (leadId: string, memberId: string) => void }) {
   return (
     <article
       draggable
@@ -138,11 +180,21 @@ function LeadCard({ lead, owner }: { lead: Lead; owner: string }) {
         <span className="rounded-md bg-[#eef4ff] px-2 py-1 text-xs font-semibold text-[#003CBB]">{lead.priority}</span>
         <span className="text-sm font-semibold">{currency(lead.amount)}</span>
       </div>
+      <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
+        <span className="rounded-md bg-[#f6f8fc] px-2 py-1 font-semibold text-[#4f5e55]">{lead.leadSource ?? lead.source}</span>
+        <span className="rounded-md bg-[#f6f8fc] px-2 py-1 font-semibold text-[#4f5e55]">{lead.salesPhase ?? "Enquiry"}</span>
+      </div>
       <div className="mt-3 border-t border-[#edf2e9] pt-3">
         <Link href={`/leads/${lead.id}/tasks`} className="inline-flex h-9 items-center justify-center rounded-lg border border-[#d7e3ff] bg-white text-[#003CBB] transition hover:bg-[#eef4ff]" title="Tasks and notes">
           <ClipboardList size={16} />
         </Link>
       </div>
+      <label className="mt-3 block text-xs font-semibold text-[#657267]">
+        Allocate
+        <select value={lead.assignedTo} onChange={(event) => onAssign(lead.id, event.target.value)} className="mt-1 h-9 w-full rounded-lg border border-[#d7dfd0] bg-white px-2 text-xs outline-none">
+          {members.map((member) => <option key={member.id} value={member.id}>{member.name}</option>)}
+        </select>
+      </label>
       <div className="mt-3 flex items-center justify-between gap-3 text-xs text-[#657267]">
         <span className="truncate">{owner}</span>
         <span>{lead.probability}%</span>
