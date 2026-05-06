@@ -1,12 +1,12 @@
 "use client";
 
 import { deleteApp, initializeApp } from "firebase/app";
-import { createUserWithEmailAndPassword, getAuth } from "firebase/auth";
+import { createUserWithEmailAndPassword, getAuth, onAuthStateChanged, User } from "firebase/auth";
 import { ShieldCheck, Trash2, UserPlus } from "lucide-react";
-import { FormEvent, useRef, useState } from "react";
+import { FormEvent, useEffect, useRef, useState } from "react";
 import { CrmShell, PageHeader } from "@/components/crm-shell";
 import { ModuleKey, TeamMember, moduleLabels } from "@/lib/crm-data";
-import { firebaseConfig } from "@/lib/firebase";
+import { firebaseConfig, getFirebaseAuth } from "@/lib/firebase";
 import { useCrmStore } from "@/lib/use-crm-store";
 
 const defaultModules: ModuleKey[] = ["dashboard", "leads"];
@@ -15,7 +15,12 @@ export default function AccessPage() {
   const { state, setState } = useCrmStore();
   const [message, setMessage] = useState("");
   const [creatingUser, setCreatingUser] = useState(false);
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
   const createUserCounter = useRef(0);
+
+  useEffect(() => {
+    return onAuthStateChanged(getFirebaseAuth(), setCurrentUser);
+  }, []);
 
   async function addUser(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -72,40 +77,68 @@ export default function AccessPage() {
 
   function upsertAccessMember(member: TeamMember) {
     const existingId = existingMemberId(state.team, member.email ?? "");
-    setState({
-      ...state,
-      team: existingId
-        ? state.team.map((item) => (item.id === existingId ? { ...item, ...member, id: existingId } : item))
-        : [...state.team, member],
+    setState((currentState) => {
+      const currentExistingId = existingMemberId(currentState.team, member.email ?? "") ?? existingId;
+      return {
+        ...currentState,
+        team: currentExistingId
+          ? currentState.team.map((item) => (item.id === currentExistingId ? { ...item, ...member, id: currentExistingId } : item))
+          : [...currentState.team, member],
+      };
     });
   }
 
   function toggleModule(memberId: string, module: ModuleKey) {
-    setState({
-      ...state,
-      team: state.team.map((member) =>
-        member.id === memberId
-          ? {
-              ...member,
-              modules: member.modules.includes(module) ? member.modules.filter((item) => item !== module) : [...member.modules, module],
-            }
-          : member,
-      ),
+    const targetMember = state.team.find((member) => member.id === memberId);
+    if (targetMember && isCurrentMember(targetMember, currentUser) && module === "access" && targetMember.modules.includes("access")) {
+      setMessage("You cannot remove your own Access module while signed in.");
+      return;
+    }
+    setState((currentState) => {
+      const nextState = {
+        ...currentState,
+        team: currentState.team.map((member) =>
+          member.id === memberId
+            ? {
+                ...member,
+                modules: member.modules.includes(module) ? member.modules.filter((item) => item !== module) : [...member.modules, module],
+              }
+            : member,
+        ),
+      };
+      setMessage("Module access updated and will be enforced on next navigation.");
+      return nextState;
     });
   }
 
   function updateMember(memberId: string, updates: Partial<TeamMember>) {
-    setState({
-      ...state,
-      team: state.team.map((member) => (member.id === memberId ? { ...member, ...updates } : member)),
+    const targetMember = state.team.find((member) => member.id === memberId);
+    if (targetMember && isCurrentMember(targetMember, currentUser) && updates.active === false) {
+      setMessage("You cannot deactivate your own access while signed in.");
+      return;
+    }
+    setState((currentState) => {
+      const nextState = {
+        ...currentState,
+        team: currentState.team.map((member) => (member.id === memberId ? { ...member, ...updates } : member)),
+      };
+      setMessage("Access profile updated.");
+      return nextState;
     });
   }
 
   function removeAccess(memberId: string) {
-    setState({
-      ...state,
-      team: state.team.filter((member) => member.id !== memberId),
-      leads: state.leads.map((lead) => (lead.assignedTo === memberId ? { ...lead, assignedTo: "admin" } : lead)),
+    const targetMember = state.team.find((member) => member.id === memberId);
+    if (targetMember && isCurrentMember(targetMember, currentUser)) {
+      setMessage("You cannot remove your own access while signed in.");
+      return;
+    }
+    setState((currentState) => {
+      return {
+        ...currentState,
+        team: currentState.team.filter((member) => member.id !== memberId),
+        leads: currentState.leads.map((lead) => (lead.assignedTo === memberId ? { ...lead, assignedTo: "admin" } : lead)),
+      };
     });
     setMessage("CRM access removed. Firebase Auth account deletion needs server Admin SDK.");
   }
@@ -151,10 +184,13 @@ export default function AccessPage() {
         </form>
 
         <section className="space-y-3">
-          {state.team.map((member) => (
+          {state.team.map((member) => {
+            const self = isCurrentMember(member, currentUser);
+            return (
             <article key={member.id} className="rounded-lg border border-[#dce3d5] bg-white p-4 shadow-sm">
               <div className="grid gap-4 xl:grid-cols-[280px_1fr_120px]">
                 <div>
+                  {self ? <p className="mb-2 inline-flex rounded-full bg-[#eef4ff] px-2.5 py-1 text-xs font-semibold text-[#003CBB]">Signed in now</p> : null}
                   <input
                     value={member.name}
                     onChange={(event) => updateMember(member.id, { name: event.target.value })}
@@ -178,9 +214,10 @@ export default function AccessPage() {
                     <button
                       key={module}
                       onClick={() => toggleModule(member.id, module)}
+                      disabled={self && module === "access" && member.modules.includes("access")}
                       className={`inline-flex h-9 items-center gap-2 rounded-lg border px-3 text-sm font-medium ${
                         member.modules.includes(module) ? "border-[#12201b] bg-[#003CBB] text-white" : "border-[#d7dfd0] bg-white text-[#657267]"
-                      }`}
+                      } disabled:cursor-not-allowed disabled:opacity-60`}
                     >
                       <ShieldCheck size={15} /> {moduleLabels[module]}
                     </button>
@@ -189,17 +226,19 @@ export default function AccessPage() {
                 <div className="flex flex-col gap-2">
                   <button
                     onClick={() => updateMember(member.id, { active: !member.active })}
-                    className="h-9 rounded-lg border border-[#d7dfd0] px-3 text-sm font-semibold"
+                    disabled={self && member.active}
+                    className="h-9 rounded-lg border border-[#d7dfd0] px-3 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     {member.active ? "Active" : "Inactive"}
                   </button>
-                  <button onClick={() => removeAccess(member.id)} className="inline-flex h-9 items-center justify-center gap-2 rounded-lg bg-rose-600 px-3 text-sm font-semibold text-white">
+                  <button disabled={self} onClick={() => removeAccess(member.id)} className="inline-flex h-9 items-center justify-center gap-2 rounded-lg bg-rose-600 px-3 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:bg-rose-300">
                     <Trash2 size={15} /> Remove
                   </button>
                 </div>
               </div>
             </article>
-          ))}
+          );
+          })}
         </section>
       </div>
     </CrmShell>
@@ -218,6 +257,13 @@ function Input({ label, ...props }: React.InputHTMLAttributes<HTMLInputElement> 
 function existingMemberId(team: TeamMember[], email: string) {
   const normalized = email.trim().toLowerCase();
   return team.find((member) => member.email?.trim().toLowerCase() === normalized)?.id;
+}
+
+function isCurrentMember(member: TeamMember, user: User | null) {
+  if (!user) return false;
+  const memberEmail = member.email?.trim().toLowerCase();
+  const userEmail = user.email?.trim().toLowerCase();
+  return Boolean((member.uid && member.uid === user.uid) || (memberEmail && userEmail && memberEmail === userEmail));
 }
 
 function fallbackMemberId(email: string) {

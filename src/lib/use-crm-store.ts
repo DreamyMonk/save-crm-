@@ -24,7 +24,7 @@ function normalizeState(state: CrmState): CrmState {
       };
       return {
         ...normalizedMember,
-        modules: normalizeMemberModules(normalizedMember.modules, normalizedMember.role),
+        modules: normalizeMemberModules(normalizedMember.modules),
       };
     }),
     leads: (state.leads ?? initialCrmState.leads).map((lead) => ({
@@ -160,12 +160,9 @@ function templateTypeForCategory(category: QuoteRecord["productCategory"]): Prop
   return "solar";
 }
 
-function normalizeMemberModules(modules: CrmState["team"][number]["modules"], role: string) {
-  if (role !== "Admin") {
-    return modules;
-  }
-  const adminModules: ModuleKey[] = ["customers", "products", "quotes"];
-  return adminModules.reduce((currentModules, module) => (currentModules.includes(module) ? currentModules : [...currentModules, module]), modules);
+function normalizeMemberModules(modules: CrmState["team"][number]["modules"]) {
+  const validModules = new Set(Object.keys(initialCrmStateModuleLabels()) as ModuleKey[]);
+  return Array.from(new Set((modules ?? []).filter((module): module is ModuleKey => validModules.has(module))));
 }
 
 export function useCrmStore() {
@@ -268,11 +265,39 @@ function mergeLocalCollections(remoteState: CrmState, localState: CrmState | nul
   if (!localState) return remoteState;
   return {
     ...remoteState,
+    team: mergeByUpdatedAccess(remoteState.team, localState.team),
     products: mergeById(remoteState.products, localState.products),
     customers: mergeById(remoteState.customers, localState.customers),
     quotes: mergeById(remoteState.quotes, localState.quotes),
     proposalPackages: mergeById(remoteState.proposalPackages, localState.proposalPackages),
   };
+}
+
+function initialCrmStateModuleLabels() {
+  return {
+    dashboard: true,
+    leads: true,
+    customers: true,
+    products: true,
+    quotes: true,
+    invoices: true,
+    access: true,
+    reports: true,
+    pipelines: true,
+    calendar: true,
+    settings: true,
+  } satisfies Record<ModuleKey, true>;
+}
+
+function mergeByUpdatedAccess(remoteTeam: CrmState["team"], localTeam: CrmState["team"]) {
+  const localByKey = new Map(localTeam.map((member) => [accessMemberKey(member), member]));
+  const merged = remoteTeam.map((remoteMember) => localByKey.get(accessMemberKey(remoteMember)) ?? remoteMember);
+  const remoteKeys = new Set(remoteTeam.map(accessMemberKey));
+  return [...merged, ...localTeam.filter((member) => !remoteKeys.has(accessMemberKey(member)))];
+}
+
+function accessMemberKey(member: CrmState["team"][number]) {
+  return member.uid || member.email?.trim().toLowerCase() || member.id;
 }
 
 function mergeById<T extends { id: string }>(remoteItems: T[], localItems: T[]) {

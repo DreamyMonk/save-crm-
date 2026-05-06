@@ -40,8 +40,6 @@ const navItems: { href: string; label: string; icon: typeof BarChart3; module: M
 ];
 
 const publicRoutePrefixes = ["/proposal", "/verify"] as const;
-const adminFallbackEmails = ["info@saveplanet.com.au", "admin@admin.com", "admin@saveplanet.local"];
-const adminFallbackModules: ModuleKey[] = ["dashboard", "leads", "customers", "products", "quotes", "invoices", "access", "reports", "pipelines", "calendar", "settings"];
 
 export function CrmShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -60,7 +58,7 @@ function ShellFrame({ children, email, uid }: { children: React.ReactNode; email
   const member = ready
     ? state.team.find((item) => item.active && (item.uid === uid || item.email?.trim().toLowerCase() === normalizedEmail))
     : undefined;
-  const allowedModules = member ? member.modules : normalizedEmail && adminFallbackEmails.includes(normalizedEmail) ? adminFallbackModules : [];
+  const allowedModules = member ? member.modules : [];
   const visibleNav = navItems.filter((item) => allowedModules.includes(item.module));
   const activeModule = navItems.find((item) => {
     const matchHref = item.matchHref ?? item.href;
