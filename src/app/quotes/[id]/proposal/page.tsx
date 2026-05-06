@@ -39,7 +39,7 @@ function ProposalWorkspace({ publicView = false, allowAnonymous = false }: { pub
   const { id } = useParams<{ id: string }>();
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const openTrackedRef = useRef(false);
-  const { state, setState } = useCrmStore();
+  const { state, setState, ready } = useCrmStore();
   const [user, setUser] = useState<User | null>(null);
   const [authChecked, setAuthChecked] = useState(!allowAnonymous);
   const [message, setMessage] = useState("");
@@ -115,7 +115,7 @@ function ProposalWorkspace({ publicView = false, allowAnonymous = false }: { pub
     persistQuoteUpdate(updatedQuote);
   }, [effectivePublicView, persistQuoteUpdate, quote]);
 
-  if (allowAnonymous && !authChecked) {
+  if ((allowAnonymous && !authChecked) || !ready) {
     return (
       <main className="grid min-h-screen place-items-center bg-white text-[#0f172a]">
         <p className="font-semibold">Loading proposal...</p>
@@ -170,7 +170,8 @@ function ProposalWorkspace({ publicView = false, allowAnonymous = false }: { pub
   async function copyProposalLink() {
     if (!quote) return;
     const link = `${window.location.origin}/proposal/${quote.id}`;
-    markProposalSent();
+    const updatedQuote = markProposalSent() ?? quote;
+    await publishProposalSnapshot(updatedQuote, customer);
     await navigator.clipboard?.writeText(link);
     setMessage("Public proposal link copied.");
   }
@@ -179,6 +180,7 @@ function ProposalWorkspace({ publicView = false, allowAnonymous = false }: { pub
     if (!quote) return;
     const link = `${window.location.origin}/proposal/${quote.id}`;
     const updatedQuote = markProposalSent() ?? quote;
+    await publishProposalSnapshot(updatedQuote, customer);
 
     if (!customer?.email) {
       setMessage("Customer email is missing, so no proposal email was sent.");
@@ -400,6 +402,14 @@ async function sendResendEmail(
   } catch {
     return false;
   }
+}
+
+async function publishProposalSnapshot(quote: QuoteRecord, customer: Customer | undefined) {
+  if (typeof window !== "undefined") {
+    window.localStorage.setItem(`saveplanet-quote-${quote.id}`, JSON.stringify(quote));
+    window.localStorage.setItem(`saveplanet-proposal-customer-${quote.id}`, JSON.stringify(customer ?? null));
+  }
+  await new Promise((resolve) => setTimeout(resolve, 900));
 }
 
 function findSenderMember(state: CrmState, quote: QuoteRecord, customer: Customer | undefined, user: User | null) {
