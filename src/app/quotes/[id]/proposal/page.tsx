@@ -19,6 +19,7 @@ const templateUrls = {
   Inverter: "/saveplanet-solar-proposal-template.html",
   "Solar Battery": "/saveplanet-solar-proposal-template.html",
 } as const;
+const savePlanetNotificationEmail = "info@saveplanet.com.au";
 const signatureFonts = [
   { label: "Elegant Script", value: "Brush Script MT, Segoe Script, cursive" },
   { label: "Classic Hand", value: "Segoe Script, Lucida Handwriting, cursive" },
@@ -253,9 +254,14 @@ function ProposalWorkspace({ publicView = false, allowAnonymous = false }: { pub
         title={effectivePublicView ? "SavePlanet proposal" : "Draft proposal"}
         actions={
           effectivePublicView ? (
-            <button onClick={downloadPdf} className="inline-flex h-10 items-center gap-2 rounded-lg bg-[#0f172a] px-4 text-sm font-semibold text-white">
-              <Download size={16} /> Download PDF
-            </button>
+            <>
+              <button onClick={sendProposalEmail} className="inline-flex h-10 items-center gap-2 rounded-lg bg-[#003CBB] px-4 text-sm font-semibold text-white">
+                <Send size={16} /> Send mail
+              </button>
+              <button onClick={downloadPdf} className="inline-flex h-10 items-center gap-2 rounded-lg bg-[#0f172a] px-4 text-sm font-semibold text-white">
+                <Download size={16} /> Download PDF
+              </button>
+            </>
           ) : (
             <>
             <Link href="/quotes" className="inline-flex h-10 items-center gap-2 rounded-lg border border-[#c7d3e8] bg-white px-4 text-sm font-semibold text-[#003CBB]">
@@ -407,11 +413,15 @@ function findSenderMember(state: CrmState, quote: QuoteRecord, customer: Custome
 
 function proposalNotificationRecipients(state: CrmState, quote: QuoteRecord, customer: Customer | undefined, user: User | null) {
   const recipients = new Map<string, { email: string; name?: string }>();
+  const addRecipient = (email?: string, name?: string) => {
+    if (!email || !isDeliverableEmail(email)) return;
+    recipients.set(email.toLowerCase(), { email, name });
+  };
   const addMember = (member?: TeamMember) => {
-    if (!member?.email || !isDeliverableEmail(member.email)) return;
-    recipients.set(member.email.toLowerCase(), { email: member.email, name: member.name });
+    addRecipient(member?.email, member?.name);
   };
 
+  addRecipient(savePlanetNotificationEmail, "SavePlanet");
   state.team.filter((member) => member.active && member.role.toLowerCase() === "admin").forEach(addMember);
   addMember(findSenderMember(state, quote, customer, user));
   addMember(state.team.find((member) => member.active && member.name === customer?.secondSalesAgent));
