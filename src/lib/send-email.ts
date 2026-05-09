@@ -2,7 +2,7 @@ import { CrmState } from "./crm-data";
 
 export async function sendResendEmail(
   state: CrmState,
-  payload: { recipients: { email: string; name?: string }[]; subject: string; text: string },
+  payload: { recipients: { email: string; name?: string }[]; subject: string; text: string; html?: string },
 ) {
   try {
     const response = await fetch("/api/resend/send", {
@@ -13,6 +13,7 @@ export async function sendResendEmail(
         recipients: payload.recipients,
         subject: payload.subject,
         text: payload.text,
+        html: payload.html,
       }),
     });
     return response.ok;

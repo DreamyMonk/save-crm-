@@ -19,6 +19,13 @@ const templateUrls = {
   Inverter: "/saveplanet-solar-proposal-template.html",
   "Solar Battery": "/saveplanet-solar-proposal-template.html",
 } as const;
+const mailTemplateUrls = {
+  Aircon: "/mail-templates/heat_pump.html",
+  "Heat Pump": "/mail-templates/heat_pump.html",
+  Solar: "/mail-templates/solar_inverter_battary.html",
+  Inverter: "/mail-templates/solar_inverter_battary.html",
+  "Solar Battery": "/mail-templates/solar_inverter_battary.html",
+} as const;
 const savePlanetNotificationEmail = "info@saveplanet.com.au";
 const signatureFonts = [
   { label: "Elegant Script", value: "Brush Script MT, Segoe Script, cursive" },
@@ -180,7 +187,7 @@ function ProposalWorkspace({ publicView = false, allowAnonymous = false }: { pub
   }
 
   async function sendProposalEmail() {
-    if (!quote) return;
+    if (!quote || !calculations) return;
     const updatedQuote = markProposalSent() ?? quote;
     await publishProposalSnapshot(updatedQuote, customer);
     const link = publicProposalLink(updatedQuote, customer);
@@ -190,10 +197,12 @@ function ProposalWorkspace({ publicView = false, allowAnonymous = false }: { pub
       return;
     }
 
+    const customerEmailHtml = await proposalEmailHtml(quoteCategory, customer, updatedQuote, link, calculations);
     const customerEmailSent = await sendResendEmail(state, {
       recipients: [{ email: customer.email, name: customerName(customer) }],
       subject: `Your SavePlanet proposal is ready - ${quote.id}`,
       text: proposalEmailBody(customer, quote, link),
+      html: customerEmailHtml,
     });
     const internalRecipients = proposalNotificationRecipients(state, updatedQuote, customer, user);
     const internalEmailSent = internalRecipients.length
@@ -388,7 +397,7 @@ function ProposalWorkspace({ publicView = false, allowAnonymous = false }: { pub
 
 async function sendResendEmail(
   state: CrmState,
-  payload: { recipients: { email: string; name?: string }[]; subject: string; text: string },
+  payload: { recipients: { email: string; name?: string }[]; subject: string; text: string; html?: string },
 ) {
   try {
     const response = await fetch("/api/resend/send", {
@@ -399,6 +408,7 @@ async function sendResendEmail(
         recipients: payload.recipients,
         subject: payload.subject,
         text: payload.text,
+        html: payload.html,
       }),
     });
     return response.ok;
@@ -502,9 +512,45 @@ Thanks,
 SavePlanet`;
 }
 
+async function proposalEmailHtml(category: ProductCategory, customer: Customer | undefined, quote: QuoteRecord, link: string, calculations: Calculations) {
+  try {
+    const response = await fetch(mailTemplateUrlForCategory(category));
+    if (!response.ok) return undefined;
+    const template = await response.text();
+    return fillMailTemplate(template, customer, quote, link, calculations);
+  } catch {
+    return undefined;
+  }
+}
+
+function fillMailTemplate(template: string, customer: Customer | undefined, quote: QuoteRecord, link: string, calculations: Calculations) {
+  const savings = quote.annualBillSavings && quote.annualBillSavings > 0 ? quote.annualBillSavings : calculations.totalDeductions;
+  const replacements: Record<string, string> = {
+    customer_name: customerName(customer),
+    proposal_link: link,
+    savings: moneyWithoutDollar(savings),
+    quote_id: quote.id,
+    customer_email: customer?.email || "Not provided",
+    final_price: currency(calculations.finalPriceIncGst),
+    final_price_inc_gst: currency(calculations.finalPriceIncGst),
+    system_total: currency(calculations.systemTotalIncGst),
+    valid_until: validUntil(quote.activityDate),
+  };
+
+  return Object.entries(replacements).reduce((html, [key, value]) => html.replaceAll(`{{${key}}}`, escapeHtml(value)), template);
+}
+
+function moneyWithoutDollar(value: number) {
+  return Math.round(value).toLocaleString("en-AU");
+}
+
 function isDeliverableEmail(email: string) {
   const normalized = email.trim().toLowerCase();
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized) && !normalized.endsWith(".local");
+}
+
+function mailTemplateUrlForCategory(category: ProductCategory) {
+  return mailTemplateUrls[category as keyof typeof mailTemplateUrls] ?? mailTemplateUrls.Aircon;
 }
 
 function templateUrlForCategory(category: string) {

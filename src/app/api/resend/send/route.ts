@@ -44,6 +44,7 @@ export async function POST(request: Request) {
         to: recipients.map((recipient) => (recipient.name ? `${recipient.name} <${recipient.email}>` : recipient.email)),
         subject: body.subject,
         text: body.text,
+        html: body.html,
         attachments: normalizeAttachments(body.attachments),
       }),
     });
