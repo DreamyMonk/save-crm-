@@ -118,10 +118,11 @@ export default function QuotesPage() {
   const selectedProductModel = quoteProducts.some((product) => product.id === headModel) ? headModel : (quoteProducts[0]?.id ?? "");
   const isSolarCategory = productCategory === "Solar" || productCategory === "Inverter" || productCategory === "Solar Battery";
   const isHeatPumpCategory = productCategory === "Heat Pump";
-  const solarPanels = state.products.filter((product) => product.category === "Solar");
-  const solarInverters = state.products.filter((product) => product.category === "Inverter");
-  const solarBatteries = state.products.filter((product) => product.category === "Solar Battery");
-  const heatPumpProducts = state.products.filter((product) => product.category === "Heat Pump");
+  const solarFilteredProducts = useMemo(() => filterProductsForQuote(state.products, ["Solar", "Inverter", "Solar Battery"], activeBrand, activeProductType, activeProductConfiguration, productSearch), [activeBrand, activeProductConfiguration, activeProductType, productSearch, state.products]);
+  const heatPumpProducts = useMemo(() => filterProductsForQuote(state.products, ["Heat Pump"], activeBrand, activeProductType, activeProductConfiguration, productSearch), [activeBrand, activeProductConfiguration, activeProductType, productSearch, state.products]);
+  const solarPanels = solarFilteredProducts.filter((product) => product.category === "Solar");
+  const solarInverters = solarFilteredProducts.filter((product) => product.category === "Inverter");
+  const solarBatteries = solarFilteredProducts.filter((product) => product.category === "Solar Battery");
   const [solarPanelProduct, setSolarPanelProduct] = useState(solarPanels[0]?.id ?? "");
   const [solarPanelQty, setSolarPanelQty] = useState(0);
   const [solarPanelPrice, setSolarPanelPrice] = useState(0);
@@ -658,6 +659,18 @@ function customLine(role: QuoteLineItem["role"], brand: string, model: string, q
 function firstQuoteCategory(items: QuoteLineItem[], products: Product[]) {
   const productId = items.find((item) => item.productId)?.productId;
   return products.find((product) => product.id === productId)?.category ?? "Aircon";
+}
+
+function filterProductsForQuote(products: Product[], categories: string[], brand: string, productType: string, productConfiguration: string, search: string) {
+  const term = search.trim().toLowerCase();
+  return products.filter((product) => {
+    const matchesCategory = categories.includes(product.category);
+    const matchesBrand = brand === "All" || displayBrandForCategory(product.category, product.brandName) === brand;
+    const matchesType = productType === "All" || product.productType === productType;
+    const matchesConfiguration = productConfiguration === "All" || product.productConfiguration === productConfiguration;
+    const matchesSearch = !term || [product.brandName, product.model, product.productName, product.productType, product.productConfiguration, product.productClass].join(" ").toLowerCase().includes(term);
+    return matchesCategory && matchesBrand && matchesType && matchesConfiguration && matchesSearch;
+  });
 }
 
 function nextQuoteId(quotes: QuoteRecord[]) {
