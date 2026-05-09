@@ -56,6 +56,7 @@ function ProposalWorkspace({ publicView = false, allowAnonymous = false }: { pub
   const [autoSignName, setAutoSignName] = useState("");
   const [autoSignFont, setAutoSignFont] = useState(signatureFonts[0].value);
   const [signatureDoneOpen, setSignatureDoneOpen] = useState(false);
+  const [notice, setNotice] = useState<{ title: string; body: string } | null>(null);
   const [changeRequestDrafts, setChangeRequestDrafts] = useState<Record<string, string>>({});
   const proposalSnapshot = useMemo(() => decodeProposalSnapshot(searchParams.get("snapshot")), [searchParams]);
   const effectivePublicView = publicView || (allowAnonymous && authChecked && !user);
@@ -228,6 +229,10 @@ function ProposalWorkspace({ publicView = false, allowAnonymous = false }: { pub
     const updatedQuote: QuoteRecord = { ...quote, customerSignatureDataUrl: signatureToSave, customerSignedAt: signedAt };
     persistQuoteUpdate(updatedQuote);
     setSignatureDoneOpen(true);
+    setNotice({
+      title: "Signature completed",
+      body: `Thank you, ${customerName(customer)}. Your signed proposal has been saved successfully. The SavePlanet team will take it from here and keep you updated.`,
+    });
 
     if (!firstSignature) {
       setMessage("Signature saved into the proposal.");
@@ -248,7 +253,7 @@ function ProposalWorkspace({ publicView = false, allowAnonymous = false }: { pub
     setMessage(emailSent ? "Signature saved. Admin and sending agent were notified." : "Signature saved. Notification email failed, please check Resend settings.");
   }
 
-  function saveChangeRequest() {
+  async function saveChangeRequest() {
     if (!quote) return;
     if (!hasEditorText(changeRequestHtml)) {
       setMessage("Please write the requested changes first.");
@@ -261,7 +266,19 @@ function ProposalWorkspace({ publicView = false, allowAnonymous = false }: { pub
       proposalChangeRequestedAt: requestedAt,
     };
     persistQuoteUpdate(updatedQuote);
-    setMessage(effectivePublicView ? "Your requested changes were sent to SavePlanet." : "Requested changes saved.");
+    const recipients = proposalNotificationRecipients(state, updatedQuote, customer, user);
+    const emailSent = recipients.length
+      ? await sendResendEmail(state, {
+          recipients,
+          subject: `Proposal changes requested: ${quote.id}`,
+          text: `${customerName(customer)} requested changes for proposal ${quote.id} on ${formatDate(requestedAt)}.\n\nCustomer: ${customerName(customer)}\nProposal: ${quote.id}\nStatus: Changes requested\n\nRequested changes:\n${plainTextFromHtml(changeRequestHtml)}\n\nOpen proposal records in SavePlanet CRM:\n${window.location.origin}/proposals`,
+        })
+      : false;
+    setMessage(emailSent ? "Your requested changes were sent to SavePlanet." : "Your changes were saved. Notification email failed, please check Resend settings.");
+    setNotice({
+      title: "Changes sent",
+      body: "Thank you. Your requested changes have been sent to the SavePlanet team, and someone will review them shortly.",
+    });
   }
 
   const content = (
@@ -271,14 +288,9 @@ function ProposalWorkspace({ publicView = false, allowAnonymous = false }: { pub
         title={effectivePublicView ? "SavePlanet proposal" : "Draft proposal"}
         actions={
           effectivePublicView ? (
-            <>
-              <button onClick={sendProposalEmail} className="inline-flex h-10 items-center gap-2 rounded-lg bg-[#003CBB] px-4 text-sm font-semibold text-white">
-                <Send size={16} /> Send mail
-              </button>
-              <button onClick={downloadPdf} className="inline-flex h-10 items-center gap-2 rounded-lg bg-[#0f172a] px-4 text-sm font-semibold text-white">
-                <Download size={16} /> Download PDF
-              </button>
-            </>
+            <button onClick={downloadPdf} className="inline-flex h-10 items-center gap-2 rounded-lg bg-[#0f172a] px-4 text-sm font-semibold text-white">
+              <Download size={16} /> Download PDF
+            </button>
           ) : (
             <>
             <Link href="/quotes" className="inline-flex h-10 items-center gap-2 rounded-lg border border-[#c7d3e8] bg-white px-4 text-sm font-semibold text-[#003CBB]">
@@ -308,7 +320,7 @@ function ProposalWorkspace({ publicView = false, allowAnonymous = false }: { pub
           srcDoc={proposalHtml}
           className="mx-auto h-[calc(100vh-190px)] min-h-[760px] w-full max-w-[900px] rounded border border-[#c7d3e8] bg-white shadow-lg"
         />
-        <section className="mx-auto mt-5 grid max-w-[900px] gap-4 rounded-lg border border-[#d9e2f2] bg-white p-5 shadow-sm lg:grid-cols-[1fr_auto]">
+        {effectivePublicView ? <section className="mx-auto mt-5 grid max-w-[900px] gap-4 rounded-lg border border-[#d9e2f2] bg-white p-5 shadow-sm lg:grid-cols-[1fr_auto]">
           <div>
             <div className="flex items-center gap-2">
               <PenLine size={18} />
@@ -360,8 +372,8 @@ function ProposalWorkspace({ publicView = false, allowAnonymous = false }: { pub
               <Copy size={16} /> Copy proposal link
             </button> : null}
           </div>
-        </section>
-        <section className="mx-auto mt-5 max-w-[900px] rounded-lg border border-[#d9e2f2] bg-white p-5 shadow-sm">
+        </section> : null}
+        {effectivePublicView ? <section className="mx-auto mt-5 max-w-[900px] rounded-lg border border-[#d9e2f2] bg-white p-5 shadow-sm">
           <div className="flex items-center gap-2">
             <PenLine size={18} />
             <h2 className="font-semibold">Changes</h2>
@@ -391,21 +403,24 @@ function ProposalWorkspace({ publicView = false, allowAnonymous = false }: { pub
           ) : (
             <p className="mt-4 rounded-lg border border-dashed border-[#c7d3e8] bg-[#f8fbff] p-4 text-sm text-[#657267]">No change request submitted yet.</p>
           )}
-          </section>
+          </section> : null}
         </main>
-        {signatureDoneOpen ? (
+        {signatureDoneOpen || notice ? (
           <div className="fixed inset-0 z-50 grid place-items-center bg-[#0f172a]/45 px-4">
             <div className="w-full max-w-md rounded-xl border border-[#d9e2f2] bg-white p-6 text-center shadow-2xl">
               <div className="mx-auto grid h-12 w-12 place-items-center rounded-full bg-[#e7f7ee] text-2xl text-[#0b7a3d]">
                 <CheckCircle2 size={28} />
               </div>
-              <h2 className="mt-4 text-xl font-bold text-[#0f172a]">Signature completed</h2>
+              <h2 className="mt-4 text-xl font-bold text-[#0f172a]">{notice?.title ?? "Signature completed"}</h2>
               <p className="mt-2 text-sm leading-6 text-[#657267]">
-                Thank you, {customerName(customer)}. Your signed proposal has been saved successfully. The SavePlanet team will take it from here and keep you updated.
+                {notice?.body ?? `Thank you, ${customerName(customer)}. Your signed proposal has been saved successfully. The SavePlanet team will take it from here and keep you updated.`}
               </p>
               <button
                 type="button"
-                onClick={() => setSignatureDoneOpen(false)}
+                onClick={() => {
+                  setSignatureDoneOpen(false);
+                  setNotice(null);
+                }}
                 className="mt-5 inline-flex h-10 items-center justify-center rounded-lg bg-[#003CBB] px-5 text-sm font-semibold text-white"
               >
                 Done
@@ -619,6 +634,12 @@ function inferQuoteCategory(quote: QuoteRecord, products: Product[]): ProductCat
 function hasEditorText(html: string) {
   if (!html) return false;
   return html.replace(/<[^>]*>/g, "").replaceAll("&nbsp;", " ").trim().length > 0;
+}
+
+function plainTextFromHtml(html: string) {
+  if (!html) return "";
+  const doc = new DOMParser().parseFromString(html, "text/html");
+  return doc.body.textContent?.replace(/\s+/g, " ").trim() || "";
 }
 
 function buildProposalHtml(template: string, quote: QuoteRecord, customer: Customer | undefined, calculations: Calculations, category: string) {
