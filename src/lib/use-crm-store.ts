@@ -19,11 +19,13 @@ function normalizeState(state: CrmState): CrmState {
       modules: normalizeMemberModules(member.modules),
     })),
   );
+  const deletedTeamMemberKeys = Array.from(new Set(state.deletedTeamMemberKeys ?? []));
   return {
     ...initialCrmState,
     ...state,
     pipelines: normalizePipelines(state.pipelines ?? initialCrmState.pipelines),
-    team: normalizedTeam,
+    team: normalizedTeam.filter((member) => isProtectedAdmin(member) || !deletedTeamMemberKeys.includes(accessMemberKey(member))),
+    deletedTeamMemberKeys,
     leads: (state.leads ?? initialCrmState.leads).map((lead) => ({
       ...lead,
       leadSource: normalizeLeadSource(lead.leadSource ?? lead.source),
@@ -173,8 +175,9 @@ function ensureHardcodedAdmin(team: CrmState["team"]) {
     email: "admin@admin.com",
     name: existingIndex >= 0 ? team[existingIndex].name : "Aarav Admin",
     role: "Admin",
-    modules: existingIndex >= 0 && team[existingIndex].modules.length ? team[existingIndex].modules : adminModules,
+    modules: adminModules,
     active: true,
+    accessUpdatedAt: existingIndex >= 0 ? team[existingIndex].accessUpdatedAt : new Date().toISOString(),
   };
   if (existingIndex < 0) return [hardcodedAdmin, ...team];
   return team.map((member, index) => (index === existingIndex ? { ...member, ...hardcodedAdmin } : member));
@@ -300,9 +303,11 @@ function readLocalState() {
 
 function mergeLocalCollections(remoteState: CrmState, localState: CrmState | null) {
   if (!localState) return remoteState;
+  const deletedTeamMemberKeys = mergeDeletedTeamMemberKeys(remoteState, localState);
   return {
     ...remoteState,
-    team: mergeByUpdatedAccess(remoteState.team, localState.team),
+    deletedTeamMemberKeys,
+    team: mergeByUpdatedAccess(remoteState.team, localState.team, deletedTeamMemberKeys),
     products: mergeById(remoteState.products, localState.products),
     customers: mergeByLatestUpdate(remoteState.customers, localState.customers),
     quotes: mergeById(remoteState.quotes, localState.quotes),
@@ -326,15 +331,31 @@ function initialCrmStateModuleLabels() {
   } satisfies Record<ModuleKey, true>;
 }
 
-function mergeByUpdatedAccess(remoteTeam: CrmState["team"], localTeam: CrmState["team"]) {
-  const localByKey = new Map(localTeam.map((member) => [accessMemberKey(member), member]));
-  const merged = remoteTeam.map((remoteMember) => localByKey.get(accessMemberKey(remoteMember)) ?? remoteMember);
-  const remoteKeys = new Set(remoteTeam.map(accessMemberKey));
-  return [...merged, ...localTeam.filter((member) => !remoteKeys.has(accessMemberKey(member)))];
+function mergeByUpdatedAccess(remoteTeam: CrmState["team"], localTeam: CrmState["team"], deletedTeamMemberKeys: string[] = []) {
+  const deletedKeys = new Set(deletedTeamMemberKeys);
+  const mergedByKey = new Map<string, CrmState["team"][number]>();
+  for (const member of [...remoteTeam, ...localTeam]) {
+    const key = accessMemberKey(member);
+    if (deletedKeys.has(key) && !isProtectedAdmin(member)) continue;
+    const existing = mergedByKey.get(key);
+    if (!existing || timestamp(member.accessUpdatedAt) >= timestamp(existing.accessUpdatedAt)) {
+      mergedByKey.set(key, member);
+    }
+  }
+  return ensureHardcodedAdmin(Array.from(mergedByKey.values()));
 }
 
 function accessMemberKey(member: CrmState["team"][number]) {
   return member.uid || member.email?.trim().toLowerCase() || member.id;
+}
+
+function mergeDeletedTeamMemberKeys(remoteState: CrmState, localState: CrmState) {
+  const protectedKeys = new Set([...remoteState.team, ...localState.team].filter(isProtectedAdmin).map(accessMemberKey));
+  return Array.from(new Set([...(remoteState.deletedTeamMemberKeys ?? []), ...(localState.deletedTeamMemberKeys ?? [])])).filter((key) => !protectedKeys.has(key));
+}
+
+function isProtectedAdmin(member: CrmState["team"][number]) {
+  return member.uid === "hardcoded-admin" || member.email?.trim().toLowerCase() === "admin@admin.com";
 }
 
 function mergeById<T extends { id: string }>(remoteItems: T[], localItems: T[]) {
@@ -368,6 +389,8 @@ async function saveMergedState(state: CrmState) {
   const remoteState = snapshot.exists() ? normalizeState(snapshot.data() as CrmState) : initialCrmState;
   const mergedState = {
     ...state,
+    deletedTeamMemberKeys: Array.from(new Set([...(remoteState.deletedTeamMemberKeys ?? []), ...(state.deletedTeamMemberKeys ?? [])])),
+    team: mergeByUpdatedAccess(remoteState.team, state.team, Array.from(new Set([...(remoteState.deletedTeamMemberKeys ?? []), ...(state.deletedTeamMemberKeys ?? [])]))),
     products: state.products.length === 0 && remoteState.products.length > 0 ? remoteState.products : state.products,
     customers: mergeByLatestUpdate(remoteState.customers, state.customers),
     quotes: state.quotes.length === 0 && remoteState.quotes.length > 0 ? remoteState.quotes : state.quotes,

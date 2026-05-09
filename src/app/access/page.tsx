@@ -50,6 +50,7 @@ export default function AccessPage() {
         role,
         modules,
         active: true,
+        accessUpdatedAt: new Date().toISOString(),
       });
       formElement.reset();
       setMessage(`User ${email} created and added to access manager.`);
@@ -63,6 +64,7 @@ export default function AccessPage() {
           role,
           modules,
           active: true,
+          accessUpdatedAt: new Date().toISOString(),
         });
         formElement.reset();
         setMessage(`${email} already has a Firebase login. CRM access was added/updated.`);
@@ -79,8 +81,10 @@ export default function AccessPage() {
     const existingId = existingMemberId(state.team, member.email ?? "");
     setState((currentState) => {
       const currentExistingId = existingMemberId(currentState.team, member.email ?? "") ?? existingId;
+      const memberKey = accessMemberKey(member);
       return {
         ...currentState,
+        deletedTeamMemberKeys: (currentState.deletedTeamMemberKeys ?? []).filter((key) => key !== memberKey),
         team: currentExistingId
           ? currentState.team.map((item) => (item.id === currentExistingId ? { ...item, ...member, id: currentExistingId } : item))
           : [...currentState.team, member],
@@ -90,6 +94,10 @@ export default function AccessPage() {
 
   function toggleModule(memberId: string, module: ModuleKey) {
     const targetMember = state.team.find((member) => member.id === memberId);
+    if (targetMember && isProtectedAdmin(targetMember)) {
+      setMessage("The built-in admin keeps full access and cannot be changed.");
+      return;
+    }
     if (targetMember && isCurrentMember(targetMember, currentUser) && module === "access" && targetMember.modules.includes("access")) {
       setMessage("You cannot remove your own Access module while signed in.");
       return;
@@ -102,6 +110,7 @@ export default function AccessPage() {
             ? {
                 ...member,
                 modules: member.modules.includes(module) ? member.modules.filter((item) => item !== module) : [...member.modules, module],
+                accessUpdatedAt: new Date().toISOString(),
               }
             : member,
         ),
@@ -113,6 +122,10 @@ export default function AccessPage() {
 
   function updateMember(memberId: string, updates: Partial<TeamMember>) {
     const targetMember = state.team.find((member) => member.id === memberId);
+    if (targetMember && isProtectedAdmin(targetMember)) {
+      setMessage("The built-in admin account cannot be edited or deactivated.");
+      return;
+    }
     if (targetMember && isCurrentMember(targetMember, currentUser) && updates.active === false) {
       setMessage("You cannot deactivate your own access while signed in.");
       return;
@@ -120,7 +133,7 @@ export default function AccessPage() {
     setState((currentState) => {
       const nextState = {
         ...currentState,
-        team: currentState.team.map((member) => (member.id === memberId ? { ...member, ...updates } : member)),
+        team: currentState.team.map((member) => (member.id === memberId ? { ...member, ...updates, accessUpdatedAt: new Date().toISOString() } : member)),
       };
       setMessage("Access profile updated.");
       return nextState;
@@ -129,13 +142,20 @@ export default function AccessPage() {
 
   function removeAccess(memberId: string) {
     const targetMember = state.team.find((member) => member.id === memberId);
+    if (targetMember && isProtectedAdmin(targetMember)) {
+      setMessage("The built-in admin account cannot be removed.");
+      return;
+    }
     if (targetMember && isCurrentMember(targetMember, currentUser)) {
       setMessage("You cannot remove your own access while signed in.");
       return;
     }
+    if (!targetMember) return;
+    const removedKey = accessMemberKey(targetMember);
     setState((currentState) => {
       return {
         ...currentState,
+        deletedTeamMemberKeys: Array.from(new Set([...(currentState.deletedTeamMemberKeys ?? []), removedKey])),
         team: currentState.team.filter((member) => member.id !== memberId),
         leads: currentState.leads.map((lead) => (lead.assignedTo === memberId ? { ...lead, assignedTo: "admin" } : lead)),
       };
@@ -186,6 +206,7 @@ export default function AccessPage() {
         <section className="space-y-3">
           {state.team.map((member) => {
             const self = isCurrentMember(member, currentUser);
+            const protectedAdmin = isProtectedAdmin(member);
             return (
             <article key={member.id} className="rounded-lg border border-[#dce3d5] bg-white p-4 shadow-sm">
               <div className="grid gap-4 xl:grid-cols-[280px_1fr_120px]">
@@ -194,15 +215,17 @@ export default function AccessPage() {
                   <input
                     value={member.name}
                     onChange={(event) => updateMember(member.id, { name: event.target.value })}
+                    readOnly={protectedAdmin}
                     className="w-full text-lg font-semibold outline-none"
                   />
                   <input
                     value={member.email ?? ""}
                     onChange={(event) => updateMember(member.id, { email: event.target.value })}
+                    readOnly={protectedAdmin}
                     className="mt-1 w-full text-sm text-[#657267] outline-none"
                     placeholder="email"
                   />
-                  <select value={member.role} onChange={(event) => updateMember(member.id, { role: event.target.value })} className="mt-3 h-9 w-full rounded-lg border border-[#d7dfd0] px-2 text-sm outline-none">
+                  <select value={member.role} onChange={(event) => updateMember(member.id, { role: event.target.value })} disabled={protectedAdmin} className="mt-3 h-9 w-full rounded-lg border border-[#d7dfd0] px-2 text-sm outline-none disabled:bg-[#f6f8fc]">
                     <option>Admin</option>
                     <option>Sales Agent</option>
                     <option>Accounts</option>
@@ -214,7 +237,7 @@ export default function AccessPage() {
                     <button
                       key={module}
                       onClick={() => toggleModule(member.id, module)}
-                      disabled={self && module === "access" && member.modules.includes("access")}
+                      disabled={protectedAdmin || (self && module === "access" && member.modules.includes("access"))}
                       className={`inline-flex h-9 items-center gap-2 rounded-lg border px-3 text-sm font-medium ${
                         member.modules.includes(module) ? "border-[#12201b] bg-[#003CBB] text-white" : "border-[#d7dfd0] bg-white text-[#657267]"
                       } disabled:cursor-not-allowed disabled:opacity-60`}
@@ -226,12 +249,12 @@ export default function AccessPage() {
                 <div className="flex flex-col gap-2">
                   <button
                     onClick={() => updateMember(member.id, { active: !member.active })}
-                    disabled={self && member.active}
+                    disabled={protectedAdmin || (self && member.active)}
                     className="h-9 rounded-lg border border-[#d7dfd0] px-3 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     {member.active ? "Active" : "Inactive"}
                   </button>
-                  <button disabled={self} onClick={() => removeAccess(member.id)} className="inline-flex h-9 items-center justify-center gap-2 rounded-lg bg-rose-600 px-3 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:bg-rose-300">
+                  <button disabled={protectedAdmin || self} onClick={() => removeAccess(member.id)} className="inline-flex h-9 items-center justify-center gap-2 rounded-lg bg-rose-600 px-3 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:bg-rose-300">
                     <Trash2 size={15} /> Remove
                   </button>
                 </div>
@@ -264,6 +287,14 @@ function isCurrentMember(member: TeamMember, user: User | null) {
   const memberEmail = member.email?.trim().toLowerCase();
   const userEmail = user.email?.trim().toLowerCase();
   return Boolean((member.uid && member.uid === user.uid) || (memberEmail && userEmail && memberEmail === userEmail));
+}
+
+function isProtectedAdmin(member: TeamMember) {
+  return member.uid === "hardcoded-admin" || member.email?.trim().toLowerCase() === "admin@admin.com";
+}
+
+function accessMemberKey(member: TeamMember) {
+  return member.uid || member.email?.trim().toLowerCase() || member.id;
 }
 
 function fallbackMemberId(email: string) {

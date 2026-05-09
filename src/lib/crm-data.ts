@@ -23,6 +23,7 @@ export type TeamMember = {
   role: string;
   modules: ModuleKey[];
   active: boolean;
+  accessUpdatedAt?: string;
 };
 
 export type Task = {
@@ -357,6 +358,7 @@ export type CrmState = {
   quotes: QuoteRecord[];
   proposalPackages: ProposalPackage[];
   team: TeamMember[];
+  deletedTeamMemberKeys?: string[];
   invoices: Invoice[];
   appointments: Appointment[];
   settings: CrmSettings;
@@ -414,6 +416,7 @@ export const initialCrmState: CrmState = {
       role: "Admin",
       modules: ["dashboard", "leads", "customers", "products", "quotes", "invoices", "access", "reports", "pipelines", "calendar", "settings"],
       active: true,
+      accessUpdatedAt: "2026-05-09T00:00:00.000Z",
     },
     {
       id: "meera",
