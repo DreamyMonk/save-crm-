@@ -52,7 +52,7 @@ function ProposalWorkspace({ publicView = false, allowAnonymous = false }: { pub
   const [authChecked, setAuthChecked] = useState(!allowAnonymous);
   const [message, setMessage] = useState("");
   const [proposalHtml, setProposalHtml] = useState("");
-  const [signatureDataUrl, setSignatureDataUrl] = useState("");
+  const [signatureDraft, setSignatureDraft] = useState<{ quoteId: string; dataUrl: string } | null>(null);
   const [autoSignName, setAutoSignName] = useState("");
   const [autoSignFont, setAutoSignFont] = useState(signatureFonts[0].value);
   const [signatureDoneOpen, setSignatureDoneOpen] = useState(false);
@@ -218,13 +218,14 @@ function ProposalWorkspace({ publicView = false, allowAnonymous = false }: { pub
 
   async function saveSignature() {
     if (!quote) return;
-    if (!signatureDataUrl) {
+    const signatureToSave = signatureDraft?.quoteId === quote.id ? signatureDraft.dataUrl : quote.customerSignatureDataUrl;
+    if (!signatureToSave) {
       setMessage("Please draw a signature first.");
       return;
     }
     const signedAt = new Date().toISOString();
     const firstSignature = !quote.customerSignedAt;
-    const updatedQuote: QuoteRecord = { ...quote, customerSignatureDataUrl: signatureDataUrl, customerSignedAt: signedAt };
+    const updatedQuote: QuoteRecord = { ...quote, customerSignatureDataUrl: signatureToSave, customerSignedAt: signedAt };
     persistQuoteUpdate(updatedQuote);
     setSignatureDoneOpen(true);
 
@@ -321,7 +322,12 @@ function ProposalWorkspace({ publicView = false, allowAnonymous = false }: { pub
               </div>
             ) : null}
             <p className="mt-1 text-sm text-[#657267]">{effectivePublicView ? "Sign here to confirm that you have reviewed this proposal. Your signature will appear in the proposal customer signature area." : "Customer can sign here from the shared proposal link. Saved signature appears automatically in the proposal customer signature area."}</p>
-            <SignaturePad value={quote.customerSignatureDataUrl} onChange={setSignatureDataUrl} autoName={autoSignName} autoFont={autoSignFont} />
+            <SignaturePad
+              value={quote.customerSignatureDataUrl}
+              onChange={(value) => setSignatureDraft({ quoteId: quote.id, dataUrl: value })}
+              autoName={autoSignName}
+              autoFont={autoSignFont}
+            />
             <div className="mt-4 rounded-lg border border-[#e5edf7] bg-[#f8fbff] p-4">
               <div className="flex items-center gap-2">
                 <PenLine size={16} />
@@ -859,6 +865,7 @@ function productPlaceholderSvg(label: string) {
 function SignaturePad({ value, onChange, autoName, autoFont }: { value?: string; onChange: (value: string) => void; autoName: string; autoFont: string }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const drawingRef = useRef(false);
+  const lastPointRef = useRef<{ x: number; y: number } | null>(null);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -907,6 +914,7 @@ function SignaturePad({ value, onChange, autoName, autoFont }: { value?: string;
     drawingRef.current = true;
     event.currentTarget.setPointerCapture(event.pointerId);
     const nextPoint = point(event);
+    lastPointRef.current = nextPoint;
     context.beginPath();
     context.moveTo(nextPoint.x, nextPoint.y);
   }
@@ -916,6 +924,7 @@ function SignaturePad({ value, onChange, autoName, autoFont }: { value?: string;
     const context = event.currentTarget.getContext("2d");
     if (!context) return;
     const nextPoint = point(event);
+    lastPointRef.current = nextPoint;
     context.lineTo(nextPoint.x, nextPoint.y);
     context.stroke();
   }
@@ -923,6 +932,14 @@ function SignaturePad({ value, onChange, autoName, autoFont }: { value?: string;
   function stop(event: React.PointerEvent<HTMLCanvasElement>) {
     if (!drawingRef.current) return;
     drawingRef.current = false;
+    const context = event.currentTarget.getContext("2d");
+    const lastPoint = lastPointRef.current;
+    if (context && lastPoint) {
+      context.beginPath();
+      context.arc(lastPoint.x, lastPoint.y, 1.5, 0, Math.PI * 2);
+      context.fillStyle = "#0f172a";
+      context.fill();
+    }
     onChange(event.currentTarget.toDataURL("image/png"));
   }
 
