@@ -137,7 +137,7 @@ export default function QuotesPage() {
   const [solarStcPrice, setSolarStcPrice] = useState(40);
   const [solarVeuCount, setSolarVeuCount] = useState(0);
   const [solarVeuPrice, setSolarVeuPrice] = useState(75);
-  const [solarAdditionalDiscount, setSolarAdditionalDiscount] = useState(0);
+  const [additionalDiscount, setAdditionalDiscount] = useState(0);
   const [heatPumpProduct, setHeatPumpProduct] = useState(heatPumpProducts[0]?.id ?? "");
   const [heatPumpQty, setHeatPumpQty] = useState(0);
   const [heatPumpPrice, setHeatPumpPrice] = useState(0);
@@ -253,14 +253,14 @@ export default function QuotesPage() {
         items: nextItems.map((item, index) => index === 0 ? { ...item, certificates: totalCertificates } : item),
         certificateRate: totalCertificates ? totalCertificateValue / totalCertificates : certificateRate,
         gstRate: solarGstOn === "yes" ? 10 : 0,
-        rebate: Number(rebate) + solarAdditionalDiscount,
+        rebate: Number(rebate) + additionalDiscount,
         solarVicLoan,
         deductions: {
           stcDiscount,
           veuDiscount,
           solarVictoriaRebate: Number(rebate),
           solarVictoriaLoan: solarVicLoan,
-          additionalDiscount: solarAdditionalDiscount,
+          additionalDiscount,
           airconVeuDiscount: 0,
         },
       };
@@ -278,14 +278,14 @@ export default function QuotesPage() {
           : [],
         certificateRate: totalCertificates ? totalCertificateValue / totalCertificates : certificateRate,
         gstRate: heatPumpGstOn === "yes" ? 10 : 0,
-        rebate: Number(rebate),
+        rebate: Number(rebate) + additionalDiscount,
         solarVicLoan: 0,
         deductions: {
           stcDiscount,
           veuDiscount,
           solarVictoriaRebate: Number(rebate),
           solarVictoriaLoan: 0,
-          additionalDiscount: 0,
+          additionalDiscount,
           airconVeuDiscount: 0,
         },
       };
@@ -296,14 +296,14 @@ export default function QuotesPage() {
       items,
       certificateRate,
       gstRate,
-      rebate: Number(rebate),
+      rebate: additionalDiscount,
       solarVicLoan,
       deductions: {
         stcDiscount: 0,
         veuDiscount: 0,
         solarVictoriaRebate: 0,
         solarVictoriaLoan: 0,
-        additionalDiscount: Number(rebate),
+        additionalDiscount,
         airconVeuDiscount,
       },
     };
@@ -324,6 +324,7 @@ export default function QuotesPage() {
         { label: "VEU discount", value: draft.deductions.veuDiscount },
         { label: "STC discount", value: draft.deductions.stcDiscount },
         { label: "Solar Victoria rebate", value: draft.deductions.solarVictoriaRebate },
+        { label: "Additional discount", value: draft.deductions.additionalDiscount },
       ];
     }
     return [
@@ -498,7 +499,7 @@ export default function QuotesPage() {
                       <NumberInput label="Solar Victoria Rebate (AUD)" value={rebate} onChange={setRebate} />
                       <NumberInput label="Solar Victoria Loan (AUD)" value={solarVicLoan} onChange={setSolarVicLoan} />
                     </div>
-                    <NumberInput label="Additional Discount (AUD)" value={solarAdditionalDiscount} onChange={setSolarAdditionalDiscount} />
+                    <NumberInput label="Additional Discount (AUD)" value={additionalDiscount} onChange={setAdditionalDiscount} />
                   </ModuleCard>
                 </>
               ) : isHeatPumpCategory ? (
@@ -522,6 +523,7 @@ export default function QuotesPage() {
                       <NumberInput label="STC Rate (AUD)" value={heatPumpStcRate} onChange={setHeatPumpStcRate} />
                     </div>
                     <NumberInput label="Solar Victoria Rebate (AUD)" value={rebate} onChange={setRebate} />
+                    <NumberInput label="Additional Discount (AUD)" value={additionalDiscount} onChange={setAdditionalDiscount} />
                   </ModuleCard>
                 </>
               ) : isAirconCategory ? (
@@ -547,7 +549,7 @@ export default function QuotesPage() {
                   <ModuleCard title="Rebates" badge="VEU + Custom">
                     <div className="grid gap-3 md:grid-cols-2">
                       <NumberInput label="VEU Rate (AUD per certificate)" value={certificateRate} onChange={setCertificateRate} />
-                      <NumberInput label="Additional Discount (AUD)" value={rebate} onChange={setRebate} />
+                      <NumberInput label="Additional Discount (AUD)" value={additionalDiscount} onChange={setAdditionalDiscount} />
                     </div>
                   </ModuleCard>
                 </>
@@ -559,6 +561,7 @@ export default function QuotesPage() {
                     <NumberInput label="Product Price (per unit), $" value={productPrice} onChange={setProductPrice} />
                     <NumberInput label="Install Cost, $" value={installPrice} onChange={setInstallPrice} />
                     <NumberInput label="Certificates" value={certificates} onChange={setCertificates} />
+                    <NumberInput label="Additional Discount (AUD)" value={additionalDiscount} onChange={setAdditionalDiscount} />
                   </div>
                   <button onClick={addProductLine} className="h-10 rounded-lg bg-[#003CBB] px-4 text-sm font-semibold text-white">Add product line</button>
                 </ModuleCard>
