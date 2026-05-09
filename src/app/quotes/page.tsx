@@ -93,7 +93,8 @@ export default function QuotesPage() {
   const [quantity, setQuantity] = useState(1);
   const [productPrice, setProductPrice] = useState(0);
   const [installPrice, setInstallPrice] = useState(0);
-  const certificateRate = 0;
+  const [certificates, setCertificates] = useState(0);
+  const [certificateRate, setCertificateRate] = useState(73.6);
   const minimumContributionAdjustment = 0;
   const gstRate = 10;
   const [rebate, setRebate] = useState(0);
@@ -132,17 +133,20 @@ export default function QuotesPage() {
   const [solarBatteryPrice, setSolarBatteryPrice] = useState(0);
   const [solarInstall, setSolarInstall] = useState(0);
   const [solarGstOn, setSolarGstOn] = useState("yes");
-  const [solarStcDiscount, setSolarStcDiscount] = useState(0);
-  const [solarVeuDiscount, setSolarVeuDiscount] = useState(0);
+  const [solarStcCount, setSolarStcCount] = useState(0);
+  const [solarStcPrice, setSolarStcPrice] = useState(40);
+  const [solarVeuCount, setSolarVeuCount] = useState(0);
+  const [solarVeuPrice, setSolarVeuPrice] = useState(75);
   const [additionalDiscount, setAdditionalDiscount] = useState(0);
   const [heatPumpProduct, setHeatPumpProduct] = useState(heatPumpProducts[0]?.id ?? "");
   const [heatPumpQty, setHeatPumpQty] = useState(0);
   const [heatPumpPrice, setHeatPumpPrice] = useState(0);
   const [heatPumpInstall, setHeatPumpInstall] = useState(0);
   const [heatPumpGstOn, setHeatPumpGstOn] = useState("yes");
-  const [heatPumpVeuDiscount, setHeatPumpVeuDiscount] = useState(0);
-  const [heatPumpStcDiscount, setHeatPumpStcDiscount] = useState(0);
-  const [airconVeuDiscount, setAirconVeuDiscount] = useState(0);
+  const [heatPumpVeuCount, setHeatPumpVeuCount] = useState(0);
+  const [heatPumpVeuRate, setHeatPumpVeuRate] = useState(75);
+  const [heatPumpStcCount, setHeatPumpStcCount] = useState(0);
+  const [heatPumpStcRate, setHeatPumpStcRate] = useState(40);
   const activeSolarPanelProduct = solarPanels.some((product) => product.id === solarPanelProduct) ? solarPanelProduct : (solarPanels[0]?.id ?? "");
   const activeSolarInverterProduct = solarInverters.some((product) => product.id === solarInverterProduct) ? solarInverterProduct : (solarInverters[0]?.id ?? "");
   const activeSolarBatteryProduct = solarBatteries.some((product) => product.id === solarBatteryProduct) ? solarBatteryProduct : (solarBatteries[0]?.id ?? "");
@@ -217,7 +221,7 @@ export default function QuotesPage() {
       setMessage("Import or select a product first.");
       return;
     }
-    setItems((current) => [...current, lineFromProduct(product, "Indoor Head", headArea, headAreaM2, quantity, productPrice || product.price, installPrice, 0, "Indoor + outdoor combined system price")]);
+    setItems((current) => [...current, lineFromProduct(product, "Indoor Head", headArea, headAreaM2, quantity, productPrice || product.price, installPrice, certificates, "Indoor + outdoor combined system price")]);
     setMessage(`${product.model ?? product.productName} added with combined indoor/outdoor system price.`);
   }
 
@@ -227,7 +231,7 @@ export default function QuotesPage() {
       setMessage("Import or select a product first.");
       return;
     }
-    setItems((current) => [...current, lineFromProduct(product, "Product", product.category, 0, quantity, productPrice || product.price, installPrice, 0, `${product.category} product line`)]);
+    setItems((current) => [...current, lineFromProduct(product, "Product", product.category, 0, quantity, productPrice || product.price, installPrice, certificates, `${product.category} product line`)]);
     setMessage(`${product.model ?? product.productName} added as a product line.`);
   }
 
@@ -241,13 +245,15 @@ export default function QuotesPage() {
       if (inverter && solarInverterQty > 0) nextItems.push(lineFromProduct(inverter, "Product", "Inverter", 0, solarInverterQty, solarInverterPrice || inverter.price, 0, 0, "Inverter product"));
       if (battery && solarBatteryQty > 0) nextItems.push(lineFromProduct(battery, "Product", "Battery", 0, solarBatteryQty, solarBatteryPrice || battery.price, 0, 0, "Battery product"));
       if (solarInstall > 0) nextItems.push(customLine("Install", "Installation", "Solar installation", 1, 0, solarInstall, 0, "Installation cost"));
-      const stcDiscount = Number(solarStcDiscount);
-      const veuDiscount = Number(solarVeuDiscount);
+      const stcDiscount = solarStcCount * solarStcPrice;
+      const veuDiscount = solarVeuCount * solarVeuPrice;
+      const totalCertificates = solarStcCount + solarVeuCount;
+      const totalCertificateValue = stcDiscount + veuDiscount;
       return {
-        items: nextItems,
-        certificateRate,
+        items: nextItems.map((item, index) => index === 0 ? { ...item, certificates: totalCertificates } : item),
+        certificateRate: totalCertificates ? totalCertificateValue / totalCertificates : certificateRate,
         gstRate: solarGstOn === "yes" ? 10 : 0,
-        rebate: stcDiscount + veuDiscount + Number(rebate) + additionalDiscount,
+        rebate: Number(rebate) + additionalDiscount,
         solarVicLoan,
         deductions: {
           stcDiscount,
@@ -262,15 +268,17 @@ export default function QuotesPage() {
 
     if (isHeatPumpCategory) {
       const product = state.products.find((item) => item.id === activeHeatPumpProduct);
-      const stcDiscount = Number(heatPumpStcDiscount);
-      const veuDiscount = Number(heatPumpVeuDiscount);
+      const stcDiscount = heatPumpStcCount * heatPumpStcRate;
+      const veuDiscount = heatPumpVeuCount * heatPumpVeuRate;
+      const totalCertificates = heatPumpVeuCount + heatPumpStcCount;
+      const totalCertificateValue = veuDiscount + stcDiscount;
       return {
         items: product && heatPumpQty > 0
-          ? [lineFromProduct(product, "Product", "Heat Pump", 0, heatPumpQty, heatPumpPrice || product.price, heatPumpInstall, 0, "Hot-water heat pump with direct rebate fields")]
+          ? [lineFromProduct(product, "Product", "Heat Pump", 0, heatPumpQty, heatPumpPrice || product.price, heatPumpInstall, totalCertificates, "Hot-water heat pump with VEU/STC rebate fields")]
           : [],
-        certificateRate,
+        certificateRate: totalCertificates ? totalCertificateValue / totalCertificates : certificateRate,
         gstRate: heatPumpGstOn === "yes" ? 10 : 0,
-        rebate: stcDiscount + veuDiscount + Number(rebate) + additionalDiscount,
+        rebate: Number(rebate) + additionalDiscount,
         solarVicLoan: 0,
         deductions: {
           stcDiscount,
@@ -284,10 +292,10 @@ export default function QuotesPage() {
     }
 
     return {
-      items: items.map((item) => ({ ...item, certificates: 0 })),
+      items,
       certificateRate,
       gstRate,
-      rebate: airconVeuDiscount + additionalDiscount,
+      rebate: additionalDiscount,
       solarVicLoan,
       deductions: {
         stcDiscount: 0,
@@ -295,7 +303,7 @@ export default function QuotesPage() {
         solarVictoriaRebate: 0,
         solarVictoriaLoan: 0,
         additionalDiscount,
-        airconVeuDiscount,
+        airconVeuDiscount: items.reduce((sum, item) => sum + item.certificates * item.quantity, 0) * certificateRate,
       },
     };
   }
@@ -481,10 +489,12 @@ export default function QuotesPage() {
                       <Select label="Apply GST (10%)" value={solarGstOn} options={["yes", "no"]} labelFor={(value) => value === "yes" ? "Yes - include GST" : "No"} onChange={setSolarGstOn} />
                     </div>
                   </ModuleCard>
-                  <ModuleCard title="Discounts" badge="Manual amounts">
+                  <ModuleCard title="Discounts" badge="Calculated">
                     <div className="grid gap-3 md:grid-cols-2">
-                      <NumberInput label="STC Discount Amount (AUD)" value={solarStcDiscount} onChange={setSolarStcDiscount} />
-                      <NumberInput label="VEU Discount Amount (AUD)" value={solarVeuDiscount} onChange={setSolarVeuDiscount} />
+                      <NumberInput label="STC Count" value={solarStcCount} onChange={setSolarStcCount} />
+                      <NumberInput label="STC Price (AUD per certificate)" value={solarStcPrice} onChange={setSolarStcPrice} />
+                      <NumberInput label="VEU Count (battery only)" value={solarVeuCount} onChange={setSolarVeuCount} />
+                      <NumberInput label="VEU Price (AUD per certificate)" value={solarVeuPrice} onChange={setSolarVeuPrice} />
                       <NumberInput label="Solar Victoria Rebate (AUD)" value={rebate} onChange={setRebate} />
                       <NumberInput label="Solar Victoria Loan (AUD)" value={solarVicLoan} onChange={setSolarVicLoan} />
                     </div>
@@ -504,10 +514,12 @@ export default function QuotesPage() {
                       <Select label="Apply GST (10%)" value={heatPumpGstOn} options={["yes", "no"]} labelFor={(value) => value === "yes" ? "Yes - include GST" : "No"} onChange={setHeatPumpGstOn} />
                     </div>
                   </ModuleCard>
-                  <ModuleCard title="Discounts" badge="Manual amounts">
+                  <ModuleCard title="Discounts" badge="VEU + STC">
                     <div className="grid gap-3 md:grid-cols-2">
-                      <NumberInput label="VEU Discount Amount (AUD)" value={heatPumpVeuDiscount} onChange={setHeatPumpVeuDiscount} />
-                      <NumberInput label="STC Discount Amount (AUD)" value={heatPumpStcDiscount} onChange={setHeatPumpStcDiscount} />
+                      <NumberInput label="VEU Count" value={heatPumpVeuCount} onChange={setHeatPumpVeuCount} />
+                      <NumberInput label="VEU Rate (AUD)" value={heatPumpVeuRate} onChange={setHeatPumpVeuRate} />
+                      <NumberInput label="STC Count" value={heatPumpStcCount} onChange={setHeatPumpStcCount} />
+                      <NumberInput label="STC Rate (AUD)" value={heatPumpStcRate} onChange={setHeatPumpStcRate} />
                     </div>
                     <NumberInput label="Solar Victoria Rebate (AUD)" value={rebate} onChange={setRebate} />
                     <NumberInput label="Additional Discount (AUD)" value={additionalDiscount} onChange={setAdditionalDiscount} />
@@ -529,12 +541,13 @@ export default function QuotesPage() {
                       <NumberInput label="Upgrade Quantity" value={quantity} onChange={setQuantity} />
                       <NumberInput label="Combined indoor + outdoor price (per unit), $" value={productPrice} onChange={setProductPrice} />
                       <NumberInput label="Install Cost, $" value={installPrice} onChange={setInstallPrice} />
+                      <NumberInput label="Certificates" value={certificates} onChange={setCertificates} />
                     </div>
                     <button onClick={addHead} className="h-10 rounded-lg bg-[#003CBB] px-4 text-sm font-semibold text-white">Add combined system line</button>
                   </ModuleCard>
-                  <ModuleCard title="Discounts" badge="Manual amounts">
+                  <ModuleCard title="Discounts" badge="VEU + Custom">
                     <div className="grid gap-3 md:grid-cols-2">
-                      <NumberInput label="VEU Discount Amount (AUD)" value={airconVeuDiscount} onChange={setAirconVeuDiscount} />
+                      <NumberInput label="VEU Rate (AUD per certificate)" value={certificateRate} onChange={setCertificateRate} />
                       <NumberInput label="Additional Discount (AUD)" value={additionalDiscount} onChange={setAdditionalDiscount} />
                     </div>
                   </ModuleCard>
@@ -546,6 +559,7 @@ export default function QuotesPage() {
                     <NumberInput label="Quantity" value={quantity} onChange={setQuantity} />
                     <NumberInput label="Product Price (per unit), $" value={productPrice} onChange={setProductPrice} />
                     <NumberInput label="Install Cost, $" value={installPrice} onChange={setInstallPrice} />
+                    <NumberInput label="Certificates" value={certificates} onChange={setCertificates} />
                     <NumberInput label="Additional Discount (AUD)" value={additionalDiscount} onChange={setAdditionalDiscount} />
                   </div>
                   <button onClick={addProductLine} className="h-10 rounded-lg bg-[#003CBB] px-4 text-sm font-semibold text-white">Add product line</button>
@@ -575,7 +589,7 @@ export default function QuotesPage() {
                     <LineItemRow
                       key={item.id}
                       title={`${item.role}: ${item.brand} ${item.model}`}
-                      meta={`${item.area} / Qty ${item.quantity}`}
+                      meta={`${item.area} / Qty ${item.quantity} / ${item.certificates} certs`}
                       value={currency((item.productPrice + item.installPrice) * item.quantity)}
                       onRemove={() => removeItem(item.id)}
                     />
