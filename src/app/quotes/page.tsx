@@ -311,24 +311,24 @@ export default function QuotesPage() {
   function buildDeductionRows(draft: ReturnType<typeof buildQuoteDraft>, currentCalculations: ReturnType<typeof calculateQuote>) {
     if (isSolarCategory) {
       return visibleDeductionRows([
-        { label: "STC discount", value: draft.deductions.stcDiscount },
-        { label: "VEU discount", value: draft.deductions.veuDiscount },
+        { label: "STC rebate", value: draft.deductions.stcDiscount },
+        { label: "VEU rebate", value: draft.deductions.veuDiscount },
         { label: "Solar Victoria rebate", value: draft.deductions.solarVictoriaRebate },
         { label: "Solar Victoria loan", value: draft.deductions.solarVictoriaLoan },
-        { label: "Additional discount", value: draft.deductions.additionalDiscount },
+        { label: "Additional rebate", value: draft.deductions.additionalDiscount },
       ]);
     }
     if (isHeatPumpCategory) {
       return visibleDeductionRows([
-        { label: "VEU discount", value: draft.deductions.veuDiscount },
-        { label: "STC discount", value: draft.deductions.stcDiscount },
+        { label: "VEU rebate", value: draft.deductions.veuDiscount },
+        { label: "STC rebate", value: draft.deductions.stcDiscount },
         { label: "Solar Victoria rebate", value: draft.deductions.solarVictoriaRebate },
-        { label: "Additional discount", value: draft.deductions.additionalDiscount },
+        { label: "Additional rebate", value: draft.deductions.additionalDiscount },
       ]);
     }
     return visibleDeductionRows([
-      { label: "VEU discount", value: draft.deductions.airconVeuDiscount || currentCalculations.certificateDiscount },
-      { label: "Additional discount", value: draft.deductions.additionalDiscount },
+      { label: "VEU rebate", value: draft.deductions.airconVeuDiscount || currentCalculations.certificateDiscount },
+      { label: "Additional rebate", value: draft.deductions.additionalDiscount },
     ]);
   }
 
@@ -489,7 +489,7 @@ export default function QuotesPage() {
                       <Select label="Apply GST (10%)" value={solarGstOn} options={["yes", "no"]} labelFor={(value) => value === "yes" ? "Yes - include GST" : "No"} onChange={setSolarGstOn} />
                     </div>
                   </ModuleCard>
-                  <ModuleCard title="Discounts" badge="Calculated">
+                  <ModuleCard title="Rebates" badge="Calculated">
                     <div className="grid gap-3 md:grid-cols-2">
                       <NumberInput label="STC Count" value={solarStcCount} onChange={setSolarStcCount} />
                       <NumberInput label="STC Price (AUD per certificate)" value={solarStcPrice} onChange={setSolarStcPrice} />
@@ -498,7 +498,7 @@ export default function QuotesPage() {
                       <NumberInput label="Solar Victoria Rebate (AUD)" value={rebate} onChange={setRebate} />
                       <NumberInput label="Solar Victoria Loan (AUD)" value={solarVicLoan} onChange={setSolarVicLoan} />
                     </div>
-                    <NumberInput label="Additional Discount (AUD)" value={additionalDiscount} onChange={setAdditionalDiscount} />
+                    <NumberInput label="Additional Rebate (AUD)" value={additionalDiscount} onChange={setAdditionalDiscount} />
                   </ModuleCard>
                 </>
               ) : isHeatPumpCategory ? (
@@ -514,7 +514,7 @@ export default function QuotesPage() {
                       <Select label="Apply GST (10%)" value={heatPumpGstOn} options={["yes", "no"]} labelFor={(value) => value === "yes" ? "Yes - include GST" : "No"} onChange={setHeatPumpGstOn} />
                     </div>
                   </ModuleCard>
-                  <ModuleCard title="Discounts" badge="VEU + STC">
+                  <ModuleCard title="Rebates" badge="VEU + STC">
                     <div className="grid gap-3 md:grid-cols-2">
                       <NumberInput label="VEU Count" value={heatPumpVeuCount} onChange={setHeatPumpVeuCount} />
                       <NumberInput label="VEU Rate (AUD)" value={heatPumpVeuRate} onChange={setHeatPumpVeuRate} />
@@ -522,7 +522,7 @@ export default function QuotesPage() {
                       <NumberInput label="STC Rate (AUD)" value={heatPumpStcRate} onChange={setHeatPumpStcRate} />
                     </div>
                     <NumberInput label="Solar Victoria Rebate (AUD)" value={rebate} onChange={setRebate} />
-                    <NumberInput label="Additional Discount (AUD)" value={additionalDiscount} onChange={setAdditionalDiscount} />
+                    <NumberInput label="Additional Rebate (AUD)" value={additionalDiscount} onChange={setAdditionalDiscount} />
                   </ModuleCard>
                 </>
               ) : isAirconCategory ? (
@@ -541,14 +541,14 @@ export default function QuotesPage() {
                       <NumberInput label="Upgrade Quantity" value={quantity} onChange={setQuantity} />
                       <NumberInput label="Combined indoor + outdoor price (per unit), $" value={productPrice} onChange={setProductPrice} />
                       <NumberInput label="Install Cost, $" value={installPrice} onChange={setInstallPrice} />
-                      <NumberInput label="Certificates" value={certificates} onChange={setCertificates} />
+                      <NumberInput label="Total Certificates" value={certificates} onChange={setCertificates} />
                     </div>
                     <button onClick={addHead} className="h-10 rounded-lg bg-[#003CBB] px-4 text-sm font-semibold text-white">Add combined system line</button>
                   </ModuleCard>
-                  <ModuleCard title="Discounts" badge="VEU + Custom">
+                  <ModuleCard title="Rebates" badge="VEU + Custom">
                     <div className="grid gap-3 md:grid-cols-2">
                       <NumberInput label="VEU Rate (AUD per certificate)" value={certificateRate} onChange={setCertificateRate} />
-                      <NumberInput label="Additional Discount (AUD)" value={additionalDiscount} onChange={setAdditionalDiscount} />
+                      <NumberInput label="Additional Rebate (AUD)" value={additionalDiscount} onChange={setAdditionalDiscount} />
                     </div>
                   </ModuleCard>
                 </>
@@ -559,8 +559,8 @@ export default function QuotesPage() {
                     <NumberInput label="Quantity" value={quantity} onChange={setQuantity} />
                     <NumberInput label="Product Price (per unit), $" value={productPrice} onChange={setProductPrice} />
                     <NumberInput label="Install Cost, $" value={installPrice} onChange={setInstallPrice} />
-                    <NumberInput label="Certificates" value={certificates} onChange={setCertificates} />
-                    <NumberInput label="Additional Discount (AUD)" value={additionalDiscount} onChange={setAdditionalDiscount} />
+                    <NumberInput label="Total Certificates" value={certificates} onChange={setCertificates} />
+                    <NumberInput label="Additional Rebate (AUD)" value={additionalDiscount} onChange={setAdditionalDiscount} />
                   </div>
                   <button onClick={addProductLine} className="h-10 rounded-lg bg-[#003CBB] px-4 text-sm font-semibold text-white">Add product line</button>
                 </ModuleCard>
