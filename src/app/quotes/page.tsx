@@ -96,7 +96,7 @@ export default function QuotesPage() {
   const [certificates, setCertificates] = useState(0);
   const [certificateRate, setCertificateRate] = useState(73.6);
   const minimumContributionAdjustment = 0;
-  const [gstRate, setGstRate] = useState(10);
+  const gstRate = 10;
   const [rebate, setRebate] = useState(0);
   const [solarVicLoan, setSolarVicLoan] = useState(0);
   const depositPercent = 50;
@@ -112,14 +112,6 @@ export default function QuotesPage() {
   const [currentQuoteId, setCurrentQuoteId] = useState("");
   const activeSelectedCustomerId = customers.some((item) => item.id === selectedCustomerId) ? selectedCustomerId : (customers[0]?.id ?? "");
   const customer = customers.find((item) => item.id === activeSelectedCustomerId);
-  const calculations = calculateQuote(items, addons, {
-    certificateRate,
-    minimumContributionAdjustment,
-    gstRate,
-    rebate,
-    solarVicLoan,
-    depositPercent,
-  });
   const isAirconCategory = productCategory === "Aircon";
   const selectedOutdoorModel = quoteProducts.some((product) => product.id === outdoorModel) ? outdoorModel : (quoteProducts[0]?.id ?? "");
   const selectedHeadModel = quoteProducts.some((product) => product.id === headModel) ? headModel : (quoteProducts[0]?.id ?? "");
@@ -160,6 +152,16 @@ export default function QuotesPage() {
   const activeSolarBatteryProduct = solarBatteries.some((product) => product.id === solarBatteryProduct) ? solarBatteryProduct : (solarBatteries[0]?.id ?? "");
   const activeHeatPumpProduct = heatPumpProducts.some((product) => product.id === heatPumpProduct) ? heatPumpProduct : (heatPumpProducts[0]?.id ?? "");
   const activeQuoteTab = quoteTabs.find((tab) => tab.categories.includes(productCategory)) ?? quoteTabs[0];
+  const quoteDraft = buildQuoteDraft();
+  const calculations = calculateQuote(quoteDraft.items, addons, {
+    certificateRate: quoteDraft.certificateRate,
+    minimumContributionAdjustment,
+    gstRate: quoteDraft.gstRate,
+    rebate: quoteDraft.rebate,
+    solarVicLoan: quoteDraft.solarVicLoan,
+    depositPercent,
+  });
+  const deductionRows = buildDeductionRows(quoteDraft, calculations);
 
   function changeProductCategory(value: string) {
     setProductCategory(value);
@@ -233,42 +235,101 @@ export default function QuotesPage() {
     setMessage(`${product.model ?? product.productName} added as a product line.`);
   }
 
-  function buildSolarSystem() {
-    const nextItems: QuoteLineItem[] = [];
-    const panel = state.products.find((item) => item.id === activeSolarPanelProduct);
-    const inverter = state.products.find((item) => item.id === activeSolarInverterProduct);
-    const battery = state.products.find((item) => item.id === activeSolarBatteryProduct);
-    if (panel && solarPanelQty > 0) nextItems.push(lineFromProduct(panel, "Product", "Solar Panels", 0, solarPanelQty, solarPanelPrice || panel.price, 0, 0, "Solar panel product"));
-    if (inverter && solarInverterQty > 0) nextItems.push(lineFromProduct(inverter, "Product", "Inverter", 0, solarInverterQty, solarInverterPrice || inverter.price, 0, 0, "Inverter product"));
-    if (battery && solarBatteryQty > 0) nextItems.push(lineFromProduct(battery, "Product", "Battery", 0, solarBatteryQty, solarBatteryPrice || battery.price, 0, 0, "Battery product"));
-    if (solarInstall > 0) nextItems.push(customLine("Install", "Installation", "Solar installation", 1, 0, solarInstall, 0, "Installation cost"));
-    if (!nextItems.length) {
-      setMessage("Select at least one solar product before generating items.");
-      return;
+  function buildQuoteDraft() {
+    if (isSolarCategory) {
+      const nextItems: QuoteLineItem[] = [];
+      const panel = state.products.find((item) => item.id === activeSolarPanelProduct);
+      const inverter = state.products.find((item) => item.id === activeSolarInverterProduct);
+      const battery = state.products.find((item) => item.id === activeSolarBatteryProduct);
+      if (panel && solarPanelQty > 0) nextItems.push(lineFromProduct(panel, "Product", "Solar Panels", 0, solarPanelQty, solarPanelPrice || panel.price, 0, 0, "Solar panel product"));
+      if (inverter && solarInverterQty > 0) nextItems.push(lineFromProduct(inverter, "Product", "Inverter", 0, solarInverterQty, solarInverterPrice || inverter.price, 0, 0, "Inverter product"));
+      if (battery && solarBatteryQty > 0) nextItems.push(lineFromProduct(battery, "Product", "Battery", 0, solarBatteryQty, solarBatteryPrice || battery.price, 0, 0, "Battery product"));
+      if (solarInstall > 0) nextItems.push(customLine("Install", "Installation", "Solar installation", 1, 0, solarInstall, 0, "Installation cost"));
+      const stcDiscount = solarStcCount * solarStcPrice;
+      const veuDiscount = solarVeuCount * solarVeuPrice;
+      const totalCertificates = solarStcCount + solarVeuCount;
+      const totalCertificateValue = stcDiscount + veuDiscount;
+      return {
+        items: nextItems.map((item, index) => index === 0 ? { ...item, certificates: totalCertificates } : item),
+        certificateRate: totalCertificates ? totalCertificateValue / totalCertificates : certificateRate,
+        gstRate: solarGstOn === "yes" ? 10 : 0,
+        rebate: Number(rebate) + solarAdditionalDiscount,
+        solarVicLoan,
+        deductions: {
+          stcDiscount,
+          veuDiscount,
+          solarVictoriaRebate: Number(rebate),
+          solarVictoriaLoan: solarVicLoan,
+          additionalDiscount: solarAdditionalDiscount,
+          airconVeuDiscount: 0,
+        },
+      };
     }
-    const totalCertificates = solarStcCount + solarVeuCount;
-    const totalCertificateValue = solarStcCount * solarStcPrice + solarVeuCount * solarVeuPrice;
-    setCertificateRate(totalCertificates ? totalCertificateValue / totalCertificates : certificateRate);
-    setRebate(Number(rebate) + solarAdditionalDiscount);
-    setGstRate(solarGstOn === "yes" ? 10 : 0);
-    setItems(nextItems.map((item, index) => index === 0 ? { ...item, certificates: totalCertificates } : item));
-    setMessage("Solar panel, inverter, battery, installation, and rebate fields copied into quote items.");
+
+    if (isHeatPumpCategory) {
+      const product = state.products.find((item) => item.id === activeHeatPumpProduct);
+      const stcDiscount = heatPumpStcCount * heatPumpStcRate;
+      const veuDiscount = heatPumpVeuCount * heatPumpVeuRate;
+      const totalCertificates = heatPumpVeuCount + heatPumpStcCount;
+      const totalCertificateValue = veuDiscount + stcDiscount;
+      return {
+        items: product && heatPumpQty > 0
+          ? [lineFromProduct(product, "Product", "Heat Pump", 0, heatPumpQty, heatPumpPrice || product.price, heatPumpInstall, totalCertificates, "Hot-water heat pump with VEU/STC rebate fields")]
+          : [],
+        certificateRate: totalCertificates ? totalCertificateValue / totalCertificates : certificateRate,
+        gstRate: heatPumpGstOn === "yes" ? 10 : 0,
+        rebate: Number(rebate),
+        solarVicLoan: 0,
+        deductions: {
+          stcDiscount,
+          veuDiscount,
+          solarVictoriaRebate: Number(rebate),
+          solarVictoriaLoan: 0,
+          additionalDiscount: 0,
+          airconVeuDiscount: 0,
+        },
+      };
+    }
+
+    const airconVeuDiscount = items.reduce((sum, item) => sum + item.certificates * item.quantity, 0) * certificateRate;
+    return {
+      items,
+      certificateRate,
+      gstRate,
+      rebate: Number(rebate),
+      solarVicLoan,
+      deductions: {
+        stcDiscount: 0,
+        veuDiscount: 0,
+        solarVictoriaRebate: 0,
+        solarVictoriaLoan: 0,
+        additionalDiscount: Number(rebate),
+        airconVeuDiscount,
+      },
+    };
   }
 
-  function buildHeatPumpSystem() {
-    const product = state.products.find((item) => item.id === activeHeatPumpProduct);
-    if (!product || heatPumpQty <= 0) {
-      setMessage("Select a heat pump product and quantity first.");
-      return;
+  function buildDeductionRows(draft: ReturnType<typeof buildQuoteDraft>, currentCalculations: ReturnType<typeof calculateQuote>) {
+    if (isSolarCategory) {
+      return [
+        { label: "STC discount", value: draft.deductions.stcDiscount },
+        { label: "VEU discount", value: draft.deductions.veuDiscount },
+        { label: "Solar Victoria rebate", value: draft.deductions.solarVictoriaRebate },
+        { label: "Solar Victoria loan", value: draft.deductions.solarVictoriaLoan },
+        { label: "Additional discount", value: draft.deductions.additionalDiscount },
+      ];
     }
-    const totalCertificates = heatPumpVeuCount + heatPumpStcCount;
-    const totalCertificateValue = heatPumpVeuCount * heatPumpVeuRate + heatPumpStcCount * heatPumpStcRate;
-    setCertificateRate(totalCertificates ? totalCertificateValue / totalCertificates : certificateRate);
-    setGstRate(heatPumpGstOn === "yes" ? 10 : 0);
-    setItems([
-      lineFromProduct(product, "Product", "Heat Pump", 0, heatPumpQty, heatPumpPrice || product.price, heatPumpInstall, totalCertificates, "Hot-water heat pump with VEU/STC rebate fields"),
-    ]);
-    setMessage("Heat pump product, installation, and rebate fields copied into quote items.");
+    if (isHeatPumpCategory) {
+      return [
+        { label: "VEU discount", value: draft.deductions.veuDiscount },
+        { label: "STC discount", value: draft.deductions.stcDiscount },
+        { label: "Solar Victoria rebate", value: draft.deductions.solarVictoriaRebate },
+      ];
+    }
+    return [
+      { label: "VEU discount", value: draft.deductions.airconVeuDiscount || currentCalculations.certificateDiscount },
+      { label: "Additional discount", value: draft.deductions.additionalDiscount },
+    ];
   }
 
   function addService() {
@@ -301,7 +362,7 @@ export default function QuotesPage() {
     setAddons((current) => current.filter((item) => item.id !== itemId));
   }
 
-  function buildQuote(status: QuoteRecord["status"], quoteId: string): QuoteRecord {
+  function buildQuote(status: QuoteRecord["status"], quoteId: string, draft = quoteDraft): QuoteRecord {
     return {
       id: quoteId,
       customerId: customer?.id ?? "",
@@ -311,13 +372,13 @@ export default function QuotesPage() {
       activityDate,
       priceTier: priceTiers[0],
       installationCostTier: installTiers[0],
-      items,
+      items: draft.items,
       additionalServices: addons,
-      certificateRate,
+      certificateRate: draft.certificateRate,
       minimumContributionAdjustment,
-      gstRate,
-      rebate,
-      solarVicLoan,
+      gstRate: draft.gstRate,
+      rebate: draft.rebate,
+      solarVicLoan: draft.solarVicLoan,
       depositPercent,
       annualEnergyProductionKwh,
       discountedPaybackYears,
@@ -331,9 +392,14 @@ export default function QuotesPage() {
       setMessage("Select a customer first.");
       return;
     }
+    const draft = buildQuoteDraft();
+    if ((isSolarCategory || isHeatPumpCategory) && !draft.items.length) {
+      setMessage(`Select at least one ${isSolarCategory ? "solar" : "heat pump"} product before generating the invoice.`);
+      return;
+    }
     const existingQuote = !forceNew && currentQuoteId ? state.quotes.find((quote) => quote.id === currentQuoteId) : undefined;
     const quoteId = existingQuote?.id ?? nextQuoteId(state.quotes);
-    const quote = buildQuote(status, quoteId);
+    const quote = buildQuote(status, quoteId, draft);
     setState(syncProposalCollections(state, quote, customer));
     window.localStorage.setItem(`saveplanet-quote-${quote.id}`, JSON.stringify(quote));
     setCurrentQuoteId(quote.id);
@@ -548,15 +614,15 @@ export default function QuotesPage() {
               <span className="mt-1 block font-semibold text-[#003CBB]">{activeQuoteTab.templateName}</span>
             </a>
             <div className="mt-5 divide-y divide-[#e5edf7] text-sm">
-              <SummaryRow label="Products" value={currency(calculations.productCost)} />
-              <SummaryRow label="Installation" value={currency(calculations.installCost)} />
+              <SummaryRow label="Products" value={currency(quoteDraft.items.reduce((sum, item) => sum + item.productPrice * item.quantity, 0))} />
+              <SummaryRow label="Installation" value={currency(quoteDraft.items.reduce((sum, item) => sum + item.installPrice * item.quantity, 0))} />
               <SummaryRow label="Additional costs" value={currency(addons.reduce((sum, item) => sum + item.productPrice * item.quantity, 0))} />
               <SummaryRow label="Subtotal" value={currency(calculations.totalCost)} strong />
-              <SummaryRow label={`GST (${gstRate}%)`} value={currency(calculations.gstAmount)} />
+              <SummaryRow label={`GST (${quoteDraft.gstRate}%)`} value={currency(calculations.gstAmount)} />
               <SummaryRow label="Total (incl. GST)" value={currency(calculations.systemTotalIncGst)} strong />
-              <SummaryRow label="Certificate discount" value={`-${currency(calculations.certificateDiscount)}`} discount />
-              <SummaryRow label="Victorian rebate" value={`-${currency(rebate)}`} discount />
-              {solarVicLoan > 0 ? <SummaryRow label="Solar Victoria loan" value={`-${currency(solarVicLoan)}`} discount /> : null}
+              {deductionRows.map((row) => (
+                <SummaryRow key={row.label} label={row.label} value={`-${currency(row.value)}`} discount />
+              ))}
             </div>
             <div className="mt-5 rounded-lg bg-[#003CBB] p-4 text-white">
               <p className="text-xs font-semibold uppercase text-white/70">Final Price</p>
@@ -564,8 +630,6 @@ export default function QuotesPage() {
             </div>
             {message ? <p className="mt-3 rounded-lg bg-[#eef4ff] p-3 text-sm font-semibold text-[#003CBB]">{message}</p> : null}
             <div className="mt-4 grid gap-2">
-              {isSolarCategory ? <button onClick={buildSolarSystem} className="h-10 rounded-lg bg-[#0f172a] px-4 text-sm font-semibold text-white">Generate solar items</button> : null}
-              {isHeatPumpCategory ? <button onClick={buildHeatPumpSystem} className="h-10 rounded-lg bg-[#0f172a] px-4 text-sm font-semibold text-white">Generate heat pump items</button> : null}
               <button onClick={() => saveQuote("Saved", true)} className="inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-[#003CBB] px-4 text-sm font-semibold text-white"><Save size={16} /> Generate Invoice</button>
             </div>
           </aside>
