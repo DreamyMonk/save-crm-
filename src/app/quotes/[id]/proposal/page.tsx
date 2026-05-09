@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useParams, useSearchParams } from "next/navigation";
 import { onAuthStateChanged, User } from "firebase/auth";
-import { ArrowLeft, Copy, Download, PenLine, Save, Send } from "lucide-react";
+import { ArrowLeft, CheckCircle2, Copy, Download, PenLine, Save, Send } from "lucide-react";
 import { CrmShell, PageHeader } from "@/components/crm-shell";
 import { RichTextEditor } from "@/components/rich-text-editor";
 import { CrmState, Customer, Product, ProductCategory, QuoteLineItem, QuoteRecord, TeamMember, currency } from "@/lib/crm-data";
@@ -55,6 +55,7 @@ function ProposalWorkspace({ publicView = false, allowAnonymous = false }: { pub
   const [signatureDataUrl, setSignatureDataUrl] = useState("");
   const [autoSignName, setAutoSignName] = useState("");
   const [autoSignFont, setAutoSignFont] = useState(signatureFonts[0].value);
+  const [signatureDoneOpen, setSignatureDoneOpen] = useState(false);
   const [changeRequestDrafts, setChangeRequestDrafts] = useState<Record<string, string>>({});
   const proposalSnapshot = useMemo(() => decodeProposalSnapshot(searchParams.get("snapshot")), [searchParams]);
   const effectivePublicView = publicView || (allowAnonymous && authChecked && !user);
@@ -225,6 +226,7 @@ function ProposalWorkspace({ publicView = false, allowAnonymous = false }: { pub
     const firstSignature = !quote.customerSignedAt;
     const updatedQuote: QuoteRecord = { ...quote, customerSignatureDataUrl: signatureDataUrl, customerSignedAt: signedAt };
     persistQuoteUpdate(updatedQuote);
+    setSignatureDoneOpen(true);
 
     if (!firstSignature) {
       setMessage("Signature saved into the proposal.");
@@ -298,7 +300,7 @@ function ProposalWorkspace({ publicView = false, allowAnonymous = false }: { pub
         }
       />
       {message ? <p className="mx-8 mt-4 rounded-lg bg-[#eef4ff] p-3 text-sm font-semibold text-[#003CBB]">{message}</p> : null}
-      <main className="bg-[#dfe6df] p-6">
+        <main className="bg-[#dfe6df] p-6">
         <iframe
           ref={iframeRef}
           title="SavePlanet drafted proposal"
@@ -383,10 +385,30 @@ function ProposalWorkspace({ publicView = false, allowAnonymous = false }: { pub
           ) : (
             <p className="mt-4 rounded-lg border border-dashed border-[#c7d3e8] bg-[#f8fbff] p-4 text-sm text-[#657267]">No change request submitted yet.</p>
           )}
-        </section>
-      </main>
-    </>
-  );
+          </section>
+        </main>
+        {signatureDoneOpen ? (
+          <div className="fixed inset-0 z-50 grid place-items-center bg-[#0f172a]/45 px-4">
+            <div className="w-full max-w-md rounded-xl border border-[#d9e2f2] bg-white p-6 text-center shadow-2xl">
+              <div className="mx-auto grid h-12 w-12 place-items-center rounded-full bg-[#e7f7ee] text-2xl text-[#0b7a3d]">
+                <CheckCircle2 size={28} />
+              </div>
+              <h2 className="mt-4 text-xl font-bold text-[#0f172a]">Signature completed</h2>
+              <p className="mt-2 text-sm leading-6 text-[#657267]">
+                Thank you, {customerName(customer)}. Your signed proposal has been saved successfully. The SavePlanet team will take it from here and keep you updated.
+              </p>
+              <button
+                type="button"
+                onClick={() => setSignatureDoneOpen(false)}
+                className="mt-5 inline-flex h-10 items-center justify-center rounded-lg bg-[#003CBB] px-5 text-sm font-semibold text-white"
+              >
+                Done
+              </button>
+            </div>
+          </div>
+        ) : null}
+      </>
+    );
 
   return effectivePublicView ? content : (
     <CrmShell>
