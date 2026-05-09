@@ -41,7 +41,7 @@ export async function POST(request: Request) {
       body: JSON.stringify({
         from: resend.fromName ? `${resend.fromName} <${resend.fromEmail}>` : resend.fromEmail,
         reply_to: resend.replyToEmail,
-        to: recipients.map((recipient) => (recipient.name ? `${recipient.name} <${recipient.email}>` : recipient.email)),
+        to: recipients.map((recipient) => recipient.email),
         subject: body.subject,
         text: body.text,
         html: body.html,

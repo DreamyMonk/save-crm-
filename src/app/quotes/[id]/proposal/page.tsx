@@ -6,6 +6,7 @@ import { useParams, useSearchParams } from "next/navigation";
 import { onAuthStateChanged, User } from "firebase/auth";
 import { CheckCircle2, Download, PenLine, Save, Send } from "lucide-react";
 import { CrmShell, PageHeader } from "@/components/crm-shell";
+import { RichTextEditor } from "@/components/rich-text-editor";
 import { CrmState, Customer, Product, ProductCategory, QuoteLineItem, QuoteRecord, TeamMember, currency } from "@/lib/crm-data";
 import { getFirebaseAuth } from "@/lib/firebase";
 import { invoiceFromQuote, syncProposalCollections } from "@/lib/proposal-packages";
@@ -57,6 +58,7 @@ function ProposalWorkspace({ publicView = false, allowAnonymous = false }: { pub
   const [signatureDoneOpen, setSignatureDoneOpen] = useState(false);
   const [notice, setNotice] = useState<{ title: string; body: string } | null>(null);
   const [proposalSending, setProposalSending] = useState(false);
+  const [changeRequestDrafts, setChangeRequestDrafts] = useState<Record<string, string>>({});
   const proposalSnapshot = useMemo(() => decodeProposalSnapshot(searchParams.get("snapshot")), [searchParams]);
   const effectivePublicView = publicView || (allowAnonymous && authChecked && !user);
   const quote = useMemo(() => {
@@ -79,6 +81,7 @@ function ProposalWorkspace({ publicView = false, allowAnonymous = false }: { pub
     return calculateQuote(quote);
   }, [quote]);
   const hasSavedSignature = Boolean(quote?.customerSignatureDataUrl || quote?.customerSignedAt);
+  const changeRequestHtml = quote ? (changeRequestDrafts[quote.id] ?? quote.proposalChangeRequestHtml ?? "") : "";
   const persistQuoteUpdate = useCallback((updatedQuote: QuoteRecord, invoiceAmount?: number) => {
     const nextCustomer = state.customers.find((item) => item.id === updatedQuote.customerId);
     const packageRecord = state.proposalPackages.find((item) => item.quoteId === updatedQuote.id || item.publicToken === updatedQuote.id);
@@ -192,16 +195,24 @@ function ProposalWorkspace({ publicView = false, allowAnonymous = false }: { pub
         text: proposalEmailBody(customer, quote, link),
         html: customerEmailHtml,
       });
+      const internalRecipients = proposalNotificationRecipients(state, updatedQuote, customer, user);
+      const internalEmailSent = internalRecipients.length
+        ? await sendResendEmail(state, {
+            recipients: internalRecipients,
+            subject: `Proposal sent: ${quote.id}`,
+            text: proposalSentNotificationBody(customer, updatedQuote, link),
+          })
+        : true;
 
-      if (customerEmailSent) {
+      if (customerEmailSent && internalEmailSent) {
         setNotice({
           title: "Sent successfully",
-          body: "Proposal mail was sent successfully to the customer.",
+          body: "Proposal mail was sent successfully to the customer, admin, and sales agent.",
         });
         return;
       }
 
-      setMessage("Proposal email failed. Please check Resend settings.");
+      setMessage(customerEmailSent ? "Customer email sent, but admin or sales agent notification failed." : "Proposal email failed. Please check Resend settings.");
     } finally {
       setProposalSending(false);
     }
@@ -245,6 +256,33 @@ function ProposalWorkspace({ publicView = false, allowAnonymous = false }: { pub
       text: `${customerName(customer)} signed proposal ${quote.id} on ${formatDate(signedAt)}.\n\nCustomer: ${customerName(customer)}\nProposal: ${quote.id}\nStatus: Signed\n\nOpen proposal records in SavePlanet CRM:\n${window.location.origin}/proposals`,
     });
     setMessage(emailSent ? "Signature saved. Admin and sending agent were notified." : "Signature saved. Notification email failed, please check Resend settings.");
+  }
+
+  async function saveChangeRequest() {
+    if (!quote) return;
+    if (!hasEditorText(changeRequestHtml)) {
+      setMessage("Please write the requested changes first.");
+      return;
+    }
+    const requestedAt = new Date().toISOString();
+    const updatedQuote: QuoteRecord = {
+      ...quote,
+      proposalChangeRequestHtml: changeRequestHtml,
+      proposalChangeRequestedAt: requestedAt,
+    };
+    persistQuoteUpdate(updatedQuote);
+    const recipients = proposalNotificationRecipients(state, updatedQuote, customer, user);
+    const emailSent = recipients.length
+      ? await sendResendEmail(state, {
+          recipients,
+          subject: `Proposal changes requested: ${quote.id}`,
+          text: `${customerName(customer)} requested changes for proposal ${quote.id} on ${formatDate(requestedAt)}.\n\nCustomer: ${customerName(customer)}\nProposal: ${quote.id}\nStatus: Changes requested\n\nRequested changes:\n${plainTextFromHtml(changeRequestHtml)}\n\nOpen proposal records in SavePlanet CRM:\n${window.location.origin}/proposals`,
+        })
+      : false;
+    setNotice({
+      title: "Changes sent",
+      body: emailSent ? "Your requested changes were sent to the SavePlanet team." : "Your changes were saved. Notification email failed, please check Resend settings.",
+    });
   }
 
   const content = (
@@ -333,6 +371,27 @@ function ProposalWorkspace({ publicView = false, allowAnonymous = false }: { pub
             </button>
           </div> : null}
         </section> : null}
+        {effectivePublicView ? <section className="mx-auto mt-5 max-w-[900px] rounded-lg border border-[#d9e2f2] bg-white p-5 shadow-sm">
+          <div className="flex items-center gap-2">
+            <PenLine size={18} />
+            <h2 className="font-semibold">Request changes</h2>
+          </div>
+          <p className="mt-1 text-sm text-[#657267]">Write any requested changes before signing or after reviewing the proposal.</p>
+          <div className="mt-4">
+            <RichTextEditor
+              value={changeRequestHtml}
+              onChange={(value) => {
+                if (!quote) return;
+                setChangeRequestDrafts((current) => ({ ...current, [quote.id]: value }));
+              }}
+              placeholder="Write requested changes here..."
+              minHeight={180}
+            />
+          </div>
+          <button onClick={saveChangeRequest} className="mt-4 inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-[#003CBB] px-4 text-sm font-semibold text-white">
+            <Send size={16} /> Send changes
+          </button>
+        </section> : null}
         </main>
         {signatureDoneOpen || notice ? (
           <div className="fixed inset-0 z-50 grid place-items-center bg-[#0f172a]/45 px-4">
@@ -383,7 +442,12 @@ async function sendResendEmail(
         html: payload.html,
       }),
     });
-    return response.ok;
+    if (!response.ok) {
+      const result = await response.json().catch(() => ({}));
+      console.error("Proposal email failed", result);
+      return false;
+    }
+    return true;
   } catch {
     return false;
   }
@@ -450,6 +514,21 @@ function proposalNotificationRecipients(state: CrmState, quote: QuoteRecord, cus
   addMember(state.team.find((member) => member.active && member.name === customer?.secondSalesAgent));
 
   return Array.from(recipients.values());
+}
+
+function proposalSentNotificationBody(customer: Customer | undefined, quote: QuoteRecord, link: string) {
+  return `Proposal ${quote.id} was sent to ${customerName(customer)}.
+
+Customer: ${customerName(customer)}
+Customer email: ${customer?.email || "Not provided"}
+Sent by: ${quote.proposalSentBy || "SavePlanet Team"}
+Status: Sent
+
+Public proposal link:
+${link}
+
+Open proposal tracking:
+${window.location.origin}/proposals`;
 }
 
 function proposalEmailBody(customer: Customer | undefined, quote: QuoteRecord, link: string) {
