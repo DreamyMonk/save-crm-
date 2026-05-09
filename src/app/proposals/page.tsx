@@ -143,7 +143,7 @@ export default function ProposalsPage() {
                           <button onClick={() => { setSelectedQuoteId(quote.id); setDetailsOpen(true); }} className="inline-flex h-9 items-center rounded-lg border border-[#c7d3e8] px-3 text-xs font-semibold text-[#003CBB]">
                             View
                           </button>
-                          <Link href={`/proposal/${quote.id}`} className="inline-flex h-9 items-center gap-2 rounded-lg bg-[#003CBB] px-3 text-xs font-semibold text-white">
+                          <Link href={`/quotes/${quote.id}/proposal`} className="inline-flex h-9 items-center gap-2 rounded-lg bg-[#003CBB] px-3 text-xs font-semibold text-white">
                             <ExternalLink size={14} /> Open proposal
                           </Link>
                         </div>
@@ -180,7 +180,7 @@ export default function ProposalsPage() {
                 <Detail label="Agent" value={selectedRow.agent} />
                 <Detail label="Substitute agent" value={selectedRow.proposalPackage?.substituteAgent || "Not assigned"} />
                 <Detail label="Status" value={selectedRow.status} />
-                <Link href={`/proposal/${selectedRow.quote.id}`} className="inline-flex h-10 items-center gap-2 rounded-lg bg-[#003CBB] px-4 text-sm font-semibold text-white">
+                <Link href={`/quotes/${selectedRow.quote.id}/proposal`} className="inline-flex h-10 items-center gap-2 rounded-lg bg-[#003CBB] px-4 text-sm font-semibold text-white">
                   <ExternalLink size={16} /> Open proposal
                 </Link>
                 <div>

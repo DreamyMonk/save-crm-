@@ -4,9 +4,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useParams, useSearchParams } from "next/navigation";
 import { onAuthStateChanged, User } from "firebase/auth";
-import { ArrowLeft, CheckCircle2, Copy, Download, PenLine, Save, Send } from "lucide-react";
+import { CheckCircle2, Download, PenLine, Save, Send } from "lucide-react";
 import { CrmShell, PageHeader } from "@/components/crm-shell";
-import { RichTextEditor } from "@/components/rich-text-editor";
 import { CrmState, Customer, Product, ProductCategory, QuoteLineItem, QuoteRecord, TeamMember, currency } from "@/lib/crm-data";
 import { getFirebaseAuth } from "@/lib/firebase";
 import { invoiceFromQuote, syncProposalCollections } from "@/lib/proposal-packages";
@@ -57,13 +56,13 @@ function ProposalWorkspace({ publicView = false, allowAnonymous = false }: { pub
   const [autoSignFont, setAutoSignFont] = useState(signatureFonts[0].value);
   const [signatureDoneOpen, setSignatureDoneOpen] = useState(false);
   const [notice, setNotice] = useState<{ title: string; body: string } | null>(null);
-  const [changeRequestDrafts, setChangeRequestDrafts] = useState<Record<string, string>>({});
+  const [proposalSending, setProposalSending] = useState(false);
   const proposalSnapshot = useMemo(() => decodeProposalSnapshot(searchParams.get("snapshot")), [searchParams]);
   const effectivePublicView = publicView || (allowAnonymous && authChecked && !user);
   const quote = useMemo(() => {
-    if (proposalSnapshot?.quote.id === id) return proposalSnapshot.quote;
     const fromState = state.quotes.find((item) => item.id === id);
     if (fromState) return fromState;
+    if (proposalSnapshot?.quote.id === id) return proposalSnapshot.quote;
     if (typeof window === "undefined") return undefined;
     const saved = window.localStorage.getItem(`saveplanet-quote-${id}`);
     if (!saved) return undefined;
@@ -79,8 +78,7 @@ function ProposalWorkspace({ publicView = false, allowAnonymous = false }: { pub
     if (!quote) return undefined;
     return calculateQuote(quote);
   }, [quote]);
-  const changeRequestHtml = quote ? (changeRequestDrafts[quote.id] ?? quote.proposalChangeRequestHtml ?? "") : "";
-  const proposalPackage = state.proposalPackages.find((item) => item.quoteId === quote?.id || item.publicToken === id);
+  const hasSavedSignature = Boolean(quote?.customerSignatureDataUrl || quote?.customerSignedAt);
   const persistQuoteUpdate = useCallback((updatedQuote: QuoteRecord, invoiceAmount?: number) => {
     const nextCustomer = state.customers.find((item) => item.id === updatedQuote.customerId);
     const packageRecord = state.proposalPackages.find((item) => item.quoteId === updatedQuote.id || item.publicToken === updatedQuote.id);
@@ -154,12 +152,6 @@ function ProposalWorkspace({ publicView = false, allowAnonymous = false }: { pub
     );
   }
 
-  function saveProposal() {
-    if (!quote) return;
-    persistQuoteUpdate({ ...quote, status: "Saved" });
-    setMessage("Proposal saved.");
-  }
-
   function downloadPdf() {
     iframeRef.current?.contentWindow?.focus();
     iframeRef.current?.contentWindow?.print();
@@ -179,46 +171,48 @@ function ProposalWorkspace({ publicView = false, allowAnonymous = false }: { pub
     return updatedQuote;
   }
 
-  async function copyProposalLink() {
-    if (!quote) return;
-    const updatedQuote = markProposalSent() ?? quote;
-    await publishProposalSnapshot(updatedQuote, customer);
-    const link = publicProposalLink(updatedQuote, customer);
-    await navigator.clipboard?.writeText(link);
-    setMessage("Public proposal link copied.");
-  }
-
   async function sendProposalEmail() {
-    if (!quote || !calculations) return;
-    const updatedQuote = markProposalSent() ?? quote;
-    await publishProposalSnapshot(updatedQuote, customer);
-    const link = publicProposalLink(updatedQuote, customer);
+    if (!quote || !calculations || proposalSending) return;
 
     if (!customer?.email) {
       setMessage("Customer email is missing, so no proposal email was sent.");
       return;
     }
 
-    const customerEmailHtml = await proposalEmailHtml(quoteCategory, customer, updatedQuote, link, calculations);
-    const customerEmailSent = await sendResendEmail(state, {
-      recipients: [{ email: customer.email, name: customerName(customer) }],
-      subject: `Your SavePlanet proposal is ready - ${quote.id}`,
-      text: proposalEmailBody(customer, quote, link),
-      html: customerEmailHtml,
-    });
-    const internalRecipients = proposalNotificationRecipients(state, updatedQuote, customer, user);
-    const internalEmailSent = internalRecipients.length
-      ? await sendResendEmail(state, {
-          recipients: internalRecipients,
-          subject: `Proposal sent: ${quote.id}`,
-          text: proposalSentNotificationBody(customer, updatedQuote, link),
-        })
-      : true;
-    setMessage(customerEmailSent && internalEmailSent ? "Proposal email sent to the customer, admin, and sales agent." : "Proposal email partly failed. Please check Resend settings.");
+    setProposalSending(true);
+    setMessage("");
+    try {
+      const updatedQuote = markProposalSent() ?? quote;
+      await publishProposalSnapshot(updatedQuote, customer);
+      const link = publicProposalLink(updatedQuote, customer);
+      const customerEmailHtml = await proposalEmailHtml(quoteCategory, customer, updatedQuote, link, calculations);
+      const customerEmailSent = await sendResendEmail(state, {
+        recipients: [{ email: customer.email, name: customerName(customer) }],
+        subject: `Your SavePlanet proposal is ready - ${quote.id}`,
+        text: proposalEmailBody(customer, quote, link),
+        html: customerEmailHtml,
+      });
+
+      if (customerEmailSent) {
+        setNotice({
+          title: "Sent successfully",
+          body: "Proposal mail was sent successfully to the customer.",
+        });
+        return;
+      }
+
+      setMessage("Proposal email failed. Please check Resend settings.");
+    } finally {
+      setProposalSending(false);
+    }
   }
 
   async function saveSignature() {
     if (!quote) return;
+    if (hasSavedSignature) {
+      setMessage("This proposal is already signed.");
+      return;
+    }
     const signatureToSave = signatureDraft?.quoteId === quote.id ? signatureDraft.dataUrl : quote.customerSignatureDataUrl;
     if (!signatureToSave) {
       setMessage("Please draw a signature first.");
@@ -253,34 +247,6 @@ function ProposalWorkspace({ publicView = false, allowAnonymous = false }: { pub
     setMessage(emailSent ? "Signature saved. Admin and sending agent were notified." : "Signature saved. Notification email failed, please check Resend settings.");
   }
 
-  async function saveChangeRequest() {
-    if (!quote) return;
-    if (!hasEditorText(changeRequestHtml)) {
-      setMessage("Please write the requested changes first.");
-      return;
-    }
-    const requestedAt = new Date().toISOString();
-    const updatedQuote: QuoteRecord = {
-      ...quote,
-      proposalChangeRequestHtml: changeRequestHtml,
-      proposalChangeRequestedAt: requestedAt,
-    };
-    persistQuoteUpdate(updatedQuote);
-    const recipients = proposalNotificationRecipients(state, updatedQuote, customer, user);
-    const emailSent = recipients.length
-      ? await sendResendEmail(state, {
-          recipients,
-          subject: `Proposal changes requested: ${quote.id}`,
-          text: `${customerName(customer)} requested changes for proposal ${quote.id} on ${formatDate(requestedAt)}.\n\nCustomer: ${customerName(customer)}\nProposal: ${quote.id}\nStatus: Changes requested\n\nRequested changes:\n${plainTextFromHtml(changeRequestHtml)}\n\nOpen proposal records in SavePlanet CRM:\n${window.location.origin}/proposals`,
-        })
-      : false;
-    setMessage(emailSent ? "Your requested changes were sent to SavePlanet." : "Your changes were saved. Notification email failed, please check Resend settings.");
-    setNotice({
-      title: "Changes sent",
-      body: "Thank you. Your requested changes have been sent to the SavePlanet team, and someone will review them shortly.",
-    });
-  }
-
   const content = (
     <>
       <PageHeader
@@ -293,17 +259,8 @@ function ProposalWorkspace({ publicView = false, allowAnonymous = false }: { pub
             </button>
           ) : (
             <>
-            <Link href="/quotes" className="inline-flex h-10 items-center gap-2 rounded-lg border border-[#c7d3e8] bg-white px-4 text-sm font-semibold text-[#003CBB]">
-              <ArrowLeft size={16} /> Back
-            </Link>
-            <button onClick={saveProposal} className="inline-flex h-10 items-center gap-2 rounded-lg bg-[#003CBB] px-4 text-sm font-semibold text-white">
-              <Save size={16} /> Save proposal
-            </button>
-            <button onClick={copyProposalLink} className="inline-flex h-10 items-center gap-2 rounded-lg bg-[#eef4ff] px-4 text-sm font-semibold text-[#003CBB]">
-              <Copy size={16} /> Copy link
-            </button>
-            <button onClick={sendProposalEmail} className="inline-flex h-10 items-center gap-2 rounded-lg bg-[#003CBB] px-4 text-sm font-semibold text-white">
-              <Send size={16} /> Send
+            <button onClick={sendProposalEmail} disabled={proposalSending} className="inline-flex h-10 items-center gap-2 rounded-lg bg-[#003CBB] px-4 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:bg-[#9bb3ee]">
+              <Send size={16} /> {proposalSending ? "Sending..." : "Send Mail"}
             </button>
             <button onClick={downloadPdf} className="inline-flex h-10 items-center gap-2 rounded-lg bg-[#0f172a] px-4 text-sm font-semibold text-white">
               <Download size={16} /> Download PDF
@@ -326,21 +283,25 @@ function ProposalWorkspace({ publicView = false, allowAnonymous = false }: { pub
               <PenLine size={18} />
             <h2 className="font-semibold">Customer signature</h2>
           </div>
-            {!effectivePublicView ? (
-              <div className="mt-3 grid gap-2 rounded-lg border border-[#e5edf7] bg-[#f8fbff] p-3 text-sm md:grid-cols-3">
-                <StatusLine label="Package" value={proposalPackage?.id ?? `PP-${quote.id}`} />
-                <StatusLine label="Status" value={proposalPackage?.status ?? "Draft"} />
-                <StatusLine label="Invoice" value={proposalPackage?.invoiceId ?? "Created when sent"} />
-              </div>
-            ) : null}
             <p className="mt-1 text-sm text-[#657267]">{effectivePublicView ? "Sign here to confirm that you have reviewed this proposal. Your signature will appear in the proposal customer signature area." : "Customer can sign here from the shared proposal link. Saved signature appears automatically in the proposal customer signature area."}</p>
-            <SignaturePad
-              value={quote.customerSignatureDataUrl}
-              onChange={(value) => setSignatureDraft({ quoteId: quote.id, dataUrl: value })}
-              autoName={autoSignName}
-              autoFont={autoSignFont}
-            />
-            <div className="mt-4 rounded-lg border border-[#e5edf7] bg-[#f8fbff] p-4">
+            {hasSavedSignature ? (
+              <div className="mt-4 rounded-lg border border-[#d9e2f2] bg-[#f8fbff] p-4">
+                <p className="text-sm font-semibold text-[#0f172a]">This proposal has already been signed.</p>
+                {quote.customerSignatureDataUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={quote.customerSignatureDataUrl} alt="Customer signature" className="mt-3 max-h-28 max-w-full rounded-lg border border-[#e5edf7] bg-white object-contain p-3" />
+                ) : null}
+                {quote.customerSignedAt ? <p className="mt-2 text-xs font-semibold text-[#657267]">Signed on {formatDate(quote.customerSignedAt)}</p> : null}
+              </div>
+            ) : (
+              <>
+              <SignaturePad
+                value={quote.customerSignatureDataUrl}
+                onChange={(value) => setSignatureDraft({ quoteId: quote.id, dataUrl: value })}
+                autoName={autoSignName}
+                autoFont={autoSignFont}
+              />
+              <div className="mt-4 rounded-lg border border-[#e5edf7] bg-[#f8fbff] p-4">
               <div className="flex items-center gap-2">
                 <PenLine size={16} />
                 <h3 className="text-sm font-semibold">Auto sign</h3>
@@ -363,47 +324,15 @@ function ProposalWorkspace({ publicView = false, allowAnonymous = false }: { pub
                 {autoSignName || "Signature preview"}
               </div>
             </div>
+              </>
+            )}
           </div>
-          <div className="flex flex-col justify-end gap-2">
+          {!hasSavedSignature ? <div className="flex flex-col justify-end gap-2">
             <button onClick={saveSignature} className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-[#003CBB] px-4 text-sm font-semibold text-white">
               <Save size={16} /> Save signature
             </button>
-            {!effectivePublicView ? <button onClick={copyProposalLink} className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-[#c7d3e8] bg-white px-4 text-sm font-semibold text-[#003CBB]">
-              <Copy size={16} /> Copy proposal link
-            </button> : null}
-          </div>
+          </div> : null}
         </section> : null}
-        {effectivePublicView ? <section className="mx-auto mt-5 max-w-[900px] rounded-lg border border-[#d9e2f2] bg-white p-5 shadow-sm">
-          <div className="flex items-center gap-2">
-            <PenLine size={18} />
-            <h2 className="font-semibold">Changes</h2>
-          </div>
-          <p className="mt-1 text-sm text-[#657267]">
-            {effectivePublicView ? "Write any requested changes before signing or after reviewing the proposal." : "Client requested changes from the public proposal viewer."}
-          </p>
-          {effectivePublicView ? (
-            <>
-              <div className="mt-4">
-                <RichTextEditor
-                  value={changeRequestHtml}
-                  onChange={(value) => {
-                    if (!quote) return;
-                    setChangeRequestDrafts((current) => ({ ...current, [quote.id]: value }));
-                  }}
-                  placeholder="Write requested changes here..."
-                  minHeight={180}
-                />
-              </div>
-              <button onClick={saveChangeRequest} className="mt-4 inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-[#003CBB] px-4 text-sm font-semibold text-white">
-                <Send size={16} /> Send changes
-              </button>
-            </>
-          ) : quote.proposalChangeRequestHtml ? (
-            <div className="prose prose-sm mt-4 max-w-none rounded-lg border border-[#e5edf7] bg-[#f8fbff] p-4 text-[#0f172a]" dangerouslySetInnerHTML={{ __html: quote.proposalChangeRequestHtml }} />
-          ) : (
-            <p className="mt-4 rounded-lg border border-dashed border-[#c7d3e8] bg-[#f8fbff] p-4 text-sm text-[#657267]">No change request submitted yet.</p>
-          )}
-          </section> : null}
         </main>
         {signatureDoneOpen || notice ? (
           <div className="fixed inset-0 z-50 grid place-items-center bg-[#0f172a]/45 px-4">
@@ -523,21 +452,6 @@ function proposalNotificationRecipients(state: CrmState, quote: QuoteRecord, cus
   return Array.from(recipients.values());
 }
 
-function proposalSentNotificationBody(customer: Customer | undefined, quote: QuoteRecord, link: string) {
-  return `Proposal ${quote.id} was sent to ${customerName(customer)}.
-
-Customer: ${customerName(customer)}
-Customer email: ${customer?.email || "Not provided"}
-Sent by: ${quote.proposalSentBy || "SavePlanet Team"}
-Status: Sent
-
-Public proposal link:
-${link}
-
-Open proposal tracking:
-${window.location.origin}/proposals`;
-}
-
 function proposalEmailBody(customer: Customer | undefined, quote: QuoteRecord, link: string) {
   return `Hi ${customerName(customer)},
 
@@ -629,17 +543,6 @@ function inferQuoteCategory(quote: QuoteRecord, products: Product[]): ProductCat
   if (itemText.includes("heat pump") || itemText.includes("hot water")) return "Heat Pump";
   if (itemText.includes("indoor head") || itemText.includes("outdoor unit") || itemText.includes("air con")) return "Aircon";
   return undefined;
-}
-
-function hasEditorText(html: string) {
-  if (!html) return false;
-  return html.replace(/<[^>]*>/g, "").replaceAll("&nbsp;", " ").trim().length > 0;
-}
-
-function plainTextFromHtml(html: string) {
-  if (!html) return "";
-  const doc = new DOMParser().parseFromString(html, "text/html");
-  return doc.body.textContent?.replace(/\s+/g, " ").trim() || "";
 }
 
 function buildProposalHtml(template: string, quote: QuoteRecord, customer: Customer | undefined, calculations: Calculations, category: string) {
@@ -993,15 +896,6 @@ function SignaturePad({ value, onChange, autoName, autoFont }: { value?: string;
           Clear signature
         </button>
       </div>
-    </div>
-  );
-}
-
-function StatusLine({ label, value }: { label: string; value: string }) {
-  return (
-    <div>
-      <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[#657267]">{label}</p>
-      <p className="mt-1 font-semibold text-[#0f172a]">{value}</p>
     </div>
   );
 }
