@@ -35,7 +35,7 @@ const signatureFonts = [
 ];
 
 export default function DraftProposalPage() {
-  return <ProposalWorkspace allowAnonymous />;
+  return <ProposalWorkspace />;
 }
 
 export function PublicProposalPage() {
