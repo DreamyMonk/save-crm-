@@ -354,10 +354,6 @@ export default function QuotesPage() {
     setAddonPrice(0);
   }
 
-  function removeItem(itemId: string) {
-    setItems((current) => current.filter((item) => item.id !== itemId));
-  }
-
   function removeAddon(itemId: string) {
     setAddons((current) => current.filter((item) => item.id !== itemId));
   }
@@ -489,7 +485,7 @@ export default function QuotesPage() {
                       <Select label="Apply GST (10%)" value={solarGstOn} options={["yes", "no"]} labelFor={(value) => value === "yes" ? "Yes - include GST" : "No"} onChange={setSolarGstOn} />
                     </div>
                   </ModuleCard>
-                  <ModuleCard title="Rebates" badge="Calculated">
+                  <ModuleCard title="Rebate" badge="Calculated">
                     <div className="grid gap-3 md:grid-cols-2">
                       <NumberInput label="STC Count" value={solarStcCount} onChange={setSolarStcCount} />
                       <NumberInput label="STC Price (AUD per certificate)" value={solarStcPrice} onChange={setSolarStcPrice} />
@@ -514,7 +510,7 @@ export default function QuotesPage() {
                       <Select label="Apply GST (10%)" value={heatPumpGstOn} options={["yes", "no"]} labelFor={(value) => value === "yes" ? "Yes - include GST" : "No"} onChange={setHeatPumpGstOn} />
                     </div>
                   </ModuleCard>
-                  <ModuleCard title="Rebates" badge="VEU + STC">
+                  <ModuleCard title="Rebate" badge="VEU + STC">
                     <div className="grid gap-3 md:grid-cols-2">
                       <NumberInput label="VEU Count" value={heatPumpVeuCount} onChange={setHeatPumpVeuCount} />
                       <NumberInput label="VEU Rate (AUD)" value={heatPumpVeuRate} onChange={setHeatPumpVeuRate} />
@@ -541,12 +537,12 @@ export default function QuotesPage() {
                       <NumberInput label="Upgrade Quantity" value={quantity} onChange={setQuantity} />
                       <NumberInput label="Combined indoor + outdoor price (per unit), $" value={productPrice} onChange={setProductPrice} />
                       <NumberInput label="Install Cost, $" value={installPrice} onChange={setInstallPrice} />
-                      <NumberInput label="Total Certificates" value={certificates} onChange={setCertificates} />
                     </div>
                     <button onClick={addHead} className="h-10 rounded-lg bg-[#003CBB] px-4 text-sm font-semibold text-white">Add combined system line</button>
                   </ModuleCard>
-                  <ModuleCard title="Rebates" badge="VEU + Custom">
+                  <ModuleCard title="Rebate" badge="VEU + Custom">
                     <div className="grid gap-3 md:grid-cols-2">
+                      <NumberInput label="Total Certificates" value={certificates} onChange={setCertificates} />
                       <NumberInput label="VEU Rate (AUD per certificate)" value={certificateRate} onChange={setCertificateRate} />
                       <NumberInput label="Additional Rebate (AUD)" value={additionalDiscount} onChange={setAdditionalDiscount} />
                     </div>
@@ -582,23 +578,6 @@ export default function QuotesPage() {
               ) : null}
             </ModuleCard>
 
-            <ModuleCard title="Quote Items" badge={`${items.length} line${items.length === 1 ? "" : "s"}`}>
-              {items.length ? (
-                <div className="grid gap-2">
-                  {items.map((item) => (
-                    <LineItemRow
-                      key={item.id}
-                      title={`${item.role}: ${item.brand} ${item.model}`}
-                      meta={`${item.area} / Qty ${item.quantity} / ${item.certificates} certs`}
-                      value={currency((item.productPrice + item.installPrice) * item.quantity)}
-                      onRemove={() => removeItem(item.id)}
-                    />
-                  ))}
-                </div>
-              ) : (
-                <p className="rounded-lg border border-dashed border-[#d9e2f2] bg-white p-4 text-sm text-[#657267]">Add products from the fields above to build this quote.</p>
-              )}
-            </ModuleCard>
           </div>
 
           <aside className="h-fit rounded-lg border border-[#d9e2f2] bg-white p-5 shadow-sm xl:sticky xl:top-24">
@@ -632,7 +611,7 @@ export default function QuotesPage() {
             </div>
             {message ? <p className="mt-3 rounded-lg bg-[#eef4ff] p-3 text-sm font-semibold text-[#003CBB]">{message}</p> : null}
             <div className="mt-4 grid gap-2">
-              <button onClick={() => saveQuote("Saved", true)} className="inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-[#003CBB] px-4 text-sm font-semibold text-white"><Save size={16} /> Generate Invoice</button>
+              <button onClick={() => saveQuote("Saved", true)} className="inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-[#003CBB] px-4 text-sm font-semibold text-white"><Save size={16} /> Generate Proposal</button>
             </div>
           </aside>
         </section>
