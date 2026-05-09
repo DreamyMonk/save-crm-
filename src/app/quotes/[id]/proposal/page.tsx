@@ -624,6 +624,17 @@ function inferQuoteCategory(quote: QuoteRecord, products: Product[]): ProductCat
   return undefined;
 }
 
+function hasEditorText(html: string) {
+  if (!html) return false;
+  return html.replace(/<[^>]*>/g, "").replaceAll("&nbsp;", " ").trim().length > 0;
+}
+
+function plainTextFromHtml(html: string) {
+  if (!html) return "";
+  const doc = new DOMParser().parseFromString(html, "text/html");
+  return doc.body.textContent?.replace(/\s+/g, " ").trim() || "";
+}
+
 function buildProposalHtml(template: string, quote: QuoteRecord, customer: Customer | undefined, calculations: Calculations, category: string) {
   const parser = new DOMParser();
   const doc = parser.parseFromString(template, "text/html");
