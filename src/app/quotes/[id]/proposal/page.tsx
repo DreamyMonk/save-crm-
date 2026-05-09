@@ -624,7 +624,30 @@ function buildProposalHtml(template: string, quote: QuoteRecord, customer: Custo
   script.textContent = "if(window.lucide){window.lucide.createIcons();}";
   doc.body.appendChild(script);
   const style = doc.createElement("style");
-  style.textContent = "html,body{max-width:100%;overflow-x:hidden;}@media screen{body{background:#dfe6df!important;padding:20px 0!important;}.page{margin:0 auto 24px!important;box-shadow:0 14px 30px rgba(15,23,42,.14);}.page:last-child{margin-bottom:0!important;}}.cov-card-item span{display:block;max-width:100%;overflow-wrap:anywhere;line-height:1.35;}.cov-card{align-items:start;}.saved-customer-signature{display:block;max-width:320px;max-height:90px;margin:10px 0 6px;object-fit:contain;}.modern-signature-value{font-weight:800;color:#0f172a;margin:8px 0 4px;min-height:18px;}.quote-total-hero{width:100%;margin:0 0 18px;border:1px solid #b9d7ca;background:#f4fbf7;border-radius:14px;padding:6px 12px;}.quote-total-panel{margin-left:auto;margin-top:20px;width:440px;border:1px solid #d8e6dc;border-radius:16px;background:#fbfdfb;padding:10px 14px;box-shadow:0 8px 20px rgba(15,23,42,.06);}.quote-total-panel .tot-line,.quote-total-hero .tot-line{border-bottom:1px solid #e1ece5;padding:10px 0;}.quote-total-panel .tot-line:last-child,.quote-total-hero .tot-line:last-child{border-bottom:0;}.quote-total-panel .tot-line .l,.quote-total-hero .tot-line .l{font-weight:700;color:#39483d;}.quote-total-panel .tot-line .v,.quote-total-hero .tot-line .v{font-weight:800;color:#0f172a;}.quote-total-panel .deduction .v{color:#0f7a45;}.quote-total-panel .final-price{margin:8px -6px 0;padding:12px 6px;border-radius:10px;background:#eef7ff;}.quote-total-panel .final-price .l,.quote-total-panel .final-price .v{color:#003CBB;font-size:16px;}.quote-savings-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:10px;}.quote-savings-card{border:1px solid #d9e2f2;border-radius:12px;background:#fff;padding:12px;}.quote-savings-card label{display:block;font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:#657267;font-weight:800;}.quote-savings-card .name{margin-top:8px;font-size:15px;font-weight:800;color:#0f172a;}";
+  style.textContent = [
+    "@page{size:A4;margin:0;}",
+    "html,body{max-width:100%;overflow-x:hidden;}",
+    ".page{width:210mm!important;min-height:297mm!important;max-width:210mm!important;box-sizing:border-box!important;}",
+    "@media screen{body{background:#dfe6df!important;padding:20px 0!important;}.page{margin:0 auto 24px!important;box-shadow:0 14px 30px rgba(15,23,42,.14);}.page:last-child{margin-bottom:0!important;}}",
+    "@media print{html,body{width:210mm!important;background:#fff!important;margin:0!important;padding:0!important;overflow:visible!important;}.page{width:210mm!important;min-height:297mm!important;margin:0!important;box-shadow:none!important;break-after:page;page-break-after:always;}.page:last-child{break-after:auto;page-break-after:auto;}}",
+    ".cov-card-item span{display:block;max-width:100%;overflow-wrap:anywhere;line-height:1.35;}",
+    ".cov-card{align-items:start;}",
+    ".saved-customer-signature{display:block;max-width:320px;max-height:90px;margin:10px 0 6px;object-fit:contain;}",
+    ".modern-signature-value{font-weight:800;color:#0f172a;margin:8px 0 4px;min-height:18px;}",
+    ".quote-total-hero{width:100%;margin:0 0 18px;border:1px solid #b9d7ca;background:#f4fbf7;border-radius:14px;padding:6px 12px;}",
+    ".quote-total-panel{margin-left:auto;margin-top:20px;width:440px;border:1px solid #d8e6dc;border-radius:16px;background:#fbfdfb;padding:10px 14px;box-shadow:0 8px 20px rgba(15,23,42,.06);}",
+    ".quote-total-panel .tot-line,.quote-total-hero .tot-line{border-bottom:1px solid #e1ece5;padding:10px 0;}",
+    ".quote-total-panel .tot-line:last-child,.quote-total-hero .tot-line:last-child{border-bottom:0;}",
+    ".quote-total-panel .tot-line .l,.quote-total-hero .tot-line .l{font-weight:700;color:#39483d;}",
+    ".quote-total-panel .tot-line .v,.quote-total-hero .tot-line .v{font-weight:800;color:#0f172a;}",
+    ".quote-total-panel .deduction .v{color:#0f7a45;}",
+    ".quote-total-panel .final-price{margin:8px -6px 0;padding:12px 6px;border-radius:10px;background:#eef7ff;}",
+    ".quote-total-panel .final-price .l,.quote-total-panel .final-price .v{color:#003CBB;font-size:16px;}",
+    ".quote-savings-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:10px;}",
+    ".quote-savings-card{border:1px solid #d9e2f2;border-radius:12px;background:#fff;padding:12px;}",
+    ".quote-savings-card label{display:block;font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:#657267;font-weight:800;}",
+    ".quote-savings-card .name{margin-top:8px;font-size:15px;font-weight:800;color:#0f172a;}",
+  ].join("");
   doc.head.appendChild(style);
   return `<!DOCTYPE html>${doc.documentElement.outerHTML}`;
 }
