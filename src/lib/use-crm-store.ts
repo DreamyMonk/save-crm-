@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { Dispatch, SetStateAction, useCallback, useEffect, useRef, useState } from "react";
 import { doc, getDoc, setDoc } from "firebase/firestore";
 import { CrmState, Lead, LeadSalesPhase, LeadSource, ModuleKey, ProposalPackage, QuoteRecord, initialCrmState } from "./crm-data";
 import { getFirebaseDb } from "./firebase";
@@ -181,7 +181,7 @@ function ensureHardcodedAdmin(team: CrmState["team"]) {
 }
 
 export function useCrmStore() {
-  const [state, setState] = useState<CrmState>(() => {
+  const [state, setBaseState] = useState<CrmState>(() => {
     if (typeof window === "undefined") {
       return initialCrmState;
     }
@@ -199,6 +199,22 @@ export function useCrmStore() {
   const [syncState, setSyncState] = useState<SyncState>("loading");
   const [syncError, setSyncError] = useState<string | null>(null);
   const lastSavedState = useRef<string>("");
+  const stateRef = useRef(state);
+
+  const setState: Dispatch<SetStateAction<CrmState>> = useCallback((value) => {
+    setBaseState((currentState) => {
+      const nextState = typeof value === "function" ? (value as (previousState: CrmState) => CrmState)(currentState) : value;
+      stateRef.current = nextState;
+      if (typeof window !== "undefined") {
+        window.localStorage.setItem(storageKey, JSON.stringify(nextState));
+      }
+      return nextState;
+    });
+  }, []);
+
+  useEffect(() => {
+    stateRef.current = state;
+  }, [state]);
 
   useEffect(() => {
     let active = true;
@@ -207,16 +223,22 @@ export function useCrmStore() {
       try {
         const snapshot = await getDoc(doc(getFirebaseDb(), ...crmDocumentPath));
         if (!active) return;
-        const localState = readLocalState();
+        const localState = mergeLocalCollections(normalizeState(stateRef.current), readLocalState());
         if (snapshot.exists()) {
-          const remoteState = mergeLocalCollections(normalizeState(snapshot.data() as CrmState), localState);
+          const savedRemoteState = normalizeState(snapshot.data() as CrmState);
+          const remoteState = mergeLocalCollections(savedRemoteState, localState);
+          if (JSON.stringify(remoteState) !== JSON.stringify(savedRemoteState)) {
+            await setDoc(doc(getFirebaseDb(), ...crmDocumentPath), remoteState);
+          }
           lastSavedState.current = JSON.stringify(remoteState);
-          setState(remoteState);
+          setBaseState(remoteState);
+          stateRef.current = remoteState;
         } else {
-          const nextState = localState ?? initialCrmState;
+          const nextState = localState;
           await setDoc(doc(getFirebaseDb(), ...crmDocumentPath), nextState);
           lastSavedState.current = JSON.stringify(nextState);
-          setState(nextState);
+          setBaseState(nextState);
+          stateRef.current = nextState;
         }
         setSyncState("firebase");
         setSyncError(null);

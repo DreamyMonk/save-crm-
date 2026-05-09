@@ -65,7 +65,7 @@ export default function CustomersPage() {
   function addCustomer(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
-    const customer = { ...customerFromForm(form, `C-${1000 + state.customers.length + 1}`), updatedAt: new Date().toISOString() };
+    const customer = { ...customerFromForm(form, nextCustomerId(state.customers)), updatedAt: new Date().toISOString() };
     setState((currentState) => ({ ...currentState, customers: [...currentState.customers, customer] }));
     event.currentTarget.reset();
     setNewCustomerType("Business");
@@ -110,9 +110,10 @@ export default function CustomersPage() {
     if (!file) return;
     const rows = parseCsv(await file.text());
     const [headers, ...body] = rows;
+    let nextCustomerNumber = highestCustomerNumber(state.customers) + 1;
     const imported = body
       .filter((row) => row.some(Boolean))
-      .map((row, index) => ({ ...customerFromCsv(headers, row, `C-${1000 + state.customers.length + index + 1}`), updatedAt: new Date().toISOString() }));
+      .map((row) => ({ ...customerFromCsv(headers, row, `C-${nextCustomerNumber++}`), updatedAt: new Date().toISOString() }));
     setState((currentState) => ({ ...currentState, customers: [...currentState.customers, ...imported] }));
     setMessage(`${imported.length} customers imported.`);
     event.currentTarget.value = "";
@@ -386,6 +387,18 @@ function customerFromCsv(headers: string[], row: string[], id: string): Customer
     address,
     wantedProduct: get("Product They Wanted"),
   };
+}
+
+function nextCustomerId(customers: Customer[]) {
+  return `C-${highestCustomerNumber(customers) + 1}`;
+}
+
+function highestCustomerNumber(customers: Customer[]) {
+  return customers.reduce((highest, customer) => {
+    const match = /^C-(\d+)$/.exec(customer.id);
+    if (!match) return highest;
+    return Math.max(highest, Number(match[1]));
+  }, 1000);
 }
 
 function FormSection({ title, children }: { title: string; children: React.ReactNode }) {
