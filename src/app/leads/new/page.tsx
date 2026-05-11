@@ -4,15 +4,18 @@ import { useRouter } from "next/navigation";
 import { FormEvent, useState } from "react";
 import { CrmShell, PageHeader } from "@/components/crm-shell";
 import { RichTextEditor } from "@/components/rich-text-editor";
-import { Lead, LeadSource } from "@/lib/crm-data";
+import { Lead, LeadSource, ProductCategory } from "@/lib/crm-data";
 import { canManageLeads, useCurrentTeamMember } from "@/lib/use-current-team-member";
 import { useCrmStore } from "@/lib/use-crm-store";
+
+const productCategories: ProductCategory[] = ["Aircon", "Solar", "Inverter", "Heat Pump", "Solar Battery"];
 
 export default function NewLeadPage() {
   const { state, setState } = useCrmStore();
   const router = useRouter();
   const [nextAction, setNextAction] = useState("");
-  const pipeline = state.pipelines[0];
+  const [selectedPipelineId, setSelectedPipelineId] = useState(state.pipelines[0]?.id ?? "");
+  const selectedPipeline = state.pipelines.find((item) => item.id === selectedPipelineId) ?? state.pipelines[0];
   const { member: currentMember, ready: memberReady } = useCurrentTeamMember(state.team);
   const canManageAssignments = canManageLeads(currentMember);
   const members = canManageAssignments
@@ -25,11 +28,14 @@ export default function NewLeadPage() {
   function createLead(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
+    const pipelineId = String(form.get("pipelineId") || selectedPipeline?.id || state.pipelines[0]?.id || "");
+    const targetPipeline = state.pipelines.find((item) => item.id === pipelineId) ?? state.pipelines[0];
+    const productCategory = String(form.get("productCategory") || "Solar") as ProductCategory;
     const nextNumber =
       state.leads.reduce((highest, lead) => Math.max(highest, Number(lead.id.replace("L-", "")) || 1000), 1000) + 1;
     const lead: Lead = {
       id: `L-${nextNumber}`,
-      title: String(form.get("title") || "New lead"),
+      title: String(form.get("title") || `${productCategory} lead`),
       company: String(form.get("company") || "New company"),
       contact: String(form.get("contact") || "Primary contact"),
       email: String(form.get("email") || "client@example.com"),
@@ -37,11 +43,12 @@ export default function NewLeadPage() {
       source: String(form.get("leadSource") || "Manual"),
       leadSource: String(form.get("leadSource") || "Manual") as LeadSource,
       salesPhase: "Enquiry",
-      pipelineId: String(form.get("pipelineId") || pipeline.id),
-      stageId: String(form.get("stageId") || pipeline.stages[0].id),
+      pipelineId,
+      stageId: targetPipeline?.stages[0]?.id ?? "",
       amount: Number(form.get("amount")) || 0,
       ticketSize: Number(form.get("amount")) || 0,
-      productInterest: String(form.get("productInterest") || form.get("title") || ""),
+      productInterest: String(form.get("productInterest") || form.get("title") || productCategory),
+      productCategory,
       probability: Number(form.get("probability")) || 25,
       assignedTo: String(form.get("assignedTo") || adminMember?.id || "admin"),
       substituteAssignedTo: String(form.get("substituteAssignedTo") || ""),
@@ -85,18 +92,18 @@ export default function NewLeadPage() {
           </select>
         </label>
         <Input name="productInterest" label="Product needed" />
+        <label className="space-y-1 text-sm">
+          <span className="font-medium text-[#657267]">Product category</span>
+          <select name="productCategory" className="h-11 w-full rounded-lg border border-[#d7dfd0] px-3 outline-none">
+            {productCategories.map((category) => <option key={category}>{category}</option>)}
+          </select>
+        </label>
         <Input name="amount" label="Amount" type="number" />
         <Input name="probability" label="Probability" type="number" defaultValue="25" />
         <label className="space-y-1 text-sm">
           <span className="font-medium text-[#657267]">Pipeline</span>
-          <select name="pipelineId" className="h-11 w-full rounded-lg border border-[#d7dfd0] px-3 outline-none">
+          <select name="pipelineId" value={selectedPipeline?.id ?? ""} onChange={(event) => setSelectedPipelineId(event.target.value)} className="h-11 w-full rounded-lg border border-[#d7dfd0] px-3 outline-none">
             {state.pipelines.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
-          </select>
-        </label>
-        <label className="space-y-1 text-sm">
-          <span className="font-medium text-[#657267]">Stage</span>
-          <select name="stageId" className="h-11 w-full rounded-lg border border-[#d7dfd0] px-3 outline-none">
-            {pipeline.stages.map((stage) => <option key={stage.id} value={stage.id}>{stage.name}</option>)}
           </select>
         </label>
         <label className="space-y-1 text-sm">

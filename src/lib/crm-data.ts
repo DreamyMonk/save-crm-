@@ -75,6 +75,7 @@ export type Lead = {
   amount: number;
   ticketSize?: number;
   productInterest?: string;
+  productCategory?: ProductCategory;
   probability: number;
   assignedTo: string;
   substituteAssignedTo?: string;

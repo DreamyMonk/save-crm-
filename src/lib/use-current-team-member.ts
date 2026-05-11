@@ -43,7 +43,7 @@ export function useCurrentTeamMember(team: TeamMember[]) {
 export function canManageLeads(member: TeamMember | null | undefined) {
   if (!member) return false;
   const role = member.role.toLowerCase();
-  return member.modules.includes("access") || role.includes("admin") || role.includes("lead coordinator") || role.includes("manager");
+  return member.modules.includes("access") || role.includes("admin");
 }
 
 export function canAccessLead(member: TeamMember | null | undefined, lead: Lead | null | undefined) {
