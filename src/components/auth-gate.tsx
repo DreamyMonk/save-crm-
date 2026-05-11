@@ -8,7 +8,7 @@ import { LockKeyhole, LogOut, Sparkles } from "lucide-react";
 import { getFirebaseAuth } from "@/lib/firebase";
 import { useCrmStore } from "@/lib/use-crm-store";
 
-type CrmAuthUser = Pick<User, "email" | "uid">;
+export type CrmAuthUser = Pick<User, "email" | "uid">;
 
 const hardcodedAdminEmail = "admin@admin.com";
 const hardcodedAdminPassword = "admin@admin.com";
@@ -176,12 +176,15 @@ export function CreateFirstAdminModule() {
 }
 
 export function SignOutButton() {
+  async function handleSignOut() {
+    window.localStorage.removeItem(localAdminStorageKey);
+    await signOut(getFirebaseAuth()).catch(() => undefined);
+    window.location.assign("/login");
+  }
+
   return (
     <button
-      onClick={() => {
-        window.localStorage.removeItem(localAdminStorageKey);
-        void signOut(getFirebaseAuth());
-      }}
+      onClick={handleSignOut}
       className="inline-flex h-10 items-center gap-2 rounded-lg border border-white/10 px-3 text-sm font-semibold text-white/72 hover:bg-white/10 hover:text-white"
     >
       <LogOut size={16} /> Sign out
@@ -193,7 +196,7 @@ function isHardcodedAdminLogin(email: string, password: string) {
   return email.trim().toLowerCase() === hardcodedAdminEmail && password === hardcodedAdminPassword;
 }
 
-function readHardcodedAdminUser() {
+export function readHardcodedAdminUser() {
   if (typeof window === "undefined") return null;
   return window.localStorage.getItem(localAdminStorageKey) === "true" ? hardcodedAdminUser : null;
 }
