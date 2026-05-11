@@ -6,6 +6,7 @@ import { ButtonLink, CrmShell, PageHeader } from "@/components/crm-shell";
 import { RichTextEditor } from "@/components/rich-text-editor";
 import { MailMessage, defaultCommunicationPreferences } from "@/lib/crm-data";
 import { htmlToPlainText } from "@/lib/text";
+import { canAccessLead, useCurrentTeamMember } from "@/lib/use-current-team-member";
 import { useCrmStore } from "@/lib/use-crm-store";
 
 export default function LeadMailPage() {
@@ -15,6 +16,8 @@ export default function LeadMailPage() {
   const [subject, setSubject] = useState("SavePlanet CRM update");
   const [message, setMessage] = useState("");
   const lead = state.leads.find((item) => item.id === id);
+  const { member: currentMember, ready: memberReady } = useCurrentTeamMember(state.team);
+  const hasLeadAccess = memberReady && canAccessLead(currentMember, lead);
 
   async function sendMail(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -62,8 +65,8 @@ export default function LeadMailPage() {
 
   return (
     <CrmShell>
-      <PageHeader eyebrow="Outgoing email" title={lead ? `Email ${lead.contact}` : "Lead not found"} actions={<ButtonLink href={`/leads/${id}`}>Back to lead</ButtonLink>} />
-      {lead ? (
+      <PageHeader eyebrow="Outgoing email" title={lead && hasLeadAccess ? `Email ${lead.contact}` : memberReady ? "No lead access" : "Checking lead access"} actions={<ButtonLink href={`/leads/${id}`}>Back to lead</ButtonLink>} />
+      {lead && hasLeadAccess ? (
         <div className="p-4 md:p-8">
           <form onSubmit={sendMail} className="mx-auto max-w-3xl rounded-lg border border-[#dce3d5] bg-white p-5 shadow-sm">
             <h2 className="font-semibold">Send outgoing email</h2>
@@ -79,6 +82,8 @@ export default function LeadMailPage() {
             <button className="mt-3 h-11 rounded-lg bg-[#003CBB] px-5 text-sm font-semibold text-white">Send email</button>
           </form>
         </div>
+      ) : memberReady ? (
+        <div className="p-4 text-sm font-semibold text-[#657267] md:p-8">No access to this lead.</div>
       ) : null}
     </CrmShell>
   );

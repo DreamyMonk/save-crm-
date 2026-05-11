@@ -1,8 +1,8 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Save, Trash2 } from "lucide-react";
 import { CrmShell, PageHeader } from "@/components/crm-shell";
 import { Product, QuoteLineItem, QuoteRecord, currency } from "@/lib/crm-data";
@@ -47,8 +47,18 @@ const quoteTabs = [
 ];
 
 export default function QuotesPage() {
+  return (
+    <Suspense fallback={<CrmShell><PageHeader eyebrow="Quote maker v2" title="Loading quote maker..." /></CrmShell>}>
+      <QuotesWorkspace />
+    </Suspense>
+  );
+}
+
+function QuotesWorkspace() {
   const { state, setState } = useCrmStore();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const loadedEditQuoteIdRef = useRef("");
   const customers = state.customers;
   const [productCategory, setProductCategory] = useState("Aircon");
   const [productBrand, setProductBrand] = useState("All");
@@ -110,6 +120,7 @@ export default function QuotesPage() {
   const [addonPrice, setAddonPrice] = useState(0);
   const [message, setMessage] = useState("");
   const [currentQuoteId, setCurrentQuoteId] = useState("");
+  const editQuoteId = searchParams.get("edit") ?? "";
   const activeSelectedCustomerId = customers.some((item) => item.id === selectedCustomerId) ? selectedCustomerId : (customers[0]?.id ?? "");
   const customer = customers.find((item) => item.id === activeSelectedCustomerId);
   const isAirconCategory = productCategory === "Aircon";
@@ -198,6 +209,83 @@ export default function QuotesPage() {
     setSelectedCustomerId(customerId);
     setDescription(nextCustomer?.name || nextCustomer?.businessName || "");
   }
+
+  function loadQuoteForEditing(quote: QuoteRecord) {
+    setCurrentQuoteId(quote.id);
+    setSelectedCustomerId(quote.customerId);
+    setDescription(quote.description);
+    setActivityDate(quote.activityDate);
+    changeProductCategory(quote.productCategory ?? firstQuoteCategory(quote.items, state.products));
+    setScheme(quote.scheme);
+    setCertificateRate(quote.certificateRate);
+    setRebate(quote.rebate ?? 0);
+    setSolarVicLoan(quote.solarVicLoan ?? 0);
+    setAddons(quote.additionalServices ?? []);
+    setItems(quote.items ?? []);
+
+    const firstItem = quote.items[0];
+    if (quote.productCategory === "Aircon") {
+      setItems(quote.items);
+      const indoor = quote.items.find((item) => item.role === "Indoor Head") ?? firstItem;
+      setBaseline(quote.items.find((item) => item.role === "Outdoor Unit")?.area ?? baselineOptions[0]);
+      setHeadArea(indoor?.area ?? "Bedroom 1");
+      setHeadAreaM2(indoor?.areaM2 ?? 20);
+      setQuantity(indoor?.quantity ?? 1);
+      setProductPrice(indoor?.productPrice ?? 0);
+      setInstallPrice(indoor?.installPrice ?? 0);
+      setCertificates(indoor?.certificates ?? 0);
+      setHeadModel(indoor?.productId ?? "");
+      setOutdoorModel(quote.items.find((item) => item.role === "Outdoor Unit")?.productId ?? "");
+      return;
+    }
+
+    if (quote.productCategory === "Heat Pump") {
+      const product = firstItem;
+      setHeatPumpProduct(product?.productId ?? "");
+      setHeatPumpQty(product?.quantity ?? 0);
+      setHeatPumpPrice(product?.productPrice ?? 0);
+      setHeatPumpInstall(product?.installPrice ?? 0);
+      setHeatPumpGstOn(quote.gstRate > 0 ? "yes" : "no");
+      setHeatPumpVeuCount(0);
+      setHeatPumpStcCount(product?.certificates ?? 0);
+      setHeatPumpStcRate(quote.certificateRate);
+      return;
+    }
+
+    const panel = quote.items.find((item) => item.area === "Solar Panels");
+    const inverter = quote.items.find((item) => item.area === "Inverter");
+    const battery = quote.items.find((item) => item.area === "Battery");
+    const install = quote.items.find((item) => item.role === "Install");
+    setSolarPanelProduct(panel?.productId ?? "");
+    setSolarPanelQty(panel?.quantity ?? 0);
+    setSolarPanelPrice(panel?.productPrice ?? 0);
+    setSolarInverterProduct(inverter?.productId ?? "");
+    setSolarInverterQty(inverter?.quantity ?? 0);
+    setSolarInverterPrice(inverter?.productPrice ?? 0);
+    setSolarBatteryProduct(battery?.productId ?? "");
+    setSolarBatteryQty(battery?.quantity ?? 0);
+    setSolarBatteryPrice(battery?.productPrice ?? 0);
+    setSolarInstall(install?.installPrice ?? 0);
+    setSolarGstOn(quote.gstRate > 0 ? "yes" : "no");
+    setSolarStcCount(firstItem?.certificates ?? 0);
+    setSolarStcPrice(quote.certificateRate);
+  }
+
+  useEffect(() => {
+    if (!editQuoteId || loadedEditQuoteIdRef.current === editQuoteId) return;
+    const quote = state.quotes.find((item) => item.id === editQuoteId);
+    if (!quote) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setMessage(`Quote ${editQuoteId} was not found.`);
+      loadedEditQuoteIdRef.current = editQuoteId;
+      return;
+    }
+    loadedEditQuoteIdRef.current = editQuoteId;
+    loadQuoteForEditing(quote);
+    setMessage(quote.customerSignedAt ? "Signed proposal loaded for editing. Save as draft, then send back to the customer for a fresh signature." : "Proposal loaded for editing.");
+    // The quote maker has many independent controlled fields; this one-shot hydrate is the edit-entry bridge from v2 proposal records.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editQuoteId, state.quotes]);
 
   function addOutdoor() {
     const product = quoteProducts.find((item) => item.id === selectedOutdoorModel);
@@ -396,11 +484,27 @@ export default function QuotesPage() {
     }
     const existingQuote = !forceNew && currentQuoteId ? state.quotes.find((quote) => quote.id === currentQuoteId) : undefined;
     const quoteId = existingQuote?.id ?? nextQuoteId(state.quotes);
-    const quote = buildQuote(status, quoteId, draft);
+    const builtQuote = buildQuote(status, quoteId, draft);
+    const existingSubmitted = Boolean(existingQuote?.proposalSentAt || existingQuote?.proposalOpenedAt || existingQuote?.customerSignedAt || existingQuote?.customerSignatureDataUrl || existingQuote?.proposalChangeRequestHtml);
+    const proposalUpdatedAt = status === "Draft" && existingSubmitted ? new Date().toISOString() : existingQuote?.proposalUpdatedAt;
+    const quote: QuoteRecord = existingQuote
+      ? {
+          ...builtQuote,
+          proposalUpdatedAt,
+          proposalSentAt: status === "Draft" ? undefined : existingQuote.proposalSentAt,
+          proposalSentBy: status === "Draft" ? undefined : existingQuote.proposalSentBy,
+          proposalOpenedAt: status === "Draft" ? undefined : existingQuote.proposalOpenedAt,
+          proposalOpenCount: status === "Draft" ? undefined : existingQuote.proposalOpenCount,
+          proposalChangeRequestHtml: status === "Draft" ? undefined : existingQuote.proposalChangeRequestHtml,
+          proposalChangeRequestedAt: status === "Draft" ? undefined : existingQuote.proposalChangeRequestedAt,
+          customerSignatureDataUrl: status === "Draft" ? undefined : existingQuote.customerSignatureDataUrl,
+          customerSignedAt: status === "Draft" ? undefined : existingQuote.customerSignedAt,
+        }
+      : builtQuote;
     setState(syncProposalCollections(state, quote, customer));
     window.localStorage.setItem(`saveplanet-quote-${quote.id}`, JSON.stringify(quote));
     setCurrentQuoteId(quote.id);
-    setMessage(status === "Draft" ? "Draft proposal created." : existingQuote ? "Quote updated." : forceNew ? "New quote saved." : "Quote saved.");
+    setMessage(status === "Draft" ? "Draft proposal saved. Signature and send tracking were cleared for this revision." : existingQuote ? "Quote updated." : forceNew ? "New quote saved." : "Quote saved.");
     if (openProposal) {
       router.push(`/quotes/${quote.id}/proposal`);
     }
@@ -612,6 +716,7 @@ export default function QuotesPage() {
             </div>
             {message ? <p className="mt-3 rounded-lg bg-[#eef4ff] p-3 text-sm font-semibold text-[#003CBB]">{message}</p> : null}
             <div className="mt-4 grid gap-2">
+              <button onClick={() => saveQuote("Draft", false)} className="inline-flex h-11 items-center justify-center gap-2 rounded-lg border border-[#c7d3e8] bg-white px-4 text-sm font-semibold text-[#003CBB]"><Save size={16} /> Save as Draft</button>
               <button onClick={() => saveQuote("Saved", true)} className="inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-[#003CBB] px-4 text-sm font-semibold text-white"><Save size={16} /> Generate Proposal</button>
             </div>
           </aside>
@@ -709,10 +814,11 @@ function calculateQuote(
   const systemTotalIncGst = totalCost * (1 + options.gstRate / 100);
   const gstAmount = systemTotalIncGst - totalCost;
   const totalDeductions = certificateDiscount + options.rebate + options.solarVicLoan;
-  const finalPriceIncGst = Math.max(0, systemTotalIncGst - totalDeductions);
-  const depositAmount = finalPriceIncGst * (options.depositPercent / 100);
-  const balanceDue = Math.max(0, finalPriceIncGst - depositAmount);
-  const netExGst = Math.max(0, finalPriceIncGst / (1 + options.gstRate / 100));
+  const finalPriceIncGst = systemTotalIncGst - totalDeductions;
+  const payableAmount = Math.max(0, finalPriceIncGst);
+  const depositAmount = payableAmount * (options.depositPercent / 100);
+  const balanceDue = Math.max(0, payableAmount - depositAmount);
+  const netExGst = finalPriceIncGst / (1 + options.gstRate / 100);
   const netIncGst = finalPriceIncGst;
   return { certificates, certificateDiscount, productCost, installCost, totalCost, systemTotalIncGst, gstAmount, totalDeductions, finalPriceIncGst, depositAmount, balanceDue, netExGst, netIncGst };
 }

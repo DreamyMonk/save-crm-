@@ -5,6 +5,7 @@ import { ClipboardList, Plus, Search, Settings2 } from "lucide-react";
 import { ButtonLink, CrmShell, PageHeader } from "@/components/crm-shell";
 import { Lead, LeadSource, currency } from "@/lib/crm-data";
 import { isDeliverableEmail, sendResendEmail } from "@/lib/send-email";
+import { canAccessLead, canManageLeads, useCurrentTeamMember } from "@/lib/use-current-team-member";
 import { useCrmStore } from "@/lib/use-crm-store";
 import { useMemo, useState } from "react";
 
@@ -16,12 +17,22 @@ export default function LeadsPage() {
   const [priority, setPriority] = useState("all");
   const [source, setSource] = useState("all");
   const [message, setMessage] = useState("");
+  const { member: currentMember, ready: memberReady } = useCurrentTeamMember(state.team);
+  const canManageAllLeads = canManageLeads(currentMember);
 
   const activePipeline = state.pipelines.find((pipeline) => pipeline.id === pipelineId) ?? state.pipelines[0];
-  const assignable = state.team.filter((member) => member.active && member.modules.includes("leads"));
+  const assignable = useMemo(() => {
+    if (canManageAllLeads) return state.team.filter((member) => member.active && member.modules.includes("leads"));
+    return currentMember && currentMember.modules.includes("leads") ? [currentMember] : [];
+  }, [canManageAllLeads, currentMember, state.team]);
+  const scopedLeads = useMemo(() => {
+    if (!memberReady) return [];
+    if (canManageAllLeads) return state.leads;
+    return state.leads.filter((lead) => canAccessLead(currentMember, lead));
+  }, [canManageAllLeads, currentMember, memberReady, state.leads]);
 
   const visibleLeads = useMemo(() => {
-    return state.leads.filter((lead) => {
+    return scopedLeads.filter((lead) => {
       const text = `${lead.title} ${lead.company} ${lead.contact}`.toLowerCase();
       return (
         lead.pipelineId === activePipeline?.id &&
@@ -31,9 +42,11 @@ export default function LeadsPage() {
         (priority === "all" || lead.priority === priority)
       );
     });
-  }, [activePipeline?.id, owner, priority, search, source, state.leads]);
+  }, [activePipeline?.id, owner, priority, scopedLeads, search, source]);
 
   function moveLead(leadId: string, stageId: string) {
+    const targetLead = state.leads.find((lead) => lead.id === leadId);
+    if (!targetLead || !canAccessLead(currentMember, targetLead)) return;
     setState({
       ...state,
       leads: state.leads.map((lead) => (lead.id === leadId ? { ...lead, stageId } : lead)),
@@ -41,6 +54,10 @@ export default function LeadsPage() {
   }
 
   async function assignLead(leadId: string, memberId: string) {
+    if (!canManageAllLeads) {
+      setMessage("Only admins and lead coordinators can reassign leads.");
+      return;
+    }
     const lead = state.leads.find((item) => item.id === leadId);
     const member = state.team.find((item) => item.id === memberId);
     if (!lead || !member) return;
@@ -152,7 +169,7 @@ export default function LeadsPage() {
                 </div>
                 <div className="space-y-3 p-3">
                   {stageLeads.map((lead) => (
-                    <LeadCard key={lead.id} lead={lead} owner={state.team.find((member) => member.id === lead.assignedTo)?.name ?? "Unassigned"} members={assignable} onAssign={assignLead} />
+                    <LeadCard key={lead.id} lead={lead} owner={state.team.find((member) => member.id === lead.assignedTo)?.name ?? "Unassigned"} members={assignable} canAssign={canManageAllLeads} onAssign={assignLead} />
                   ))}
                 </div>
               </section>
@@ -164,7 +181,7 @@ export default function LeadsPage() {
   );
 }
 
-function LeadCard({ lead, owner, members, onAssign }: { lead: Lead; owner: string; members: { id: string; name: string }[]; onAssign: (leadId: string, memberId: string) => void }) {
+function LeadCard({ lead, owner, members, canAssign, onAssign }: { lead: Lead; owner: string; members: { id: string; name: string }[]; canAssign: boolean; onAssign: (leadId: string, memberId: string) => void }) {
   return (
     <article
       draggable
@@ -189,12 +206,14 @@ function LeadCard({ lead, owner, members, onAssign }: { lead: Lead; owner: strin
           <ClipboardList size={16} />
         </Link>
       </div>
-      <label className="mt-3 block text-xs font-semibold text-[#657267]">
-        Allocate
-        <select value={lead.assignedTo} onChange={(event) => onAssign(lead.id, event.target.value)} className="mt-1 h-9 w-full rounded-lg border border-[#d7dfd0] bg-white px-2 text-xs outline-none">
-          {members.map((member) => <option key={member.id} value={member.id}>{member.name}</option>)}
-        </select>
-      </label>
+      {canAssign ? (
+        <label className="mt-3 block text-xs font-semibold text-[#657267]">
+          Allocate
+          <select value={lead.assignedTo} onChange={(event) => onAssign(lead.id, event.target.value)} className="mt-1 h-9 w-full rounded-lg border border-[#d7dfd0] bg-white px-2 text-xs outline-none">
+            {members.map((member) => <option key={member.id} value={member.id}>{member.name}</option>)}
+          </select>
+        </label>
+      ) : null}
       <div className="mt-3 flex items-center justify-between gap-3 text-xs text-[#657267]">
         <span className="truncate">{owner}</span>
         <span>{lead.probability}%</span>

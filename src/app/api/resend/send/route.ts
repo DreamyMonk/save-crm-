@@ -14,9 +14,8 @@ type ResendRecipient = {
   name?: string;
 };
 
-const HARDCODED_RESEND_API_KEY = "re_a3T4duJB_JgskL85WLQfVMWacL31ineQh";
-const HARDCODED_RESEND_FROM_EMAIL = "noreply@saveplanet.au";
-const HARDCODED_RESEND_REPLY_TO = "info@saveplanet.com.au";
+const DEFAULT_RESEND_FROM_EMAIL = "noreply@saveplanet.au";
+const DEFAULT_RESEND_REPLY_TO = "info@saveplanet.com.au";
 
 export async function POST(request: Request) {
   try {
@@ -61,16 +60,16 @@ export async function POST(request: Request) {
 }
 
 function resolveResendSettings(resend?: { apiKey?: string; fromEmail?: string; fromName?: string; enabled?: boolean }) {
-  const apiKey = HARDCODED_RESEND_API_KEY || process.env.RESEND_API_KEY || resend?.apiKey || "";
-  const fromEmail = HARDCODED_RESEND_FROM_EMAIL || process.env.RESEND_FROM_EMAIL || resend?.fromEmail || "";
-  const replyToEmail = process.env.RESEND_REPLY_TO_EMAIL || HARDCODED_RESEND_REPLY_TO;
+  const apiKey = process.env.RESEND_API_KEY || resend?.apiKey || "";
+  const fromEmail = process.env.RESEND_FROM_EMAIL || resend?.fromEmail || DEFAULT_RESEND_FROM_EMAIL;
+  const replyToEmail = process.env.RESEND_REPLY_TO_EMAIL || DEFAULT_RESEND_REPLY_TO;
   const fromName = process.env.RESEND_FROM_NAME || resend?.fromName || "SavePlanet CRM";
   return {
     apiKey,
     fromEmail,
     replyToEmail,
     fromName,
-    enabled: true,
+    enabled: resend?.enabled ?? true,
   };
 }
 

@@ -13,19 +13,24 @@ type SyncState = "loading" | "firebase" | "local" | "saving";
 function normalizeState(state: CrmState): CrmState {
   const legacyEmailKey = "mail" + "jet";
   const legacyEmailSettings = (state.settings as unknown as Record<string, CrmState["settings"]["resend"] | undefined> | undefined)?.[legacyEmailKey];
-  const normalizedTeam = ensureHardcodedAdmin(
+  const rawNormalizedTeam = ensureHardcodedAdmin(
     (state.team ?? initialCrmState.team).map((member) => ({
       ...member,
       modules: normalizeMemberModules(member.modules),
     })),
   );
   const deletedTeamMemberKeys = Array.from(new Set(state.deletedTeamMemberKeys ?? []));
+  const deletedCustomerIds = Array.from(new Set(state.deletedCustomerIds ?? []));
+  const deletedProductIds = Array.from(new Set(state.deletedProductIds ?? []));
+  const normalizedTeam = mergeByUpdatedAccess(rawNormalizedTeam, [], deletedTeamMemberKeys);
   return {
     ...initialCrmState,
     ...state,
     pipelines: normalizePipelines(state.pipelines ?? initialCrmState.pipelines),
-    team: normalizedTeam.filter((member) => isProtectedAdmin(member) || !deletedTeamMemberKeys.includes(accessMemberKey(member))),
+    team: normalizedTeam,
     deletedTeamMemberKeys,
+    deletedCustomerIds,
+    deletedProductIds,
     leads: (state.leads ?? initialCrmState.leads).map((lead) => ({
       ...lead,
       leadSource: normalizeLeadSource(lead.leadSource ?? lead.source),
@@ -37,7 +42,6 @@ function normalizeState(state: CrmState): CrmState {
       lastContactedAt: lead.lastContactedAt ?? lead.activities?.[0]?.createdAt,
       activities: lead.activities ?? [],
       customFields: lead.customFields ?? [],
-      proposal: lead.proposal,
       communicationPreferences: lead.communicationPreferences ?? {
         dndAllChannels: true,
         email: false,
@@ -46,14 +50,16 @@ function normalizeState(state: CrmState): CrmState {
         inboundCallsAndSms: false,
       },
     })),
-    customers: (state.customers ?? initialCrmState.customers).map((customer) => ({
-      ...customer,
-      customerType: customer.customerType ?? "Business",
-      businessName: customer.businessName ?? customer.address ?? "",
-      contactType: customer.contactType ?? "Primary",
-      salesAgent: customer.salesAgent ?? "Aarav Admin",
-    })),
-    products: mergeById(state.products ?? [], initialCrmState.products),
+    customers: (state.customers ?? initialCrmState.customers)
+      .filter((customer) => !deletedCustomerIds.includes(customer.id))
+      .map((customer) => ({
+        ...customer,
+        customerType: customer.customerType ?? "Business",
+        businessName: customer.businessName ?? customer.address ?? "",
+        contactType: customer.contactType ?? "Primary",
+        salesAgent: customer.salesAgent ?? "Aarav Admin",
+      })),
+    products: mergeProductsByLatestUpdate(state.products ?? [], initialCrmState.products).filter((product) => !deletedProductIds.includes(product.id)),
     quotes: state.quotes ?? initialCrmState.quotes,
     proposalPackages: normalizeProposalPackages(state),
     invoices: state.invoices ?? initialCrmState.invoices,
@@ -66,8 +72,8 @@ function normalizeState(state: CrmState): CrmState {
       resend: {
         ...initialCrmState.settings.resend,
         ...(state.settings?.resend ?? legacyEmailSettings ?? {}),
-        fromEmail: "noreply@saveplanet.au",
-        enabled: true,
+        fromEmail: state.settings?.resend?.fromEmail || legacyEmailSettings?.fromEmail || initialCrmState.settings.resend.fromEmail,
+        enabled: state.settings?.resend?.enabled ?? legacyEmailSettings?.enabled ?? true,
       },
       twilio: {
         ...initialCrmState.settings.twilio,
@@ -304,14 +310,18 @@ function readLocalState() {
 function mergeLocalCollections(remoteState: CrmState, localState: CrmState | null) {
   if (!localState) return remoteState;
   const deletedTeamMemberKeys = mergeDeletedTeamMemberKeys(remoteState, localState);
+  const deletedCustomerIds = mergeDeletedIds(remoteState.deletedCustomerIds, localState.deletedCustomerIds);
+  const deletedProductIds = mergeDeletedIds(remoteState.deletedProductIds, localState.deletedProductIds);
   return {
     ...remoteState,
     deletedTeamMemberKeys,
+    deletedCustomerIds,
+    deletedProductIds,
     team: mergeByUpdatedAccess(remoteState.team, localState.team, deletedTeamMemberKeys),
-    products: mergeById(remoteState.products, localState.products),
-    customers: mergeByLatestUpdate(remoteState.customers, localState.customers),
-    quotes: mergeById(remoteState.quotes, localState.quotes),
-    proposalPackages: mergeById(remoteState.proposalPackages, localState.proposalPackages),
+    products: mergeProductsByLatestUpdate(remoteState.products, localState.products).filter((product) => !deletedProductIds.includes(product.id)),
+    customers: mergeByLatestUpdate(remoteState.customers, localState.customers).filter((customer) => !deletedCustomerIds.includes(customer.id)),
+    quotes: mergeQuotesByLatestProposalActivity(remoteState.quotes, localState.quotes),
+    proposalPackages: mergeProposalPackagesByLatestActivity(remoteState.proposalPackages, localState.proposalPackages),
   };
 }
 
@@ -336,7 +346,7 @@ function mergeByUpdatedAccess(remoteTeam: CrmState["team"], localTeam: CrmState[
   const mergedByKey = new Map<string, CrmState["team"][number]>();
   for (const member of [...remoteTeam, ...localTeam]) {
     const key = accessMemberKey(member);
-    if (deletedKeys.has(key) && !isProtectedAdmin(member)) continue;
+    if (accessMemberKeys(member).some((memberKey) => deletedKeys.has(memberKey)) && !isProtectedAdmin(member)) continue;
     const existing = mergedByKey.get(key);
     if (!existing || timestamp(member.accessUpdatedAt) >= timestamp(existing.accessUpdatedAt)) {
       mergedByKey.set(key, member);
@@ -346,21 +356,20 @@ function mergeByUpdatedAccess(remoteTeam: CrmState["team"], localTeam: CrmState[
 }
 
 function accessMemberKey(member: CrmState["team"][number]) {
-  return member.uid || member.email?.trim().toLowerCase() || member.id;
+  return member.email?.trim().toLowerCase() || member.uid || member.id;
+}
+
+function accessMemberKeys(member: CrmState["team"][number]) {
+  return [member.email?.trim().toLowerCase(), member.uid, member.id].filter((key): key is string => Boolean(key));
 }
 
 function mergeDeletedTeamMemberKeys(remoteState: CrmState, localState: CrmState) {
-  const protectedKeys = new Set([...remoteState.team, ...localState.team].filter(isProtectedAdmin).map(accessMemberKey));
+  const protectedKeys = new Set([...remoteState.team, ...localState.team].filter(isProtectedAdmin).flatMap(accessMemberKeys));
   return Array.from(new Set([...(remoteState.deletedTeamMemberKeys ?? []), ...(localState.deletedTeamMemberKeys ?? [])])).filter((key) => !protectedKeys.has(key));
 }
 
 function isProtectedAdmin(member: CrmState["team"][number]) {
   return member.uid === "hardcoded-admin" || member.email?.trim().toLowerCase() === "admin@admin.com";
-}
-
-function mergeById<T extends { id: string }>(remoteItems: T[], localItems: T[]) {
-  const remoteIds = new Set(remoteItems.map((item) => item.id));
-  return [...remoteItems, ...localItems.filter((item) => !remoteIds.has(item.id))];
 }
 
 function mergeByLatestUpdate<T extends { id: string; updatedAt?: string }>(remoteItems: T[], localItems: T[]) {
@@ -377,6 +386,63 @@ function mergeByLatestUpdate<T extends { id: string; updatedAt?: string }>(remot
   return Array.from(items.values());
 }
 
+function mergeProductsByLatestUpdate(remoteItems: CrmState["products"], localItems: CrmState["products"]) {
+  return mergeByLatestUpdate(remoteItems, localItems);
+}
+
+function mergeDeletedIds(remoteIds: string[] | undefined, localIds: string[] | undefined) {
+  return Array.from(new Set([...(remoteIds ?? []), ...(localIds ?? [])]));
+}
+
+function mergeQuotesByLatestProposalActivity(remoteItems: QuoteRecord[], localItems: QuoteRecord[]) {
+  const items = new Map<string, QuoteRecord>();
+  for (const item of remoteItems) {
+    items.set(item.id, item);
+  }
+  for (const localItem of localItems) {
+    const remoteItem = items.get(localItem.id);
+    if (!remoteItem || quoteActivityTimestamp(localItem) >= quoteActivityTimestamp(remoteItem)) {
+      items.set(localItem.id, localItem);
+    }
+  }
+  return Array.from(items.values());
+}
+
+function mergeProposalPackagesByLatestActivity(remoteItems: ProposalPackage[], localItems: ProposalPackage[]) {
+  const items = new Map<string, ProposalPackage>();
+  for (const item of remoteItems) {
+    items.set(item.id, item);
+  }
+  for (const localItem of localItems) {
+    const remoteItem = items.get(localItem.id);
+    if (!remoteItem || proposalPackageActivityTimestamp(localItem) >= proposalPackageActivityTimestamp(remoteItem)) {
+      items.set(localItem.id, localItem);
+    }
+  }
+  return Array.from(items.values());
+}
+
+function quoteActivityTimestamp(quote: QuoteRecord) {
+  return Math.max(
+    timestamp(quote.customerSignedAt),
+    timestamp(quote.proposalChangeRequestedAt),
+    timestamp(quote.proposalOpenedAt),
+    timestamp(quote.proposalSentAt),
+    timestamp(quote.proposalUpdatedAt),
+    timestamp(quote.activityDate),
+  );
+}
+
+function proposalPackageActivityTimestamp(proposalPackage: ProposalPackage) {
+  return Math.max(
+    timestamp(proposalPackage.signedAt),
+    timestamp(proposalPackage.changeRequestedAt),
+    timestamp(proposalPackage.openedAt),
+    timestamp(proposalPackage.sentAt),
+    timestamp(proposalPackage.lastActivityAt),
+  );
+}
+
 function timestamp(value?: string) {
   if (!value) return 0;
   const parsed = Date.parse(value);
@@ -387,14 +453,19 @@ async function saveMergedState(state: CrmState) {
   const ref = doc(getFirebaseDb(), ...crmDocumentPath);
   const snapshot = await getDoc(ref);
   const remoteState = snapshot.exists() ? normalizeState(snapshot.data() as CrmState) : initialCrmState;
+  const deletedTeamMemberKeys = Array.from(new Set([...(remoteState.deletedTeamMemberKeys ?? []), ...(state.deletedTeamMemberKeys ?? [])]));
+  const deletedCustomerIds = mergeDeletedIds(remoteState.deletedCustomerIds, state.deletedCustomerIds);
+  const deletedProductIds = mergeDeletedIds(remoteState.deletedProductIds, state.deletedProductIds);
   const mergedState = {
     ...state,
-    deletedTeamMemberKeys: Array.from(new Set([...(remoteState.deletedTeamMemberKeys ?? []), ...(state.deletedTeamMemberKeys ?? [])])),
-    team: mergeByUpdatedAccess(remoteState.team, state.team, Array.from(new Set([...(remoteState.deletedTeamMemberKeys ?? []), ...(state.deletedTeamMemberKeys ?? [])]))),
-    products: state.products.length === 0 && remoteState.products.length > 0 ? remoteState.products : state.products,
-    customers: mergeByLatestUpdate(remoteState.customers, state.customers),
-    quotes: state.quotes.length === 0 && remoteState.quotes.length > 0 ? remoteState.quotes : state.quotes,
-    proposalPackages: state.proposalPackages.length === 0 && remoteState.proposalPackages.length > 0 ? remoteState.proposalPackages : state.proposalPackages,
+    deletedTeamMemberKeys,
+    deletedCustomerIds,
+    deletedProductIds,
+    team: mergeByUpdatedAccess(remoteState.team, state.team, deletedTeamMemberKeys),
+    products: (state.products.length === 0 && remoteState.products.length > 0 ? remoteState.products : mergeProductsByLatestUpdate(remoteState.products, state.products)).filter((product) => !deletedProductIds.includes(product.id)),
+    customers: mergeByLatestUpdate(remoteState.customers, state.customers).filter((customer) => !deletedCustomerIds.includes(customer.id)),
+    quotes: state.quotes.length === 0 && remoteState.quotes.length > 0 ? remoteState.quotes : mergeQuotesByLatestProposalActivity(remoteState.quotes, state.quotes),
+    proposalPackages: state.proposalPackages.length === 0 && remoteState.proposalPackages.length > 0 ? remoteState.proposalPackages : mergeProposalPackagesByLatestActivity(remoteState.proposalPackages, state.proposalPackages),
   };
   await setDoc(ref, mergedState);
   return mergedState;

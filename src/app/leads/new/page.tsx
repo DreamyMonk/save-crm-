@@ -5,6 +5,7 @@ import { FormEvent, useState } from "react";
 import { CrmShell, PageHeader } from "@/components/crm-shell";
 import { RichTextEditor } from "@/components/rich-text-editor";
 import { Lead, LeadSource } from "@/lib/crm-data";
+import { canManageLeads, useCurrentTeamMember } from "@/lib/use-current-team-member";
 import { useCrmStore } from "@/lib/use-crm-store";
 
 export default function NewLeadPage() {
@@ -12,8 +13,14 @@ export default function NewLeadPage() {
   const router = useRouter();
   const [nextAction, setNextAction] = useState("");
   const pipeline = state.pipelines[0];
-  const members = state.team.filter((member) => member.active && member.modules.includes("leads"));
-  const adminMember = state.team.find((member) => member.id === "admin") ?? state.team.find((member) => member.role === "Admin") ?? members[0];
+  const { member: currentMember, ready: memberReady } = useCurrentTeamMember(state.team);
+  const canManageAssignments = canManageLeads(currentMember);
+  const members = canManageAssignments
+    ? state.team.filter((member) => member.active && member.modules.includes("leads"))
+    : currentMember && currentMember.modules.includes("leads")
+      ? [currentMember]
+      : [];
+  const adminMember = canManageAssignments ? state.team.find((member) => member.id === "admin") ?? state.team.find((member) => member.role === "Admin") ?? members[0] : currentMember;
 
   function createLead(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -62,6 +69,9 @@ export default function NewLeadPage() {
   return (
     <CrmShell>
       <PageHeader eyebrow="Leads" title="Create new lead" />
+      {!memberReady ? (
+        <div className="p-4 text-sm font-semibold text-[#657267] md:p-8">Checking lead access.</div>
+      ) : (
       <form onSubmit={createLead} className="m-4 grid max-w-5xl gap-4 rounded-lg border border-[#dce3d5] bg-white p-5 shadow-sm md:m-8 md:grid-cols-2">
         <Input name="title" label="Lead title" required />
         <Input name="company" label="Company" required />
@@ -91,13 +101,13 @@ export default function NewLeadPage() {
         </label>
         <label className="space-y-1 text-sm">
           <span className="font-medium text-[#657267]">Assign to</span>
-          <select name="assignedTo" defaultValue={adminMember?.id ?? "admin"} className="h-11 w-full rounded-lg border border-[#d7dfd0] px-3 outline-none">
+          <select name="assignedTo" defaultValue={adminMember?.id ?? "admin"} disabled={!canManageAssignments} className="h-11 w-full rounded-lg border border-[#d7dfd0] px-3 outline-none disabled:bg-[#f4f6f2]">
             {members.map((member) => <option key={member.id} value={member.id}>{member.name}</option>)}
           </select>
         </label>
         <label className="space-y-1 text-sm">
           <span className="font-medium text-[#657267]">Substitute sales person</span>
-          <select name="substituteAssignedTo" className="h-11 w-full rounded-lg border border-[#d7dfd0] px-3 outline-none">
+          <select name="substituteAssignedTo" disabled={!canManageAssignments} className="h-11 w-full rounded-lg border border-[#d7dfd0] px-3 outline-none disabled:bg-[#f4f6f2]">
             <option value="">None</option>
             {members.map((member) => <option key={member.id} value={member.id}>{member.name}</option>)}
           </select>
@@ -116,6 +126,7 @@ export default function NewLeadPage() {
         </label>
         <button className="h-11 rounded-lg bg-[#003CBB] px-5 text-sm font-semibold text-white md:w-max">Create lead</button>
       </form>
+      )}
     </CrmShell>
   );
 }

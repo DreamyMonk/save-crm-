@@ -6,6 +6,7 @@ import { ButtonLink, CrmShell, PageHeader } from "@/components/crm-shell";
 import { RichTextEditor } from "@/components/rich-text-editor";
 import { Note, Task } from "@/lib/crm-data";
 import { htmlToPlainText } from "@/lib/text";
+import { canAccessLead, useCurrentTeamMember } from "@/lib/use-current-team-member";
 import { useCrmStore } from "@/lib/use-crm-store";
 
 export default function LeadTasksPage() {
@@ -14,6 +15,8 @@ export default function LeadTasksPage() {
   const [taskTitle, setTaskTitle] = useState("");
   const [noteBody, setNoteBody] = useState("");
   const lead = state.leads.find((item) => item.id === id);
+  const { member: currentMember, ready: memberReady } = useCurrentTeamMember(state.team);
+  const hasLeadAccess = memberReady && canAccessLead(currentMember, lead);
 
   function addTask(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -33,8 +36,8 @@ export default function LeadTasksPage() {
 
   return (
     <CrmShell>
-      <PageHeader eyebrow="Tasks and notes" title={lead ? lead.title : "Lead not found"} actions={<ButtonLink href={`/leads/${id}`}>Back to lead</ButtonLink>} />
-      {lead ? (
+      <PageHeader eyebrow="Tasks and notes" title={lead && hasLeadAccess ? lead.title : memberReady ? "No lead access" : "Checking lead access"} actions={<ButtonLink href={`/leads/${id}`}>Back to lead</ButtonLink>} />
+      {lead && hasLeadAccess ? (
         <div className="grid gap-6 p-4 md:p-8 xl:grid-cols-2">
           <section className="rounded-lg border border-[#dce3d5] bg-white p-5 shadow-sm">
             <h2 className="font-semibold">Tasks</h2>
@@ -70,6 +73,8 @@ export default function LeadTasksPage() {
             </div>
           </section>
         </div>
+      ) : memberReady ? (
+        <div className="p-4 text-sm font-semibold text-[#657267] md:p-8">No access to this lead.</div>
       ) : null}
     </CrmShell>
   );

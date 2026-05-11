@@ -52,6 +52,14 @@ export default function AccessPage() {
         active: true,
         accessUpdatedAt: new Date().toISOString(),
       });
+      void sendAccessCreatedEmail({
+        resend: state.settings.resend,
+        email,
+        name,
+        password,
+        role,
+        modules,
+      });
       formElement.reset();
       setMessage(`User ${email} created and added to access manager.`);
     } catch (error) {
@@ -65,6 +73,13 @@ export default function AccessPage() {
           modules,
           active: true,
           accessUpdatedAt: new Date().toISOString(),
+        });
+        void sendAccessCreatedEmail({
+          resend: state.settings.resend,
+          email,
+          name,
+          role,
+          modules,
         });
         formElement.reset();
         setMessage(`${email} already has a Firebase login. CRM access was added/updated.`);
@@ -81,10 +96,10 @@ export default function AccessPage() {
     const existingId = existingMemberId(state.team, member.email ?? "");
     setState((currentState) => {
       const currentExistingId = existingMemberId(currentState.team, member.email ?? "") ?? existingId;
-      const memberKey = accessMemberKey(member);
+      const memberKeys = accessMemberKeys(member);
       return {
         ...currentState,
-        deletedTeamMemberKeys: (currentState.deletedTeamMemberKeys ?? []).filter((key) => key !== memberKey),
+        deletedTeamMemberKeys: (currentState.deletedTeamMemberKeys ?? []).filter((key) => !memberKeys.includes(key)),
         team: currentExistingId
           ? currentState.team.map((item) => (item.id === currentExistingId ? { ...item, ...member, id: currentExistingId } : item))
           : [...currentState.team, member],
@@ -151,13 +166,17 @@ export default function AccessPage() {
       return;
     }
     if (!targetMember) return;
-    const removedKey = accessMemberKey(targetMember);
+    const removedKeys = accessMemberKeys(targetMember);
     setState((currentState) => {
       return {
         ...currentState,
-        deletedTeamMemberKeys: Array.from(new Set([...(currentState.deletedTeamMemberKeys ?? []), removedKey])),
+        deletedTeamMemberKeys: Array.from(new Set([...(currentState.deletedTeamMemberKeys ?? []), ...removedKeys])),
         team: currentState.team.filter((member) => member.id !== memberId),
-        leads: currentState.leads.map((lead) => (lead.assignedTo === memberId ? { ...lead, assignedTo: "admin" } : lead)),
+        leads: currentState.leads.map((lead) => ({
+          ...lead,
+          assignedTo: lead.assignedTo === memberId ? "admin" : lead.assignedTo,
+          substituteAssignedTo: lead.substituteAssignedTo === memberId ? "" : lead.substituteAssignedTo,
+        })),
       };
     });
     setMessage("CRM access removed. Firebase Auth account deletion needs server Admin SDK.");
@@ -293,8 +312,8 @@ function isProtectedAdmin(member: TeamMember) {
   return member.uid === "hardcoded-admin" || member.email?.trim().toLowerCase() === "admin@admin.com";
 }
 
-function accessMemberKey(member: TeamMember) {
-  return member.uid || member.email?.trim().toLowerCase() || member.id;
+function accessMemberKeys(member: TeamMember) {
+  return [member.email?.trim().toLowerCase(), member.uid, member.id].filter((key): key is string => Boolean(key));
 }
 
 function fallbackMemberId(email: string) {
@@ -307,4 +326,117 @@ function safeFirebaseAppName(email: string) {
 
 function firebaseErrorCode(error: unknown) {
   return typeof error === "object" && error && "code" in error ? String((error as { code?: unknown }).code) : "";
+}
+
+async function sendAccessCreatedEmail({
+  resend,
+  email,
+  name,
+  password,
+  role,
+  modules,
+}: {
+  resend: unknown;
+  email: string;
+  name: string;
+  password?: string;
+  role: string;
+  modules: ModuleKey[];
+}) {
+  const loginUrl = typeof window === "undefined" ? "" : `${window.location.origin}/login`;
+  const moduleList = modules.map((module) => moduleLabels[module]).join(", ");
+  const passwordLine = password
+    ? `Temporary password: ${password}`
+    : "Use your existing password. If you cannot remember it, use Forgot password on the login page.";
+
+  await fetch("/api/resend/send", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      resend,
+      recipients: [{ email, name }],
+      subject: "Your SavePlanet CRM access is ready",
+      text: `Hi ${name || email},
+
+Your SavePlanet CRM access has been created.
+
+Login: ${loginUrl}
+Email: ${email}
+${passwordLine}
+Role: ${role}
+Modules: ${moduleList}
+
+Please sign in and update your password if this is a temporary password.
+
+SavePlanet CRM`,
+      html: accessCreatedEmailHtml({ name, email, password, role, modules, loginUrl }),
+    }),
+  }).catch(() => undefined);
+}
+
+function accessCreatedEmailHtml({
+  name,
+  email,
+  password,
+  role,
+  modules,
+  loginUrl,
+}: {
+  name: string;
+  email: string;
+  password?: string;
+  role: string;
+  modules: ModuleKey[];
+  loginUrl: string;
+}) {
+  const moduleBadges = modules.map((module) => `<span style="display:inline-block;margin:4px 6px 0 0;padding:7px 10px;border-radius:999px;background:#eef4ff;color:#003CBB;font-size:12px;font-weight:700;">${escapeHtml(moduleLabels[module])}</span>`).join("");
+  const passwordBlock = password
+    ? `<tr><td style="padding:10px 0;color:#657267;font-size:13px;">Temporary password</td><td style="padding:10px 0;color:#0f172a;font-size:14px;font-weight:700;">${escapeHtml(password)}</td></tr>`
+    : `<tr><td colspan="2" style="padding:12px 0;color:#657267;font-size:13px;">Use your existing password. If needed, click Forgot password on the login page.</td></tr>`;
+
+  return `<!doctype html>
+<html>
+  <body style="margin:0;background:#f4f7fb;font-family:Arial,Helvetica,sans-serif;color:#0f172a;">
+    <table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f7fb;padding:32px 12px;">
+      <tr>
+        <td align="center">
+          <table width="620" cellpadding="0" cellspacing="0" style="max-width:620px;background:#ffffff;border-radius:14px;overflow:hidden;border:1px solid #d9e2f2;box-shadow:0 8px 28px rgba(15,23,42,0.08);">
+            <tr>
+              <td style="background:#003CBB;padding:28px 30px;color:#ffffff;">
+                <div style="font-size:12px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;color:#dbe7ff;">SavePlanet CRM</div>
+                <h1 style="margin:10px 0 0;font-size:28px;line-height:1.2;">Your access is ready</h1>
+                <p style="margin:10px 0 0;color:#dbe7ff;font-size:15px;">You can now sign in to your assigned CRM modules.</p>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:30px;">
+                <p style="margin:0 0 18px;font-size:16px;line-height:1.6;">Hi <strong>${escapeHtml(name || email)}</strong>, your SavePlanet CRM account has been created.</p>
+                <table width="100%" cellpadding="0" cellspacing="0" style="border-top:1px solid #e5edf7;border-bottom:1px solid #e5edf7;margin:18px 0;">
+                  <tr><td style="padding:10px 0;color:#657267;font-size:13px;">Login email</td><td style="padding:10px 0;color:#0f172a;font-size:14px;font-weight:700;">${escapeHtml(email)}</td></tr>
+                  ${passwordBlock}
+                  <tr><td style="padding:10px 0;color:#657267;font-size:13px;">Role</td><td style="padding:10px 0;color:#0f172a;font-size:14px;font-weight:700;">${escapeHtml(role)}</td></tr>
+                </table>
+                <div style="margin:18px 0;">
+                  <div style="font-size:13px;font-weight:700;color:#657267;text-transform:uppercase;letter-spacing:0.08em;">Enabled modules</div>
+                  <div style="margin-top:8px;">${moduleBadges}</div>
+                </div>
+                <a href="${escapeHtml(loginUrl)}" style="display:inline-block;margin-top:18px;background:#003CBB;color:#ffffff;text-decoration:none;padding:13px 22px;border-radius:10px;font-weight:700;font-size:14px;">Open CRM Login</a>
+                <p style="margin:22px 0 0;color:#657267;font-size:13px;line-height:1.6;">If this is a temporary password, sign in and change it as soon as possible.</p>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>`;
+}
+
+function escapeHtml(value: string) {
+  return value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
 }

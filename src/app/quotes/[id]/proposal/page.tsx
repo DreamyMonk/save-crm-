@@ -160,18 +160,43 @@ function ProposalWorkspace({ publicView = false, allowAnonymous = false }: { pub
     iframeRef.current?.contentWindow?.print();
   }
 
-  function markProposalSent() {
+  function markProposalSent({ resetSignature = false }: { resetSignature?: boolean } = {}) {
     if (!quote || !calculations) return;
     const sentAt = new Date().toISOString();
     const sender = findSenderMember(state, quote, customer, user);
     const updatedQuote: QuoteRecord = {
       ...quote,
-      proposalSentAt: quote.proposalSentAt ?? sentAt,
-      proposalSentBy: quote.proposalSentBy ?? sender?.name ?? customer?.salesAgent ?? user?.email ?? "SavePlanet Team",
+      proposalSentAt: resetSignature ? sentAt : quote.proposalSentAt ?? sentAt,
+      proposalSentBy: resetSignature ? sender?.name ?? customer?.salesAgent ?? user?.email ?? "SavePlanet Team" : quote.proposalSentBy ?? sender?.name ?? customer?.salesAgent ?? user?.email ?? "SavePlanet Team",
+      proposalOpenedAt: resetSignature ? undefined : quote.proposalOpenedAt,
+      proposalOpenCount: resetSignature ? 0 : quote.proposalOpenCount,
+      proposalChangeRequestHtml: resetSignature ? undefined : quote.proposalChangeRequestHtml,
+      proposalChangeRequestedAt: resetSignature ? undefined : quote.proposalChangeRequestedAt,
+      customerSignatureDataUrl: resetSignature ? undefined : quote.customerSignatureDataUrl,
+      customerSignedAt: resetSignature ? undefined : quote.customerSignedAt,
       status: "Saved" as const,
     };
     persistQuoteUpdate(updatedQuote, calculations.finalPriceIncGst);
     return updatedQuote;
+  }
+
+  function saveProposalDraft() {
+    if (!quote) return;
+    const updatedQuote: QuoteRecord = {
+      ...quote,
+      status: "Draft",
+      proposalUpdatedAt: new Date().toISOString(),
+      proposalSentAt: undefined,
+      proposalSentBy: undefined,
+      proposalOpenedAt: undefined,
+      proposalOpenCount: 0,
+      proposalChangeRequestHtml: undefined,
+      proposalChangeRequestedAt: undefined,
+      customerSignatureDataUrl: undefined,
+      customerSignedAt: undefined,
+    };
+    persistQuoteUpdate(updatedQuote);
+    setMessage("Proposal saved as draft. Customer signature and send tracking were cleared for this revision.");
   }
 
   async function sendProposalEmail() {
@@ -185,29 +210,31 @@ function ProposalWorkspace({ publicView = false, allowAnonymous = false }: { pub
     setProposalSending(true);
     setMessage("");
     try {
-      const updatedQuote = markProposalSent() ?? quote;
+      const resettingSignature = Boolean(quote.customerSignedAt || quote.customerSignatureDataUrl);
+      const isUpdatedProposal = Boolean(quote.proposalUpdatedAt || resettingSignature);
+      const updatedQuote = markProposalSent({ resetSignature: resettingSignature }) ?? quote;
       await publishProposalSnapshot(updatedQuote, customer);
       const link = publicProposalLink(updatedQuote, customer);
-      const customerEmailHtml = await proposalEmailHtml(quoteCategory, customer, updatedQuote, link, calculations);
+      const customerEmailHtml = await proposalEmailHtml(quoteCategory, customer, updatedQuote, link, calculations, isUpdatedProposal);
       const customerEmailSent = await sendResendEmail(state, {
         recipients: [{ email: customer.email, name: customerName(customer) }],
-        subject: `Your SavePlanet proposal is ready - ${quote.id}`,
-        text: proposalEmailBody(customer, quote, link),
+        subject: isUpdatedProposal ? `We've updated your SavePlanet proposal - ${quote.id}` : `Your SavePlanet proposal is ready - ${quote.id}`,
+        text: proposalEmailBody(customer, updatedQuote, link, isUpdatedProposal),
         html: customerEmailHtml,
       });
       const internalRecipients = proposalNotificationRecipients(state, updatedQuote, customer, user);
       const internalEmailSent = internalRecipients.length
         ? await sendResendEmail(state, {
             recipients: internalRecipients,
-            subject: `Proposal sent: ${quote.id}`,
-            text: proposalSentNotificationBody(customer, updatedQuote, link),
+            subject: `${isUpdatedProposal ? "Updated proposal sent" : "Proposal sent"}: ${quote.id}`,
+            text: proposalSentNotificationBody(customer, updatedQuote, link, isUpdatedProposal),
           })
         : true;
 
       if (customerEmailSent && internalEmailSent) {
         setNotice({
-          title: "Sent successfully",
-          body: "Proposal mail was sent successfully to the customer, admin, and sales agent.",
+          title: resettingSignature ? "Sent back for signature" : "Sent successfully",
+          body: resettingSignature ? "Updated proposal mail was sent to the customer for a fresh signature. Admin and sales agent were notified." : "Proposal mail was sent successfully to the customer, admin, and sales agent.",
         });
         return;
       }
@@ -297,8 +324,14 @@ function ProposalWorkspace({ publicView = false, allowAnonymous = false }: { pub
             </button>
           ) : (
             <>
+            <Link href={`/quotes?edit=${quote.id}`} className="inline-flex h-10 items-center gap-2 rounded-lg border border-[#c7d3e8] bg-white px-4 text-sm font-semibold text-[#003CBB]">
+              <PenLine size={16} /> Edit Proposal
+            </Link>
+            <button onClick={saveProposalDraft} className="inline-flex h-10 items-center gap-2 rounded-lg border border-[#c7d3e8] bg-white px-4 text-sm font-semibold text-[#003CBB]">
+              <Save size={16} /> Save as Draft
+            </button>
             <button onClick={sendProposalEmail} disabled={proposalSending} className="inline-flex h-10 items-center gap-2 rounded-lg bg-[#003CBB] px-4 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:bg-[#9bb3ee]">
-              <Send size={16} /> {proposalSending ? "Sending..." : "Send Mail"}
+              <Send size={16} /> {proposalSending ? "Sending..." : hasSavedSignature ? "Send Back to Re-sign" : quote.proposalSentAt ? "Resend Mail" : "Send Mail"}
             </button>
             <button onClick={downloadPdf} className="inline-flex h-10 items-center gap-2 rounded-lg bg-[#0f172a] px-4 text-sm font-semibold text-white">
               <Download size={16} /> Download PDF
@@ -516,13 +549,13 @@ function proposalNotificationRecipients(state: CrmState, quote: QuoteRecord, cus
   return Array.from(recipients.values());
 }
 
-function proposalSentNotificationBody(customer: Customer | undefined, quote: QuoteRecord, link: string) {
-  return `Proposal ${quote.id} was sent to ${customerName(customer)}.
+function proposalSentNotificationBody(customer: Customer | undefined, quote: QuoteRecord, link: string, isUpdatedProposal = false) {
+  return `${isUpdatedProposal ? "Updated proposal" : "Proposal"} ${quote.id} was sent to ${customerName(customer)}.
 
 Customer: ${customerName(customer)}
 Customer email: ${customer?.email || "Not provided"}
 Sent by: ${quote.proposalSentBy || "SavePlanet Team"}
-Status: Sent
+Status: ${isUpdatedProposal ? "Updated and sent for signature" : "Sent"}
 
 Public proposal link:
 ${link}
@@ -531,10 +564,13 @@ Open proposal tracking:
 ${window.location.origin}/proposals`;
 }
 
-function proposalEmailBody(customer: Customer | undefined, quote: QuoteRecord, link: string) {
+function proposalEmailBody(customer: Customer | undefined, quote: QuoteRecord, link: string, isUpdatedProposal = false) {
+  const intro = isUpdatedProposal
+    ? "We've updated your SavePlanet proposal based on the latest details, and it's ready for you to review and sign again."
+    : "Your SavePlanet proposal is ready for review.";
   return `Hi ${customerName(customer)},
 
-Your SavePlanet proposal is ready for review.
+${intro}
 
 Proposal: ${quote.id}
 Customer: ${customerName(customer)}
@@ -548,21 +584,33 @@ Thanks,
 SavePlanet`;
 }
 
-async function proposalEmailHtml(category: ProductCategory, customer: Customer | undefined, quote: QuoteRecord, link: string, calculations: Calculations) {
+async function proposalEmailHtml(category: ProductCategory, customer: Customer | undefined, quote: QuoteRecord, link: string, calculations: Calculations, isUpdatedProposal = false) {
   try {
     const response = await fetch(mailTemplateUrlForCategory(category));
     if (!response.ok) return undefined;
     const template = await response.text();
-    return fillMailTemplate(template, customer, quote, link, calculations);
+    return fillMailTemplate(template, customer, quote, link, calculations, isUpdatedProposal);
   } catch {
     return undefined;
   }
 }
 
-function fillMailTemplate(template: string, customer: Customer | undefined, quote: QuoteRecord, link: string, calculations: Calculations) {
+function fillMailTemplate(template: string, customer: Customer | undefined, quote: QuoteRecord, link: string, calculations: Calculations, isUpdatedProposal = false) {
   const savings = quote.annualBillSavings && quote.annualBillSavings > 0 ? quote.annualBillSavings : calculations.totalDeductions;
   const replacements: Record<string, string> = {
     customer_name: customerName(customer),
+    proposal_intro: isUpdatedProposal
+      ? "We’ve updated your SavePlanet proposal based on the latest details, and it’s ready for you to review again."
+      : "We’ve created a personalized proposal for your property, and it’s ready for you to review.",
+    proposal_action: isUpdatedProposal
+      ? "Click the button below to view your updated proposal and complete a fresh e-signature."
+      : "Click the button below to instantly view your proposal — no registration required.",
+    proposal_button_label: isUpdatedProposal ? "View Updated Proposal" : "View Your Proposal",
+    proposal_review_step: isUpdatedProposal ? "Review the updated proposal details" : "Review your personalized proposal",
+    proposal_sign_step: isUpdatedProposal ? "Sign the updated proposal online" : "Accept the proposal online with a simple e-signature",
+    proposal_closing: isUpdatedProposal
+      ? "Thanks for reviewing the revised proposal. We’re ready to move ahead once you’re happy with the update."
+      : "Let’s get started today!",
     proposal_link: link,
     savings: moneyWithoutDollar(savings),
     quote_id: quote.id,
@@ -1192,10 +1240,11 @@ function calculateQuote(quote: QuoteRecord) {
   const gstAmount = systemTotalIncGst - totalCost;
   const rebate = quote.rebate ?? (quote.stcPanelRebate ?? 0) + (quote.stcBatteryRebate ?? 0) + (quote.solarVicRebate ?? 0);
   const totalDeductions = certificateDiscount + rebate + (quote.solarVicLoan ?? 0);
-  const finalPriceIncGst = Math.max(0, systemTotalIncGst - totalDeductions);
-  const depositAmount = finalPriceIncGst * ((quote.depositPercent ?? 50) / 100);
-  const balanceDue = Math.max(0, finalPriceIncGst - depositAmount);
-  const netExGst = Math.max(0, finalPriceIncGst / (1 + quote.gstRate / 100));
+  const finalPriceIncGst = systemTotalIncGst - totalDeductions;
+  const payableAmount = Math.max(0, finalPriceIncGst);
+  const depositAmount = payableAmount * ((quote.depositPercent ?? 50) / 100);
+  const balanceDue = Math.max(0, payableAmount - depositAmount);
+  const netExGst = finalPriceIncGst / (1 + quote.gstRate / 100);
   const netIncGst = finalPriceIncGst;
   return { certificates, certificateDiscount, rebate, productCost, installCost, totalCost, systemTotalIncGst, gstAmount, totalDeductions, finalPriceIncGst, depositAmount, balanceDue, netExGst, netIncGst };
 }

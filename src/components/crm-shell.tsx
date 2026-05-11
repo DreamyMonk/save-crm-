@@ -56,7 +56,8 @@ function ShellFrame({ children, email, uid }: { children: React.ReactNode; email
   const { state, ready } = useCrmStore();
   const normalizedEmail = email?.trim().toLowerCase();
   const member = ready
-    ? state.team.find((item) => item.active && (item.uid === uid || item.email?.trim().toLowerCase() === normalizedEmail))
+    ? state.team.find((item) => item.active && normalizedEmail && item.email?.trim().toLowerCase() === normalizedEmail) ??
+      state.team.find((item) => item.active && item.uid === uid)
     : undefined;
   const allowedModules = member ? member.modules : [];
   const visibleNav = navItems.filter((item) => allowedModules.includes(item.module));
@@ -64,7 +65,7 @@ function ShellFrame({ children, email, uid }: { children: React.ReactNode; email
     const matchHref = item.matchHref ?? item.href;
     return matchHref === "/" ? pathname === "/" : pathname.startsWith(matchHref);
   })?.module ?? "dashboard";
-  const hasAccess = allowedModules.includes(activeModule);
+  const hasAccess = pathname === "/account" || allowedModules.includes(activeModule);
 
   return (
         <main className="min-h-screen bg-[#ffffff] text-[#0f172a]">

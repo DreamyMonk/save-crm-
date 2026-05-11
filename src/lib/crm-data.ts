@@ -60,47 +60,6 @@ export type LeadActivity = {
   createdBy: string;
 };
 
-export type ProposalElementType =
-  | "heading"
-  | "paragraph"
-  | "text"
-  | "client"
-  | "amount"
-  | "table"
-  | "product"
-  | "signature"
-  | "image"
-  | "rect"
-  | "circle"
-  | "line";
-
-export type ProposalElement = {
-  id: string;
-  type: ProposalElementType;
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-  content: string;
-  fill: string;
-  stroke: string;
-  color: string;
-  fontSize: number;
-  imageUrl?: string;
-  productId?: string;
-};
-
-export type ProposalPageData = {
-  id: string;
-  elements: ProposalElement[];
-};
-
-export type ProposalDocument = {
-  elements: ProposalElement[];
-  pages?: ProposalPageData[];
-  updatedAt: string;
-};
-
 export type Lead = {
   id: string;
   title: string;
@@ -129,7 +88,6 @@ export type Lead = {
   mails: MailMessage[];
   customFields?: CustomField[];
   communicationPreferences?: CommunicationPreferences;
-  proposal?: ProposalDocument;
 };
 
 export type CustomField = {
@@ -173,6 +131,7 @@ export type ProductCategory = "Aircon" | "Solar" | "Inverter" | "Heat Pump" | "S
 
 export type Product = {
   id: string;
+  updatedAt?: string;
   category: ProductCategory;
   productClass?: string;
   productName: string;
@@ -240,6 +199,7 @@ export type QuoteRecord = {
   proposalSentBy?: string;
   proposalOpenedAt?: string;
   proposalOpenCount?: number;
+  proposalUpdatedAt?: string;
   proposalChangeRequestHtml?: string;
   proposalChangeRequestedAt?: string;
   customerSignatureDataUrl?: string;
@@ -359,6 +319,8 @@ export type CrmState = {
   proposalPackages: ProposalPackage[];
   team: TeamMember[];
   deletedTeamMemberKeys?: string[];
+  deletedCustomerIds?: string[];
+  deletedProductIds?: string[];
   invoices: Invoice[];
   appointments: Appointment[];
   settings: CrmSettings;
@@ -645,7 +607,7 @@ export const initialCrmState: CrmState = {
     loginImageUrl: "https://images.unsplash.com/photo-1497366754035-f200968a6e72?auto=format&fit=crop&w=1400&q=80",
     logoUrl: "",
     resend: {
-      apiKey: "re_a3T4duJB_JgskL85WLQfVMWacL31ineQh",
+      apiKey: "",
       fromEmail: "noreply@saveplanet.au",
       fromName: "SavePlanet CRM",
       enabled: true,

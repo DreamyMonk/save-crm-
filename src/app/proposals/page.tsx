@@ -5,6 +5,7 @@ import { ExternalLink, Search, X } from "lucide-react";
 import { useMemo, useState } from "react";
 import { CrmShell, PageHeader } from "@/components/crm-shell";
 import { QuoteRecord } from "@/lib/crm-data";
+import { htmlToPlainText } from "@/lib/text";
 import { useCrmStore } from "@/lib/use-crm-store";
 
 export default function ProposalsPage() {
@@ -186,7 +187,9 @@ export default function ProposalsPage() {
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[#657267]">Client changes</p>
                   {selectedRow.quote.proposalChangeRequestHtml ? (
-                    <div className="mt-2 max-h-[420px] overflow-auto rounded-lg border border-[#d9e2f2] bg-[#f8fbff] p-4 text-sm leading-6 text-[#0f172a]" dangerouslySetInnerHTML={{ __html: selectedRow.quote.proposalChangeRequestHtml }} />
+                    <div className="mt-2 max-h-[420px] overflow-auto whitespace-pre-wrap rounded-lg border border-[#d9e2f2] bg-[#f8fbff] p-4 text-sm leading-6 text-[#0f172a]">
+                      {htmlToPlainText(selectedRow.quote.proposalChangeRequestHtml)}
+                    </div>
                   ) : (
                     <p className="mt-2 rounded-lg border border-dashed border-[#c7d3e8] bg-[#f8fbff] p-4 text-sm text-[#657267]">No change request submitted yet.</p>
                   )}
@@ -255,8 +258,8 @@ function StatusPill({ status }: { status: string }) {
 }
 
 function proposalStatus(quote: QuoteRecord) {
-  if (quote.proposalChangeRequestHtml) return "Changes requested";
   if (quote.customerSignedAt) return "Signed";
+  if (quote.proposalChangeRequestHtml) return "Changes requested";
   if (quote.proposalOpenedAt) return "Opened";
   if (quote.proposalSentAt) return "Sent";
   return "Draft";

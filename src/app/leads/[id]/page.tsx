@@ -3,11 +3,12 @@
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useState } from "react";
-import { CalendarDays, ClipboardList, Pencil, PhoneCall, Plus, Save, Trash2, UserPlus } from "lucide-react";
+import { CalendarDays, ClipboardList, FileText, Pencil, PhoneCall, Plus, Save, Trash2, UserPlus } from "lucide-react";
 import { ButtonLink, CrmShell, PageHeader } from "@/components/crm-shell";
 import { RichTextEditor } from "@/components/rich-text-editor";
 import { CommunicationPreferences, CustomField, Lead, LeadActivity, LeadSalesPhase, LeadSource, currency, defaultCommunicationPreferences } from "@/lib/crm-data";
 import { htmlToPlainText } from "@/lib/text";
+import { canAccessLead, canManageLeads, useCurrentTeamMember } from "@/lib/use-current-team-member";
 import { useCrmStore } from "@/lib/use-crm-store";
 
 export default function LeadDetailPage() {
@@ -18,6 +19,8 @@ export default function LeadDetailPage() {
   const [activitySummary, setActivitySummary] = useState("");
   const [activityOutcome, setActivityOutcome] = useState("");
   const lead = state.leads.find((item) => item.id === params.id);
+  const { member: currentMember, ready: memberReady } = useCurrentTeamMember(state.team);
+  const canManageAssignments = canManageLeads(currentMember);
 
   if (!lead) {
     return (
@@ -27,9 +30,32 @@ export default function LeadDetailPage() {
     );
   }
 
+  if (!memberReady) {
+    return (
+      <CrmShell>
+        <PageHeader eyebrow="Lead detail" title="Checking lead access" actions={<ButtonLink href="/leads">Back to leads</ButtonLink>} />
+      </CrmShell>
+    );
+  }
+
+  if (memberReady && !canAccessLead(currentMember, lead)) {
+    return (
+      <CrmShell>
+        <PageHeader eyebrow="Lead detail" title="No lead access" actions={<ButtonLink href="/leads">Back to leads</ButtonLink>} />
+      </CrmShell>
+    );
+  }
+
   const pipeline = state.pipelines.find((item) => item.id === lead.pipelineId);
-  const members = state.team.filter((member) => member.active && member.modules.includes("leads"));
+  const members = canManageAssignments
+    ? state.team.filter((member) => member.active && member.modules.includes("leads"))
+    : currentMember && currentMember.modules.includes("leads")
+      ? [currentMember]
+      : [];
   const owner = state.team.find((member) => member.id === lead.assignedTo)?.name ?? "Unassigned";
+  const linkedCustomer = state.customers.find((customer) => customer.leadId === lead.id || customer.email.toLowerCase() === lead.email.toLowerCase());
+  const linkedQuote = linkedCustomer ? state.quotes.find((quote) => quote.customerId === linkedCustomer.id) : undefined;
+  const proposalHref = linkedQuote ? `/quotes/${linkedQuote.id}/proposal` : "/quotes";
   const currentLead = lead;
   const leadId = lead.id;
 
@@ -38,6 +64,7 @@ export default function LeadDetailPage() {
   }
 
   function updateAssignment(memberId: string, field: "assignedTo" | "substituteAssignedTo") {
+    if (!canManageAssignments) return;
     const member = state.team.find((item) => item.id === memberId);
     updateLead({
       [field]: memberId,
@@ -96,43 +123,49 @@ export default function LeadDetailPage() {
     const wantedProduct =
       currentLead.customFields?.find((field) => field.label.toLowerCase().includes("product"))?.value ||
       currentLead.title;
+    const updatedAt = new Date().toISOString();
 
-    setState({
-      ...state,
-          customers: [
-        ...state.customers,
-        {
-          id: `C-${1000 + state.customers.length + 1}`,
-          customerType: "Business",
-          businessName: currentLead.company,
-          contactType: "Primary",
-          salesAgent: state.team.find((member) => member.id === currentLead.assignedTo)?.name ?? "Aarav Admin",
-          secondSalesAgent: state.team.find((member) => member.id === currentLead.substituteAssignedTo)?.name ?? "",
-          firstName: currentLead.contact.split(" ")[0] ?? currentLead.contact,
-          lastName: currentLead.contact.split(" ").slice(1).join(" "),
-          name: currentLead.contact,
-          email: currentLead.email,
-          phone: currentLead.phone,
-          address: currentLead.company,
-          wantedProduct,
-          leadId: currentLead.id,
-        },
-      ],
-      leads: state.leads.map((item) =>
-        item.id === currentLead.id
-          ? {
-              ...item,
-              notes: [
-                ...item.notes,
-                {
-                  id: `N-${leadId}-${item.notes.length + 1}`,
-                  body: "Added to customer database.",
-                  createdAt: "Now",
-                },
-              ],
-            }
-          : item,
-      ),
+    setState((currentState) => {
+      const customerId = nextCustomerId(currentState.customers);
+      return {
+        ...currentState,
+        deletedCustomerIds: (currentState.deletedCustomerIds ?? []).filter((id) => id !== customerId),
+        customers: [
+          ...currentState.customers,
+          {
+            id: customerId,
+            updatedAt,
+            customerType: "Business",
+            businessName: currentLead.company,
+            contactType: "Primary",
+            salesAgent: currentState.team.find((member) => member.id === currentLead.assignedTo)?.name ?? "Aarav Admin",
+            secondSalesAgent: currentState.team.find((member) => member.id === currentLead.substituteAssignedTo)?.name ?? "",
+            firstName: currentLead.contact.split(" ")[0] ?? currentLead.contact,
+            lastName: currentLead.contact.split(" ").slice(1).join(" "),
+            name: currentLead.contact,
+            email: currentLead.email,
+            phone: currentLead.phone,
+            address: currentLead.company,
+            wantedProduct,
+            leadId: currentLead.id,
+          },
+        ],
+        leads: currentState.leads.map((item) =>
+          item.id === currentLead.id
+            ? {
+                ...item,
+                notes: [
+                  ...item.notes,
+                  {
+                    id: `N-${leadId}-${item.notes.length + 1}`,
+                    body: "Added to customer database.",
+                    createdAt: "Now",
+                  },
+                ],
+              }
+            : item,
+        ),
+      };
     });
     setCustomerStatus("Added to customer database.");
   }
@@ -174,6 +207,7 @@ export default function LeadDetailPage() {
         actions={
           <>
             <ButtonLink href={`/calendar/new?lead=${lead.id}`} variant="light"><CalendarDays size={16} /> Schedule</ButtonLink>
+            <ButtonLink href={proposalHref} variant="light"><FileText size={16} /> V2 Proposal</ButtonLink>
             <button onClick={addLeadToCustomers} className="inline-flex h-11 items-center gap-2 rounded-lg border border-[#d7dfd0] bg-white px-4 text-sm font-semibold text-[#0f172a] shadow-sm">
               <UserPlus size={16} /> Add customer
             </button>
@@ -225,13 +259,13 @@ export default function LeadDetailPage() {
             </label>
             <label className="space-y-1 text-sm">
               <span className="font-medium text-[#657267]">Assigned to</span>
-              <select value={lead.assignedTo} onChange={(event) => updateAssignment(event.target.value, "assignedTo")} className="h-11 w-full rounded-lg border border-[#d7dfd0] px-3 outline-none">
+              <select value={lead.assignedTo} disabled={!canManageAssignments} onChange={(event) => updateAssignment(event.target.value, "assignedTo")} className="h-11 w-full rounded-lg border border-[#d7dfd0] px-3 outline-none disabled:bg-[#f4f6f2]">
                 {members.map((member) => <option key={member.id} value={member.id}>{member.name}</option>)}
               </select>
             </label>
             <label className="space-y-1 text-sm">
               <span className="font-medium text-[#657267]">Substitute sales person</span>
-              <select value={lead.substituteAssignedTo ?? ""} onChange={(event) => updateAssignment(event.target.value, "substituteAssignedTo")} className="h-11 w-full rounded-lg border border-[#d7dfd0] px-3 outline-none">
+              <select value={lead.substituteAssignedTo ?? ""} disabled={!canManageAssignments} onChange={(event) => updateAssignment(event.target.value, "substituteAssignedTo")} className="h-11 w-full rounded-lg border border-[#d7dfd0] px-3 outline-none disabled:bg-[#f4f6f2]">
                 <option value="">None</option>
                 {members.map((member) => <option key={member.id} value={member.id}>{member.name}</option>)}
               </select>
@@ -310,6 +344,15 @@ function formatActivityDate(value: string) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value;
   return date.toLocaleString("en-AU", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" });
+}
+
+function nextCustomerId(customers: { id: string }[]) {
+  const highest = customers.reduce((currentHighest, customer) => {
+    const match = /^C-(\d+)$/.exec(customer.id);
+    if (!match) return currentHighest;
+    return Math.max(currentHighest, Number(match[1]));
+  }, 1000);
+  return `C-${highest + 1}`;
 }
 
 function Field({ label, value, type = "text", onChange }: { label: string; value: string | number; type?: string; onChange: (value: string) => void }) {

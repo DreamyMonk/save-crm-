@@ -66,7 +66,11 @@ export default function CustomersPage() {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
     const customer = { ...customerFromForm(form, nextCustomerId(state.customers)), updatedAt: new Date().toISOString() };
-    setState((currentState) => ({ ...currentState, customers: [...currentState.customers, customer] }));
+    setState((currentState) => ({
+      ...currentState,
+      deletedCustomerIds: (currentState.deletedCustomerIds ?? []).filter((id) => id !== customer.id),
+      customers: [...currentState.customers, customer],
+    }));
     event.currentTarget.reset();
     setNewCustomerType("Business");
     setMessage(`${customer.name || customer.businessName || "Customer"} added.`);
@@ -97,7 +101,11 @@ export default function CustomersPage() {
   }
 
   function deleteCustomer(customerId: string) {
-    setState((currentState) => ({ ...currentState, customers: currentState.customers.filter((customer) => customer.id !== customerId) }));
+    setState((currentState) => ({
+      ...currentState,
+      deletedCustomerIds: Array.from(new Set([...(currentState.deletedCustomerIds ?? []), customerId])),
+      customers: currentState.customers.filter((customer) => customer.id !== customerId),
+    }));
     setMessage("Customer deleted.");
   }
 
@@ -114,7 +122,12 @@ export default function CustomersPage() {
     const imported = body
       .filter((row) => row.some(Boolean))
       .map((row) => ({ ...customerFromCsv(headers, row, `C-${nextCustomerNumber++}`), updatedAt: new Date().toISOString() }));
-    setState((currentState) => ({ ...currentState, customers: [...currentState.customers, ...imported] }));
+    const importedIds = new Set(imported.map((customer) => customer.id));
+    setState((currentState) => ({
+      ...currentState,
+      deletedCustomerIds: (currentState.deletedCustomerIds ?? []).filter((id) => !importedIds.has(id)),
+      customers: [...currentState.customers, ...imported],
+    }));
     setMessage(`${imported.length} customers imported.`);
     event.currentTarget.value = "";
   }

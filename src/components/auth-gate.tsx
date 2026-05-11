@@ -20,14 +20,17 @@ const hardcodedAdminUser: CrmAuthUser = {
 
 export function AuthGate({ children }: { children: (user: CrmAuthUser) => React.ReactNode }) {
   const [user, setUser] = useState<CrmAuthUser | null>(() => readHardcodedAdminUser());
-  const [checking, setChecking] = useState(() => !readHardcodedAdminUser());
+  const [checking, setChecking] = useState(true);
 
   useEffect(() => {
-    if (readHardcodedAdminUser()) {
-      return () => undefined;
-    }
     return onAuthStateChanged(getFirebaseAuth(), (currentUser) => {
-      setUser(currentUser);
+      const hardcodedAdmin = readHardcodedAdminUser();
+      if (currentUser && currentUser.email?.trim().toLowerCase() !== hardcodedAdminEmail) {
+        window.localStorage.removeItem(localAdminStorageKey);
+        setUser(currentUser);
+      } else {
+        setUser(hardcodedAdmin ?? currentUser);
+      }
       setChecking(false);
     });
   }, []);
@@ -68,6 +71,7 @@ export function UserLoginModule() {
         window.location.reload();
         return;
       }
+      window.localStorage.removeItem(localAdminStorageKey);
       await signInWithEmailAndPassword(getFirebaseAuth(), email, password);
     } catch (authError) {
       setError(authError instanceof Error ? authError.message : "Authentication failed");

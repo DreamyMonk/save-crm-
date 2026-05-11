@@ -92,21 +92,29 @@ export default function ProductsPage() {
   function addProduct(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
-    const product = productFromForm(form, `P-${1000 + state.products.length + 1}`);
-    setState({ ...state, products: [...state.products, product] });
+    const product = { ...productFromForm(form, nextProductId(state.products)), updatedAt: new Date().toISOString() };
+    setState((currentState) => ({
+      ...currentState,
+      deletedProductIds: (currentState.deletedProductIds ?? []).filter((id) => id !== product.id),
+      products: [...currentState.products, product],
+    }));
     event.currentTarget.reset();
     setMessage(`${product.productName} saved to product catalog.`);
   }
 
   function updateProduct(productId: string, updates: Partial<Product>) {
-    setState({
-      ...state,
-      products: state.products.map((product) => (product.id === productId ? { ...product, ...updates } : product)),
-    });
+    setState((currentState) => ({
+      ...currentState,
+      products: currentState.products.map((product) => (product.id === productId ? { ...product, ...updates, updatedAt: new Date().toISOString() } : product)),
+    }));
   }
 
   function deleteProduct(productId: string) {
-    setState({ ...state, products: state.products.filter((product) => product.id !== productId) });
+    setState((currentState) => ({
+      ...currentState,
+      deletedProductIds: Array.from(new Set([...(currentState.deletedProductIds ?? []), productId])),
+      products: currentState.products.filter((product) => product.id !== productId),
+    }));
     setMessage("Product removed from catalog.");
   }
 
@@ -119,10 +127,16 @@ export default function ProductsPage() {
     if (!file) return;
     const rows = await readProductRows(file);
     const [headers, ...body] = rows;
+    let nextProductNumber = highestProductNumber(state.products) + 1;
     const imported = body
       .filter((row) => row.some(Boolean))
-      .map((row, index) => productFromCsv(headers, row, `P-${1000 + state.products.length + index + 1}`, bulkCategory));
-    setState({ ...state, products: [...state.products, ...imported] });
+      .map((row) => ({ ...productFromCsv(headers, row, `P-${nextProductNumber++}`, bulkCategory), updatedAt: new Date().toISOString() }));
+    const importedIds = new Set(imported.map((product) => product.id));
+    setState((currentState) => ({
+      ...currentState,
+      deletedProductIds: (currentState.deletedProductIds ?? []).filter((id) => !importedIds.has(id)),
+      products: [...currentState.products, ...imported],
+    }));
     setMessage(`${imported.length} ${bulkCategory.toLowerCase()} products imported.`);
     event.currentTarget.value = "";
   }
@@ -327,6 +341,18 @@ function productFromCsv(headers: string[], row: string[], id: string, selectedCa
     description: get("Description"),
     price: Number(get("Price AUD") || 0),
   };
+}
+
+function nextProductId(products: Product[]) {
+  return `P-${highestProductNumber(products) + 1}`;
+}
+
+function highestProductNumber(products: Product[]) {
+  return products.reduce((highest, product) => {
+    const match = /^P-(\d+)$/.exec(product.id);
+    if (!match) return highest;
+    return Math.max(highest, Number(match[1]));
+  }, 1000);
 }
 
 function FilterSelect({ label, value, options, onChange }: { label: string; value: string; options: string[]; onChange: (value: string) => void }) {
