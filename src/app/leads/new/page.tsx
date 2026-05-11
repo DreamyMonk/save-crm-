@@ -93,7 +93,7 @@ export default function NewLeadPage() {
       customers: [customer, ...currentState.customers],
       leads: [lead, ...currentState.leads],
     }));
-    router.push(`/leads/${lead.id}`);
+    router.push(`/leads?pipeline=${encodeURIComponent(pipelineId)}`);
   }
 
   return (

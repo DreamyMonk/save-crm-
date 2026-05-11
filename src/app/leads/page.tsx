@@ -11,7 +11,7 @@ import { useMemo, useState } from "react";
 
 export default function LeadsPage() {
   const { state, setState } = useCrmStore();
-  const [pipelineId, setPipelineId] = useState(state.pipelines[0]?.id ?? "");
+  const [pipelineId, setPipelineId] = useState(() => initialPipelineIdFromUrl() || state.pipelines[0]?.id || "");
   const [search, setSearch] = useState("");
   const [owner, setOwner] = useState("all");
   const [priority, setPriority] = useState("all");
@@ -179,6 +179,11 @@ export default function LeadsPage() {
       </div>
     </CrmShell>
   );
+}
+
+function initialPipelineIdFromUrl() {
+  if (typeof window === "undefined") return "";
+  return new URLSearchParams(window.location.search).get("pipeline") ?? "";
 }
 
 function LeadCard({ lead, owner, members, canAssign, onAssign }: { lead: Lead; owner: string; members: { id: string; name: string }[]; canAssign: boolean; onAssign: (leadId: string, memberId: string) => void }) {
