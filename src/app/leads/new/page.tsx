@@ -110,12 +110,6 @@ export default function NewLeadPage() {
 
           <FormSection title="Lead and Kanban">
             <Input name="title" label="Lead title" />
-            <label className="space-y-1 text-sm">
-              <span className="font-medium text-[#657267]">Product category</span>
-              <select name="productCategory" className="h-11 w-full rounded-lg border border-[#d7dfd0] px-3 outline-none">
-                {productCategories.map((category) => <option key={category}>{category}</option>)}
-              </select>
-            </label>
             <Input name="productInterest" label="Product needed" list="product-options" />
             <Input name="amount" label="Amount" type="number" />
             <Input name="probability" label="Probability" type="number" defaultValue="25" />
@@ -123,25 +117,6 @@ export default function NewLeadPage() {
               <span className="font-medium text-[#657267]">Lead source</span>
               <select name="leadSource" className="h-11 w-full rounded-lg border border-[#d7dfd0] px-3 outline-none">
                 {leadSources.map((source) => <option key={source}>{source}</option>)}
-              </select>
-            </label>
-            <label className="space-y-1 text-sm">
-              <span className="font-medium text-[#657267]">Pipeline</span>
-              <select name="pipelineId" value={selectedPipeline?.id ?? ""} onChange={(event) => setSelectedPipelineId(event.target.value)} className="h-11 w-full rounded-lg border border-[#d7dfd0] px-3 outline-none">
-                {state.pipelines.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
-              </select>
-            </label>
-            <label className="space-y-1 text-sm">
-              <span className="font-medium text-[#657267]">Assigned sales agent</span>
-              <select name="assignedTo" defaultValue={defaultAssignee?.id ?? "admin"} disabled={!canManageAssignments} className="h-11 w-full rounded-lg border border-[#d7dfd0] px-3 outline-none disabled:bg-[#f4f6f2]">
-                {members.map((member) => <option key={member.id} value={member.id}>{member.name}</option>)}
-              </select>
-            </label>
-            <label className="space-y-1 text-sm">
-              <span className="font-medium text-[#657267]">Second sales agent</span>
-              <select name="substituteAssignedTo" disabled={!canManageAssignments} className="h-11 w-full rounded-lg border border-[#d7dfd0] px-3 outline-none disabled:bg-[#f4f6f2]">
-                <option value="">None</option>
-                {members.map((member) => <option key={member.id} value={member.id}>{member.name}</option>)}
               </select>
             </label>
             <label className="space-y-1 text-sm">
@@ -187,7 +162,31 @@ export default function NewLeadPage() {
             <Select name="rating" label="Rating" options={["Not Rated", "1", "2", "3", "4", "5"]} />
             <Input name="salesSource" label="Sales Source" />
             <Input name="leadGenerator" label="Lead Generator" />
-            <Input name="agent" label="Agent" />
+            <label className="space-y-1 text-sm">
+              <span className="font-medium text-[#657267]">Product category</span>
+              <select name="productCategory" className="h-11 w-full rounded-lg border border-[#d7dfd0] px-3 outline-none">
+                {productCategories.map((category) => <option key={category}>{category}</option>)}
+              </select>
+            </label>
+            <label className="space-y-1 text-sm">
+              <span className="font-medium text-[#657267]">Assigned sales agent</span>
+              <select name="assignedTo" defaultValue={defaultAssignee?.id ?? "admin"} disabled={!canManageAssignments} className="h-11 w-full rounded-lg border border-[#d7dfd0] px-3 outline-none disabled:bg-[#f4f6f2]">
+                {members.map((member) => <option key={member.id} value={member.id}>{member.name}</option>)}
+              </select>
+            </label>
+            <label className="space-y-1 text-sm">
+              <span className="font-medium text-[#657267]">Second sales agent</span>
+              <select name="substituteAssignedTo" disabled={!canManageAssignments} className="h-11 w-full rounded-lg border border-[#d7dfd0] px-3 outline-none disabled:bg-[#f4f6f2]">
+                <option value="">None</option>
+                {members.map((member) => <option key={member.id} value={member.id}>{member.name}</option>)}
+              </select>
+            </label>
+            <label className="space-y-1 text-sm">
+              <span className="font-medium text-[#657267]">Pipeline</span>
+              <select name="pipelineId" value={selectedPipeline?.id ?? ""} onChange={(event) => setSelectedPipelineId(event.target.value)} className="h-11 w-full rounded-lg border border-[#d7dfd0] px-3 outline-none">
+                {state.pipelines.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
+              </select>
+            </label>
           </FormSection>
 
           <FormSection title="Additional Information">
