@@ -20,7 +20,7 @@ const templateUrls = {
   "Solar Battery": "/saveplanet-solar-proposal-template.html",
 } as const;
 const mailTemplateUrls = {
-  Aircon: "/mail-templates/heat_pump.html",
+  Aircon: "/mail-templates/aircon.html",
   "Heat Pump": "/mail-templates/heat_pump.html",
   Solar: "/mail-templates/solar_inverter_battary.html",
   Inverter: "/mail-templates/solar_inverter_battary.html",
