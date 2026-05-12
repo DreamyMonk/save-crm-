@@ -821,6 +821,10 @@ function applyModernProposalTemplateData(doc: Document, quote: QuoteRecord, cust
   if (modernQuoteTableBody) modernQuoteTableBody.innerHTML = modernQuotationRows(quote.items, quote.additionalServices);
 
   const bankValues = doc.querySelectorAll<HTMLElement>(".totals-bank .ln .v");
+  const bankDetails = proposalBankDetails(quote);
+  if (bankValues[0]) bankValues[0].textContent = bankDetails.accountName;
+  if (bankValues[1]) bankValues[1].textContent = bankDetails.bsb;
+  if (bankValues[2]) bankValues[2].textContent = bankDetails.accountNumber;
   if (bankValues[3]) bankValues[3].textContent = `Quote # ${quote.id}`;
 
   const totals = doc.querySelector<HTMLElement>(".totals-calc");
@@ -836,6 +840,14 @@ function setModernBillingLines(box: Element | undefined, rows: Array<[string, st
     const line = lines[index];
     if (line) line.innerHTML = `<span class="lbl-inline">${escapeHtml(label)}:</span> ${escapeHtml(value)}`;
   });
+}
+
+function proposalBankDetails(quote: QuoteRecord) {
+  return {
+    accountName: "Save Planet Pty Ltd",
+    bsb: "063-241",
+    accountNumber: quote.productCategory === "Heat Pump" ? "1112 7697" : "1111 7333",
+  };
 }
 
 function modernQuotationRows(items: QuoteLineItem[], addons: QuoteLineItem[]) {
