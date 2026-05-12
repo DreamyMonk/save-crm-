@@ -37,12 +37,19 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Email is required" }, { status: 400 });
     }
 
+    if (body.notifyOnly) {
+      await sendResendNotification(email, body.resend);
+      return NextResponse.json({ ok: true });
+    }
+
+    const origin = request.headers.get("origin");
     const firebaseResponse = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:sendOobCode?key=${firebaseConfig.apiKey}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         requestType: "PASSWORD_RESET",
         email,
+        continueUrl: origin ? `${origin}/login` : undefined,
       }),
     });
 
