@@ -1291,7 +1291,7 @@ function calculateQuote(quote: QuoteRecord) {
   const finalPriceIncGst = systemTotalIncGst - totalDeductions;
   const payableAmount = Math.max(0, finalPriceIncGst);
   const requestedDepositAmount = Number(quote.depositAmount ?? 0);
-  const depositAmount = requestedDepositAmount > 0 ? Math.min(payableAmount, requestedDepositAmount) : payableAmount * ((quote.depositPercent ?? 50) / 100);
+  const depositAmount = requestedDepositAmount > 0 ? requestedDepositAmount : payableAmount * ((quote.depositPercent ?? 50) / 100);
   const balanceDue = Math.max(0, payableAmount - depositAmount);
   const netExGst = finalPriceIncGst / (1 + quote.gstRate / 100);
   const netIncGst = finalPriceIncGst;
