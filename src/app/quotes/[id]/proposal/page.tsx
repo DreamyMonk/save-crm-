@@ -689,6 +689,7 @@ function buildProposalHtml(template: string, quote: QuoteRecord, customer: Custo
   const quotePage = doc.querySelector(".quot-pad")?.closest(".page");
   normalizeTemplateImages(doc);
   removeCoverLocationBadges(doc);
+  removeCoverStats(doc);
 
   const title = doc.querySelector("title");
   if (title) title.textContent = `SavePlanet - ${quote.id} Proposal`;
@@ -959,6 +960,12 @@ function removeCoverLocationBadges(doc: Document) {
   doc.querySelectorAll(".top-bar > .badge, .cov-nav > .cov-tag").forEach((badge) => {
     const text = badge.textContent?.toLowerCase() ?? "";
     if (text.includes("victoria") || text.includes("veu")) badge.remove();
+  });
+}
+
+function removeCoverStats(doc: Document) {
+  doc.querySelectorAll(".cover-content > .stat-grid, .cover-content .stat-card, .cov-main > .cov-stats, .cov-main .cov-stat").forEach((element) => {
+    element.remove();
   });
 }
 
