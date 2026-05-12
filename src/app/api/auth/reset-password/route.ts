@@ -8,19 +8,24 @@ type ResendConfig = {
   enabled?: boolean;
 };
 
+const FALLBACK_RESEND_API_KEY = "re_AAMy2FPa_BDLsSmAi4kCcGHjGzqT5mUwb";
+const DEFAULT_RESEND_FROM_EMAIL = "noreply@saveplanet.au";
+const DEFAULT_RESEND_FROM_NAME = "SavePlanet CRM";
+
 async function sendResendNotification(email: string, resend: ResendConfig | undefined, resetLink?: string) {
-  if (!resend?.enabled || !resend.apiKey || !resend.fromEmail) {
+  const resolvedResend = resolveResendSettings(resend);
+  if (!resolvedResend.enabled || !resolvedResend.apiKey || !resolvedResend.fromEmail) {
     return false;
   }
 
   const response = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: {
-      Authorization: `Bearer ${resend.apiKey}`,
+      Authorization: `Bearer ${resolvedResend.apiKey}`,
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      from: resend.fromName ? `${resend.fromName} <${resend.fromEmail}>` : resend.fromEmail,
+      from: resolvedResend.fromName ? `${resolvedResend.fromName} <${resolvedResend.fromEmail}>` : resolvedResend.fromEmail,
       to: [email],
       subject: "Reset your SavePlanet CRM password",
       text: resetPasswordText(email, resetLink),
@@ -47,13 +52,14 @@ export async function POST(request: Request) {
 
     const origin = request.headers.get("origin");
     const continueUrl = origin ? `${origin}/login` : undefined;
-    const canSendBrandedEmail = Boolean(body.resend?.enabled && body.resend?.apiKey && body.resend?.fromEmail);
+    const resolvedResend = resolveResendSettings(body.resend);
+    const canSendBrandedEmail = Boolean(resolvedResend.enabled && resolvedResend.apiKey && resolvedResend.fromEmail);
 
     if (canSendBrandedEmail) {
       const linkResponse = await requestFirebasePasswordReset(email, continueUrl, true);
       const linkResult = await linkResponse.json().catch(() => ({}));
       const resetLink = typeof linkResult.oobLink === "string" ? linkResult.oobLink : "";
-      if (linkResponse.ok && resetLink && await sendResendNotification(email, body.resend, resetLink)) {
+      if (linkResponse.ok && resetLink && await sendResendNotification(email, resolvedResend, resetLink)) {
         return NextResponse.json({ ok: true, branded: true });
       }
     }
@@ -64,12 +70,21 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: result.error?.message ?? "Firebase reset failed" }, { status: firebaseResponse.status });
     }
 
-    await sendResendNotification(email, body.resend);
+    await sendResendNotification(email, resolvedResend);
 
     return NextResponse.json({ ok: true });
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Password reset failed" }, { status: 500 });
   }
+}
+
+function resolveResendSettings(resend?: ResendConfig): Required<ResendConfig> {
+  return {
+    apiKey: process.env.RESEND_API_KEY || resend?.apiKey || FALLBACK_RESEND_API_KEY,
+    fromEmail: process.env.RESEND_FROM_EMAIL || resend?.fromEmail || DEFAULT_RESEND_FROM_EMAIL,
+    fromName: process.env.RESEND_FROM_NAME || resend?.fromName || DEFAULT_RESEND_FROM_NAME,
+    enabled: resend?.enabled ?? true,
+  };
 }
 
 function requestFirebasePasswordReset(email: string, continueUrl?: string, returnOobLink = false) {

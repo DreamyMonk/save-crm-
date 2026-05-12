@@ -16,6 +16,7 @@ type ResendRecipient = {
 
 const DEFAULT_RESEND_FROM_EMAIL = "noreply@saveplanet.au";
 const DEFAULT_RESEND_REPLY_TO = "info@saveplanet.com.au";
+const FALLBACK_RESEND_API_KEY = "re_AAMy2FPa_BDLsSmAi4kCcGHjGzqT5mUwb";
 
 export async function POST(request: Request) {
   try {
@@ -60,7 +61,7 @@ export async function POST(request: Request) {
 }
 
 function resolveResendSettings(resend?: { apiKey?: string; fromEmail?: string; fromName?: string; enabled?: boolean }) {
-  const apiKey = process.env.RESEND_API_KEY || resend?.apiKey || "";
+  const apiKey = process.env.RESEND_API_KEY || resend?.apiKey || FALLBACK_RESEND_API_KEY;
   const fromEmail = process.env.RESEND_FROM_EMAIL || resend?.fromEmail || DEFAULT_RESEND_FROM_EMAIL;
   const replyToEmail = process.env.RESEND_REPLY_TO_EMAIL || DEFAULT_RESEND_REPLY_TO;
   const fromName = process.env.RESEND_FROM_NAME || resend?.fromName || "SavePlanet CRM";
