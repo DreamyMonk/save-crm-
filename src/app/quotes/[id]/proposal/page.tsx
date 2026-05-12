@@ -736,7 +736,12 @@ function buildProposalHtml(template: string, quote: QuoteRecord, customer: Custo
   if (totalValues[5]) totalValues[5].textContent = currency(calculations.depositAmount);
   if (totalValues[6]) totalValues[6].textContent = currency(calculations.balanceDue);
 
-  const bankReference = doc.querySelectorAll(".bank-row .v")[3];
+  const airconBankValues = doc.querySelectorAll<HTMLElement>(".bank-row .v");
+  const airconBankDetails = proposalBankDetails(quote);
+  if (airconBankValues[0]) airconBankValues[0].textContent = airconBankDetails.accountName;
+  if (airconBankValues[1]) airconBankValues[1].textContent = airconBankDetails.bsb;
+  if (airconBankValues[2]) airconBankValues[2].textContent = airconBankDetails.accountNumber;
+  const bankReference = airconBankValues[3];
   if (bankReference) bankReference.textContent = quote.id;
 
   applyModernProposalTemplateData(doc, quote, customer, calculations);
