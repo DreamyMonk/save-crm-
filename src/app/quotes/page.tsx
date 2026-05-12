@@ -110,6 +110,7 @@ function QuotesWorkspace() {
   const [rebate, setRebate] = useState(0);
   const [solarVicLoan, setSolarVicLoan] = useState(0);
   const depositPercent = 50;
+  const [customDepositAmount, setCustomDepositAmount] = useState(0);
   const annualEnergyProductionKwh = 0;
   const discountedPaybackYears = 0;
   const annualBillSavings = 0;
@@ -172,6 +173,7 @@ function QuotesWorkspace() {
     rebate: quoteDraft.rebate,
     solarVicLoan: quoteDraft.solarVicLoan,
     depositPercent,
+    depositAmount: customDepositAmount,
   });
   const deductionRows = buildDeductionRows(quoteDraft, calculations);
 
@@ -218,8 +220,10 @@ function QuotesWorkspace() {
     changeProductCategory(quote.productCategory ?? firstQuoteCategory(quote.items, state.products));
     setScheme(quote.scheme);
     setCertificateRate(quote.certificateRate);
-    setRebate(quote.rebate ?? 0);
-    setSolarVicLoan(quote.solarVicLoan ?? 0);
+    setRebate(quote.deductions?.solarVictoriaRebate ?? quote.rebate ?? 0);
+    setSolarVicLoan(quote.deductions?.solarVictoriaLoan ?? quote.solarVicLoan ?? 0);
+    setAdditionalDiscount(quote.deductions?.additionalDiscount ?? 0);
+    setCustomDepositAmount(quote.depositAmount ?? 0);
     setAddons(quote.additionalServices ?? []);
     setItems(quote.items ?? []);
 
@@ -246,8 +250,8 @@ function QuotesWorkspace() {
       setHeatPumpPrice(product?.productPrice ?? 0);
       setHeatPumpInstall(product?.installPrice ?? 0);
       setHeatPumpGstOn(quote.gstRate > 0 ? "yes" : "no");
-      setHeatPumpVeuCount(0);
-      setHeatPumpStcCount(product?.certificates ?? 0);
+      setHeatPumpVeuCount(quote.deductions?.veuDiscount ? Math.round(quote.deductions.veuDiscount / heatPumpVeuRate) : 0);
+      setHeatPumpStcCount(quote.deductions?.stcDiscount ? Math.round(quote.deductions.stcDiscount / heatPumpStcRate) : product?.certificates ?? 0);
       setHeatPumpStcRate(quote.certificateRate);
       return;
     }
@@ -267,7 +271,8 @@ function QuotesWorkspace() {
     setSolarBatteryPrice(battery?.productPrice ?? 0);
     setSolarInstall(install?.installPrice ?? 0);
     setSolarGstOn(quote.gstRate > 0 ? "yes" : "no");
-    setSolarStcCount(firstItem?.certificates ?? 0);
+    setSolarStcCount(quote.deductions?.stcDiscount ? Math.round(quote.deductions.stcDiscount / solarStcPrice) : firstItem?.certificates ?? 0);
+    setSolarVeuCount(quote.deductions?.veuDiscount ? Math.round(quote.deductions.veuDiscount / solarVeuPrice) : 0);
     setSolarStcPrice(quote.certificateRate);
   }
 
@@ -464,7 +469,9 @@ function QuotesWorkspace() {
       gstRate: draft.gstRate,
       rebate: draft.rebate,
       solarVicLoan: draft.solarVicLoan,
+      deductions: draft.deductions,
       depositPercent,
+      depositAmount: customDepositAmount > 0 ? customDepositAmount : undefined,
       annualEnergyProductionKwh,
       discountedPaybackYears,
       annualBillSavings,
@@ -549,6 +556,7 @@ function QuotesWorkspace() {
                 <Select label="Category" value={productCategory} options={productCategories.filter((item) => item !== "All")} onChange={changeProductCategory} />
                 <Select label="Scheme" value={activeScheme} options={schemeOptions} onChange={setScheme} />
                 <Input label="Activity Date" type="date" value={activityDate} onChange={(event) => setActivityDate(event.target.value)} />
+                <NumberInput label="Deposit Amount (AUD)" value={customDepositAmount} onChange={setCustomDepositAmount} />
               </div>
               <Input label="Description" value={description} onChange={(event) => setDescription(event.target.value)} />
             </ModuleCard>
@@ -709,6 +717,8 @@ function QuotesWorkspace() {
               {deductionRows.map((row) => (
                 <SummaryRow key={row.label} label={row.label} value={`-${currency(row.value)}`} discount />
               ))}
+              <SummaryRow label={customDepositAmount > 0 ? "Deposit" : `Deposit (${depositPercent}%)`} value={currency(calculations.depositAmount)} />
+              <SummaryRow label="Balance due" value={currency(calculations.balanceDue)} strong />
             </div>
             <div className="mt-5 rounded-lg bg-[#003CBB] p-4 text-white">
               <p className="text-xs font-semibold uppercase text-white/70">Final Price</p>
@@ -803,6 +813,7 @@ function calculateQuote(
     rebate: number;
     solarVicLoan: number;
     depositPercent: number;
+    depositAmount?: number;
   },
 ) {
   const allItems = [...items, ...addons];
@@ -816,7 +827,8 @@ function calculateQuote(
   const totalDeductions = certificateDiscount + options.rebate + options.solarVicLoan;
   const finalPriceIncGst = systemTotalIncGst - totalDeductions;
   const payableAmount = Math.max(0, finalPriceIncGst);
-  const depositAmount = payableAmount * (options.depositPercent / 100);
+  const requestedDepositAmount = Number(options.depositAmount ?? 0);
+  const depositAmount = requestedDepositAmount > 0 ? Math.min(payableAmount, requestedDepositAmount) : payableAmount * (options.depositPercent / 100);
   const balanceDue = Math.max(0, payableAmount - depositAmount);
   const netExGst = finalPriceIncGst / (1 + options.gstRate / 100);
   const netIncGst = finalPriceIncGst;

@@ -172,6 +172,15 @@ export type QuoteLineItem = {
   notes: string;
 };
 
+export type QuoteDeductionBreakdown = {
+  stcDiscount?: number;
+  veuDiscount?: number;
+  solarVictoriaRebate?: number;
+  solarVictoriaLoan?: number;
+  additionalDiscount?: number;
+  airconVeuDiscount?: number;
+};
+
 export type QuoteRecord = {
   id: string;
   customerId: string;
@@ -191,7 +200,9 @@ export type QuoteRecord = {
   stcBatteryRebate?: number;
   solarVicRebate?: number;
   solarVicLoan?: number;
+  deductions?: QuoteDeductionBreakdown;
   depositPercent?: number;
+  depositAmount?: number;
   annualEnergyProductionKwh?: number;
   discountedPaybackYears?: number;
   annualBillSavings?: number;

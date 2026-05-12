@@ -722,7 +722,7 @@ function buildProposalHtml(template: string, quote: QuoteRecord, customer: Custo
   const metaValues = doc.querySelectorAll(".quot-meta .qm-v");
   if (metaValues[0]) metaValues[0].textContent = quote.id;
   if (metaValues[1]) metaValues[1].textContent = customer?.salesAgent || "SavePlanet";
-  if (metaValues[2]) metaValues[2].textContent = customer?.paymentTermsValue ? `${customer.paymentTermsValue} ${customer.paymentTermsUnit}` : "10% Deposit";
+  if (metaValues[2]) metaValues[2].textContent = customer?.paymentTermsValue ? `${customer.paymentTermsValue} ${customer.paymentTermsUnit}` : depositTermsLabel(quote);
 
   const quoteTableBody = doc.querySelector(".qt tbody");
   if (quoteTableBody) quoteTableBody.innerHTML = quotationRows(quote.items, quote.additionalServices);
@@ -814,7 +814,7 @@ function applyModernProposalTemplateData(doc: Document, quote: QuoteRecord, cust
   const metaValues = doc.querySelectorAll<HTMLElement>(".meta-row .col .v");
   if (metaValues[0]) metaValues[0].textContent = quote.id;
   if (metaValues[1]) metaValues[1].textContent = customer?.salesAgent || "SavePlanet";
-  if (metaValues[2]) metaValues[2].textContent = customer?.paymentTermsValue ? `${customer.paymentTermsValue} ${customer.paymentTermsUnit}` : `${quote.depositPercent ?? 50}% Deposit`;
+  if (metaValues[2]) metaValues[2].textContent = customer?.paymentTermsValue ? `${customer.paymentTermsValue} ${customer.paymentTermsUnit}` : depositTermsLabel(quote);
   if (metaValues[3]) metaValues[3].textContent = "Day of Install";
 
   const modernQuoteTableBody = doc.querySelector<HTMLTableSectionElement>(".items-table tbody");
@@ -868,14 +868,44 @@ function modernTotalsMarkup(quote: QuoteRecord, calculations: Calculations) {
     ["Subtotal", currency(calculations.productCost + calculations.installCost), ""],
     [`GST (${quote.gstRate}%)`, currency(calculations.gstAmount), ""],
     ["System Total", currency(calculations.systemTotalIncGst), ""],
-    ["Certificate Discount", `-${currency(calculations.certificateDiscount)}`, "discount"],
-    ["Victorian Rebate", `-${currency(calculations.rebate)}`, "discount"],
-    ["Solar VIC Interest Free Loan", `-${currency(quote.solarVicLoan ?? 0)}`, "discount"],
+    ...proposalDeductionRows(quote, calculations).map((row) => [row.label, `-${currency(row.value)}`, "discount"]),
     ["Final Price", currency(calculations.finalPriceIncGst), "due"],
-    [`Deposit (${quote.depositPercent ?? 50}%)`, currency(calculations.depositAmount), ""],
+    [depositLabel(quote), currency(calculations.depositAmount), ""],
     ["Balance Due", currency(calculations.balanceDue), "due"],
   ];
   return rows.map(([label, value, className]) => `<div class="ln ${className}"><span class="k">${escapeHtml(label)}</span><span class="v">${escapeHtml(value)}</span></div>`).join("");
+}
+
+function depositLabel(quote: QuoteRecord) {
+  return quote.depositAmount && quote.depositAmount > 0 ? "Deposit" : `Deposit (${quote.depositPercent ?? 50}%)`;
+}
+
+function depositTermsLabel(quote: QuoteRecord) {
+  return quote.depositAmount && quote.depositAmount > 0 ? `Deposit ${currency(quote.depositAmount)}` : `${quote.depositPercent ?? 50}% Deposit`;
+}
+
+function proposalDeductionRows(quote: QuoteRecord, calculations: Calculations) {
+  const rowsFromBreakdown = quote.deductions
+    ? visibleDeductionRows([
+        { label: "STC rebate", value: quote.deductions.stcDiscount ?? 0 },
+        { label: "VEU rebate", value: quote.productCategory === "Aircon" ? quote.deductions.airconVeuDiscount ?? 0 : quote.deductions.veuDiscount ?? 0 },
+        { label: "Solar Victoria rebate", value: quote.deductions.solarVictoriaRebate ?? 0 },
+        { label: "Solar Victoria loan", value: quote.deductions.solarVictoriaLoan ?? quote.solarVicLoan ?? 0 },
+        { label: "Additional rebate", value: quote.deductions.additionalDiscount ?? 0 },
+      ])
+    : [];
+
+  if (rowsFromBreakdown.length) return rowsFromBreakdown;
+
+  return visibleDeductionRows([
+    { label: quote.productCategory === "Aircon" ? "VEU rebate" : "Certificate discount", value: calculations.certificateDiscount },
+    { label: quote.productCategory === "Solar" || quote.productCategory === "Inverter" || quote.productCategory === "Solar Battery" || quote.productCategory === "Heat Pump" ? "Solar Victoria rebate" : "Additional rebate", value: calculations.rebate },
+    { label: "Solar Victoria loan", value: quote.solarVicLoan ?? 0 },
+  ]);
+}
+
+function visibleDeductionRows(rows: { label: string; value: number }[]) {
+  return rows.filter((row) => row.value > 0);
 }
 
 function applyModernSignature(doc: Document, quote: QuoteRecord, customer: Customer | undefined) {
@@ -1058,6 +1088,9 @@ function productSummaryPage(quote: QuoteRecord, calculations: Calculations, cate
     </tr>
   `).join("");
   const balanceRows = balanceOfSystemRows(category);
+  const deductionRows = proposalDeductionRows(quote, calculations).map((row) => `
+          <div class="tot-line deduction"><span class="l">${escapeHtml(row.label)}</span><span class="v">-${currency(row.value)}</span></div>
+  `).join("");
 
   return `
     <div class="page">
@@ -1090,11 +1123,9 @@ function productSummaryPage(quote: QuoteRecord, calculations: Calculations, cate
           <div class="tot-line"><span class="l">GST (${quote.gstRate}%)</span><span class="v">${currency(calculations.gstAmount)}</span></div>
           <div class="tot-line due"><span class="l">System Total <small>(incl. GST)</small></span><span class="v">${currency(calculations.systemTotalIncGst)}</span></div>
           <div class="tot-line veec deduction"><span class="l">Deductions</span><span class="v">-${currency(calculations.totalDeductions)}</span></div>
-          <div class="tot-line deduction"><span class="l">Certificate discount</span><span class="v">-${currency(calculations.certificateDiscount)}</span></div>
-          <div class="tot-line deduction"><span class="l">Victorian Rebate</span><span class="v">-${currency(calculations.rebate)}</span></div>
-          <div class="tot-line deduction"><span class="l">Solar VIC PV Interest Free Loan</span><span class="v">-${currency(quote.solarVicLoan ?? 0)}</span></div>
+          ${deductionRows}
           <div class="tot-line due final-price"><span class="l">Final price incl. GST</span><span class="v">${currency(calculations.finalPriceIncGst)}</span></div>
-          <div class="tot-line"><span class="l">Deposit (${quote.depositPercent ?? 50}%)</span><span class="v">${currency(calculations.depositAmount)}</span></div>
+          <div class="tot-line"><span class="l">${escapeHtml(depositLabel(quote))}</span><span class="v">${currency(calculations.depositAmount)}</span></div>
           <div class="tot-line"><span class="l">Balance due</span><span class="v">${currency(calculations.balanceDue)}</span></div>
         </div>
         <h3 style="font-family:'Sora';font-size:15px;margin:24px 0 8px;">Estimated System Performance &amp; Savings</h3>
@@ -1242,7 +1273,8 @@ function calculateQuote(quote: QuoteRecord) {
   const totalDeductions = certificateDiscount + rebate + (quote.solarVicLoan ?? 0);
   const finalPriceIncGst = systemTotalIncGst - totalDeductions;
   const payableAmount = Math.max(0, finalPriceIncGst);
-  const depositAmount = payableAmount * ((quote.depositPercent ?? 50) / 100);
+  const requestedDepositAmount = Number(quote.depositAmount ?? 0);
+  const depositAmount = requestedDepositAmount > 0 ? Math.min(payableAmount, requestedDepositAmount) : payableAmount * ((quote.depositPercent ?? 50) / 100);
   const balanceDue = Math.max(0, payableAmount - depositAmount);
   const netExGst = finalPriceIncGst / (1 + quote.gstRate / 100);
   const netIncGst = finalPriceIncGst;
