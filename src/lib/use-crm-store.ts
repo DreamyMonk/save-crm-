@@ -1,12 +1,14 @@
 "use client";
 
 import { Dispatch, SetStateAction, useCallback, useEffect, useRef, useState } from "react";
-import { doc, getDoc, onSnapshot, setDoc } from "firebase/firestore";
+import { collection, doc, getDoc, getDocs, onSnapshot, writeBatch } from "firebase/firestore";
 import { CrmState, Lead, LeadSalesPhase, LeadSource, ModuleKey, ProposalPackage, QuoteRecord, initialCrmState } from "./crm-data";
 import { getFirebaseDb } from "./firebase";
 
 const storageKey = "saveplanet-crm-state-v2";
 const crmDocumentPath = ["crmWorkspaces", "default"] as const;
+const crmChunksPath = ["crmWorkspaces", "default", "stateChunks"] as const;
+const stateChunkSize = 650_000;
 
 type SyncState = "loading" | "firebase" | "local" | "saving";
 
@@ -233,28 +235,28 @@ export function useCrmStore() {
     async function loadRemoteState() {
       try {
         const ref = doc(getFirebaseDb(), ...crmDocumentPath);
-        const snapshot = await getDoc(ref);
+        const savedRemoteState = await readRemoteState();
         if (!active) return;
         const localState = mergeLocalCollections(normalizeState(stateRef.current), readLocalState());
-        if (snapshot.exists()) {
-          const savedRemoteState = normalizeState(snapshot.data() as CrmState);
+        if (savedRemoteState) {
           const remoteState = mergeLocalCollections(savedRemoteState, localState);
           if (JSON.stringify(remoteState) !== JSON.stringify(savedRemoteState)) {
-            await setDoc(ref, remoteState);
+            await writeRemoteState(remoteState);
           }
           lastSavedState.current = JSON.stringify(remoteState);
           setBaseState(remoteState);
           stateRef.current = remoteState;
         } else {
           const nextState = localState;
-          await setDoc(ref, nextState);
+          await writeRemoteState(nextState);
           lastSavedState.current = JSON.stringify(nextState);
           setBaseState(nextState);
           stateRef.current = nextState;
         }
-        unsubscribe = onSnapshot(ref, (remoteSnapshot) => {
+        unsubscribe = onSnapshot(ref, async (remoteSnapshot) => {
           if (!active || !remoteSnapshot.exists()) return;
-          const remoteState = normalizeState(remoteSnapshot.data() as CrmState);
+          const remoteState = await stateFromWorkspaceSnapshot(remoteSnapshot.data());
+          if (!active) return;
           const mergedState = mergeLocalCollections(remoteState, normalizeState(stateRef.current));
           const serializedState = JSON.stringify(mergedState);
           if (serializedState === JSON.stringify(stateRef.current)) return;
@@ -547,9 +549,7 @@ function timestamp(value?: string) {
 }
 
 async function saveMergedState(state: CrmState) {
-  const ref = doc(getFirebaseDb(), ...crmDocumentPath);
-  const snapshot = await getDoc(ref);
-  const remoteState = snapshot.exists() ? normalizeState(snapshot.data() as CrmState) : initialCrmState;
+  const remoteState = await readRemoteState() ?? initialCrmState;
   const deletedTeamMemberKeys = Array.from(new Set([...(remoteState.deletedTeamMemberKeys ?? []), ...(state.deletedTeamMemberKeys ?? [])]));
   const deletedCustomerIds = mergeDeletedIds(remoteState.deletedCustomerIds, state.deletedCustomerIds);
   const deletedProductIds = mergeDeletedIds(remoteState.deletedProductIds, state.deletedProductIds);
@@ -565,6 +565,57 @@ async function saveMergedState(state: CrmState) {
     quotes: state.quotes.length === 0 && remoteState.quotes.length > 0 ? remoteState.quotes : mergeQuotesByLatestProposalActivity(remoteState.quotes, state.quotes),
     proposalPackages: state.proposalPackages.length === 0 && remoteState.proposalPackages.length > 0 ? remoteState.proposalPackages : mergeProposalPackagesByLatestActivity(remoteState.proposalPackages, state.proposalPackages),
   };
-  await setDoc(ref, mergedState);
+  await writeRemoteState(mergedState);
   return mergedState;
+}
+
+async function readRemoteState() {
+  const snapshot = await getDoc(doc(getFirebaseDb(), ...crmDocumentPath));
+  if (!snapshot.exists()) return null;
+  return stateFromWorkspaceSnapshot(snapshot.data());
+}
+
+async function stateFromWorkspaceSnapshot(data: Record<string, unknown>) {
+  if (data.chunked === true) {
+    return readChunkedState();
+  }
+  return normalizeState(data as CrmState);
+}
+
+async function readChunkedState() {
+  const snapshot = await getDocs(collection(getFirebaseDb(), ...crmChunksPath));
+  const chunks = snapshot.docs
+    .filter((item) => item.id.startsWith("chunk-"))
+    .sort((left, right) => left.id.localeCompare(right.id))
+    .map((item) => String(item.data().value ?? ""));
+  if (!chunks.length) return initialCrmState;
+  return normalizeState(JSON.parse(chunks.join("")) as CrmState);
+}
+
+async function writeRemoteState(state: CrmState) {
+  const serialized = JSON.stringify(state);
+  const chunks = serialized.match(new RegExp(`.{1,${stateChunkSize}}`, "g")) ?? [serialized];
+  const db = getFirebaseDb();
+  const chunksRef = collection(db, ...crmChunksPath);
+  const existingChunks = await getDocs(chunksRef);
+  const batch = writeBatch(db);
+
+  chunks.forEach((value, index) => {
+    batch.set(doc(chunksRef, chunkId(index)), { value });
+  });
+  existingChunks.docs.forEach((existing) => {
+    if (existing.id.startsWith("chunk-") && Number(existing.id.replace("chunk-", "")) >= chunks.length) {
+      batch.delete(existing.ref);
+    }
+  });
+  batch.set(doc(db, ...crmDocumentPath), {
+    chunked: true,
+    chunkCount: chunks.length,
+    updatedAt: new Date().toISOString(),
+  });
+  await batch.commit();
+}
+
+function chunkId(index: number) {
+  return `chunk-${String(index).padStart(4, "0")}`;
 }
