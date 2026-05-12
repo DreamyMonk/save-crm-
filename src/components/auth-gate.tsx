@@ -75,7 +75,7 @@ export function UserLoginModule() {
       await signInWithEmailAndPassword(getFirebaseAuth(), email, password);
       window.location.assign("/");
     } catch (authError) {
-      setError(authError instanceof Error ? authError.message : "Authentication failed");
+      setError(authError instanceof Error ? friendlyAuthError(authError.message) : "Authentication failed");
     }
   }
 
@@ -195,6 +195,15 @@ export function SignOutButton() {
 
 function isHardcodedAdminLogin(email: string, password: string) {
   return email.trim().toLowerCase() === hardcodedAdminEmail && password === hardcodedAdminPassword;
+}
+
+function friendlyAuthError(message: string) {
+  if (message.includes("auth/invalid-credential") || message.includes("auth/wrong-password") || message.includes("auth/user-not-found")) {
+    return "Email or password is wrong. Use the temporary password from the access email, or click Forgot password to reset it.";
+  }
+  if (message.includes("auth/too-many-requests")) return "Too many failed login attempts. Please wait a few minutes or reset the password.";
+  if (message.includes("auth/invalid-email")) return "Enter a valid email address.";
+  return message || "Authentication failed";
 }
 
 export function readHardcodedAdminUser() {

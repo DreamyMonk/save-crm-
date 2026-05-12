@@ -81,8 +81,12 @@ export default function AccessPage() {
           role,
           modules,
         });
+        void sendExistingUserResetEmail({
+          resend: state.settings.resend,
+          email,
+        });
         formElement.reset();
-        setMessage(`${email} already has a Firebase login. CRM access was added/updated.`);
+        setMessage(`${email} already has a Firebase login. CRM access was updated and a password reset email was sent.`);
         return;
       }
       setMessage(error instanceof Error ? error.message : "Could not create user");
@@ -371,6 +375,14 @@ Please sign in and update your password if this is a temporary password.
 SavePlanet CRM`,
       html: accessCreatedEmailHtml({ name, email, password, role, modules, loginUrl }),
     }),
+  }).catch(() => undefined);
+}
+
+async function sendExistingUserResetEmail({ resend, email }: { resend: unknown; email: string }) {
+  await fetch("/api/auth/reset-password", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, resend }),
   }).catch(() => undefined);
 }
 
