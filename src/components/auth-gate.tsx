@@ -68,11 +68,12 @@ export function UserLoginModule() {
     try {
       if (isHardcodedAdminLogin(email, password)) {
         window.localStorage.setItem(localAdminStorageKey, "true");
-        window.location.reload();
+        window.location.assign("/");
         return;
       }
       window.localStorage.removeItem(localAdminStorageKey);
       await signInWithEmailAndPassword(getFirebaseAuth(), email, password);
+      window.location.assign("/");
     } catch (authError) {
       setError(authError instanceof Error ? authError.message : "Authentication failed");
     }
