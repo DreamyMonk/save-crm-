@@ -13,23 +13,26 @@ export type CrmAuthUser = Pick<User, "email" | "uid">;
 const hardcodedAdminEmail = "admin@admin.com";
 const hardcodedAdminPassword = "admin@admin.com";
 const localAdminStorageKey = "saveplanet-hardcoded-admin";
+const localAccessStorageKey = "saveplanet-local-access-user";
 const hardcodedAdminUser: CrmAuthUser = {
   email: hardcodedAdminEmail,
   uid: "hardcoded-admin",
 };
 
 export function AuthGate({ children }: { children: (user: CrmAuthUser) => React.ReactNode }) {
-  const [user, setUser] = useState<CrmAuthUser | null>(() => readHardcodedAdminUser());
+  const [user, setUser] = useState<CrmAuthUser | null>(() => readHardcodedAdminUser() ?? readLocalAccessUser());
   const [checking, setChecking] = useState(true);
 
   useEffect(() => {
     return onAuthStateChanged(getFirebaseAuth(), (currentUser) => {
       const hardcodedAdmin = readHardcodedAdminUser();
+      const localAccessUser = readLocalAccessUser();
       if (currentUser && currentUser.email?.trim().toLowerCase() !== hardcodedAdminEmail) {
         window.localStorage.removeItem(localAdminStorageKey);
+        window.localStorage.removeItem(localAccessStorageKey);
         setUser(currentUser);
       } else {
-        setUser(hardcodedAdmin ?? currentUser);
+        setUser(hardcodedAdmin ?? localAccessUser ?? currentUser);
       }
       setChecking(false);
     });
@@ -72,9 +75,16 @@ export function UserLoginModule() {
         return;
       }
       window.localStorage.removeItem(localAdminStorageKey);
+      window.localStorage.removeItem(localAccessStorageKey);
       await signInWithEmailAndPassword(getFirebaseAuth(), email, password);
       window.location.assign("/");
     } catch (authError) {
+      const localUser = localAccessLogin(state.team, email, password);
+      if (localUser) {
+        window.localStorage.setItem(localAccessStorageKey, JSON.stringify(localUser));
+        window.location.assign("/");
+        return;
+      }
       setError(authError instanceof Error ? friendlyAuthError(authError.message) : "Authentication failed");
     }
   }
@@ -179,6 +189,7 @@ export function CreateFirstAdminModule() {
 export function SignOutButton() {
   async function handleSignOut() {
     window.localStorage.removeItem(localAdminStorageKey);
+    window.localStorage.removeItem(localAccessStorageKey);
     await signOut(getFirebaseAuth()).catch(() => undefined);
     window.location.assign("/login");
   }
@@ -209,4 +220,23 @@ function friendlyAuthError(message: string) {
 export function readHardcodedAdminUser() {
   if (typeof window === "undefined") return null;
   return window.localStorage.getItem(localAdminStorageKey) === "true" ? hardcodedAdminUser : null;
+}
+
+export function readLocalAccessUser(): CrmAuthUser | null {
+  if (typeof window === "undefined") return null;
+  const saved = window.localStorage.getItem(localAccessStorageKey);
+  if (!saved) return null;
+  try {
+    const parsed = JSON.parse(saved) as CrmAuthUser;
+    return parsed.email && parsed.uid ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+function localAccessLogin(team: { id: string; email?: string; active: boolean; localPassword?: string }[], email: string, password: string): CrmAuthUser | null {
+  const normalizedEmail = email.trim().toLowerCase();
+  if (!normalizedEmail || !password) return null;
+  const member = team.find((item) => item.active && item.email?.trim().toLowerCase() === normalizedEmail && item.localPassword === password);
+  return member ? { email: member.email ?? normalizedEmail, uid: member.id } : null;
 }

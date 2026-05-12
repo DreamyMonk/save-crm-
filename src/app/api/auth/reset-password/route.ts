@@ -12,7 +12,7 @@ const FALLBACK_RESEND_API_KEY = "re_AAMy2FPa_BDLsSmAi4kCcGHjGzqT5mUwb";
 const DEFAULT_RESEND_FROM_EMAIL = "noreply@saveplanet.au";
 const DEFAULT_RESEND_FROM_NAME = "SavePlanet CRM";
 
-async function sendResendNotification(email: string, resend: ResendConfig | undefined, resetLink?: string) {
+async function sendResendNotification(email: string, resend: ResendConfig | undefined, resetLink?: string, temporaryPassword?: string) {
   const resolvedResend = resolveResendSettings(resend);
   if (!resolvedResend.enabled || !resolvedResend.apiKey || !resolvedResend.fromEmail) {
     return false;
@@ -28,8 +28,8 @@ async function sendResendNotification(email: string, resend: ResendConfig | unde
       from: resolvedResend.fromName ? `${resolvedResend.fromName} <${resolvedResend.fromEmail}>` : resolvedResend.fromEmail,
       to: [email],
       subject: "Reset your SavePlanet CRM password",
-      text: resetPasswordText(email, resetLink),
-      html: resetPasswordEmailHtml(email, resetLink),
+      text: resetPasswordText(email, resetLink, temporaryPassword),
+      html: resetPasswordEmailHtml(email, resetLink, temporaryPassword),
     }),
   });
 
@@ -48,6 +48,12 @@ export async function POST(request: Request) {
     if (body.notifyOnly) {
       await sendResendNotification(email, body.resend);
       return NextResponse.json({ ok: true });
+    }
+
+    const temporaryPassword = typeof body.temporaryPassword === "string" ? body.temporaryPassword : "";
+    if (temporaryPassword) {
+      await sendResendNotification(email, body.resend, undefined, temporaryPassword);
+      return NextResponse.json({ ok: true, temporary: true });
     }
 
     const origin = request.headers.get("origin");
@@ -100,7 +106,18 @@ function requestFirebasePasswordReset(email: string, continueUrl?: string, retur
   });
 }
 
-function resetPasswordText(email: string, resetLink?: string) {
+function resetPasswordText(email: string, resetLink?: string, temporaryPassword?: string) {
+  if (temporaryPassword) {
+    return `A temporary SavePlanet CRM password was created for ${email}.
+
+Temporary password:
+${temporaryPassword}
+
+Sign in with this password, then ask an admin to update your access password if needed.
+
+SavePlanet CRM`;
+  }
+
   if (!resetLink) {
     return `A password reset was requested for ${email}. Please check your Firebase reset email for the secure reset link.`;
   }
@@ -115,9 +132,15 @@ This link is single-use. If you did not request this, you can ignore this email.
 SavePlanet CRM`;
 }
 
-function resetPasswordEmailHtml(email: string, resetLink?: string) {
+function resetPasswordEmailHtml(email: string, resetLink?: string, temporaryPassword?: string) {
   const safeEmail = escapeHtml(email);
-  const action = resetLink
+  const action = temporaryPassword
+    ? `<div style="margin-top:20px;border:1px solid #d9e2f2;background:#f6f8fc;border-radius:12px;padding:16px;color:#0f172a;font-size:14px;line-height:1.6;">
+         <div style="color:#657267;font-size:12px;font-weight:800;letter-spacing:0.12em;text-transform:uppercase;">Temporary CRM password</div>
+         <div style="margin-top:8px;font-size:22px;font-weight:800;color:#003CBB;">${escapeHtml(temporaryPassword)}</div>
+       </div>
+       <p style="margin:18px 0 0;color:#657267;font-size:13px;line-height:1.6;">Use this password on the CRM login page. This CRM fallback is used when Firebase password reset is unavailable.</p>`
+    : resetLink
     ? `<a href="${escapeHtml(resetLink)}" style="display:inline-block;margin-top:20px;background:#003CBB;color:#ffffff;text-decoration:none;padding:14px 24px;border-radius:10px;font-weight:800;font-size:14px;">Reset password</a>
        <p style="margin:18px 0 0;color:#657267;font-size:12px;line-height:1.6;">If the button does not work, paste this secure link into your browser:<br><span style="word-break:break-all;color:#003CBB;">${escapeHtml(resetLink)}</span></p>`
     : `<div style="margin-top:20px;border:1px solid #d9e2f2;background:#f6f8fc;border-radius:12px;padding:16px;color:#0f172a;font-size:14px;line-height:1.6;">Your secure reset link was sent by Firebase Auth. Please open the Firebase email to choose a new password.</div>`;

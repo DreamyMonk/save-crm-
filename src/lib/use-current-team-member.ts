@@ -12,6 +12,7 @@ type AuthIdentity = {
 
 const hardcodedAdminEmail = "admin@admin.com";
 const hardcodedAdminStorageKey = "saveplanet-hardcoded-admin";
+const localAccessStorageKey = "saveplanet-local-access-user";
 const hardcodedAdminIdentity: AuthIdentity = {
   email: hardcodedAdminEmail,
   uid: "hardcoded-admin",
@@ -56,5 +57,19 @@ function readAuthIdentity(user: User | null): AuthIdentity | null {
   if (typeof window !== "undefined" && window.localStorage.getItem(hardcodedAdminStorageKey) === "true") {
     return hardcodedAdminIdentity;
   }
+  const localAccessUser = readLocalAccessUser();
+  if (localAccessUser) return { email: localAccessUser.email, uid: localAccessUser.uid };
   return user ? { email: user.email, uid: user.uid } : null;
+}
+
+function readLocalAccessUser(): AuthIdentity | null {
+  if (typeof window === "undefined") return null;
+  const saved = window.localStorage.getItem(localAccessStorageKey);
+  if (!saved) return null;
+  try {
+    const parsed = JSON.parse(saved) as AuthIdentity;
+    return parsed.email && parsed.uid ? parsed : null;
+  } catch {
+    return null;
+  }
 }

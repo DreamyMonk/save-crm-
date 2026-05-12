@@ -9,7 +9,7 @@ import { getFirebaseAuth } from "@/lib/firebase";
 import { useCrmStore } from "@/lib/use-crm-store";
 
 export default function ResetPasswordPage() {
-  const { state } = useCrmStore();
+  const { state, setState } = useCrmStore();
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [sending, setSending] = useState(false);
@@ -25,19 +25,36 @@ export default function ResetPasswordPage() {
     try {
       const serverSent = await requestServerReset(email, state.settings.resend);
       if (!serverSent) {
-        await sendPasswordResetEmail(getFirebaseAuth(), email, {
-          url: `${window.location.origin}/login`,
-          handleCodeInApp: false,
-        });
-        await fetch("/api/auth/reset-password", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            email,
-            resend: state.settings.resend,
-            notifyOnly: true,
-          }),
-        }).catch(() => undefined);
+        try {
+          await sendPasswordResetEmail(getFirebaseAuth(), email, {
+            url: `${window.location.origin}/login`,
+            handleCodeInApp: false,
+          });
+          await fetch("/api/auth/reset-password", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              email,
+              resend: state.settings.resend,
+              notifyOnly: true,
+            }),
+          }).catch(() => undefined);
+        } catch (firebaseResetError) {
+          const temporaryPassword = createTemporaryPassword();
+          const resetLocally = resetLocalAccessPassword(email, temporaryPassword);
+          if (!resetLocally) throw firebaseResetError;
+          await fetch("/api/auth/reset-password", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              email,
+              resend: state.settings.resend,
+              temporaryPassword,
+            }),
+          }).catch(() => undefined);
+          setMessage(`Firebase reset is unavailable, so a temporary CRM password was created: ${temporaryPassword}`);
+          return;
+        }
       }
 
       setMessage("Password reset email requested. Check your inbox.");
@@ -58,6 +75,22 @@ export default function ResetPasswordPage() {
         }),
       });
     return response.ok;
+  }
+
+  function resetLocalAccessPassword(email: string, temporaryPassword: string) {
+    const normalizedEmail = email.trim().toLowerCase();
+    const member = state.team.find((item) => item.active && item.email?.trim().toLowerCase() === normalizedEmail);
+    if (!member) return false;
+    setState((currentState) => ({
+      ...currentState,
+      team: currentState.team.map((item) => item.id === member.id ? {
+        ...item,
+        localPassword: temporaryPassword,
+        localPasswordUpdatedAt: new Date().toISOString(),
+        accessUpdatedAt: new Date().toISOString(),
+      } : item),
+    }));
+    return true;
   }
 
   return (
@@ -99,6 +132,11 @@ export default function ResetPasswordPage() {
       </div>
     </main>
   );
+}
+
+function createTemporaryPassword() {
+  const randomPart = Math.random().toString(36).slice(2, 8);
+  return `Save${randomPart}25`;
 }
 
 function friendlyResetError(message: string) {

@@ -20,6 +20,8 @@ export type TeamMember = {
   uid?: string;
   name: string;
   email?: string;
+  localPassword?: string;
+  localPasswordUpdatedAt?: string;
   role: string;
   modules: ModuleKey[];
   active: boolean;
