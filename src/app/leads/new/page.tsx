@@ -284,17 +284,19 @@ function customerFromForm(form: FormData, id: string, assignedAgent?: string, se
 }
 
 function nextLeadId(leads: Lead[]) {
-  const nextNumber = leads.reduce((highest, lead) => Math.max(highest, Number(lead.id.replace("L-", "")) || 1000), 1000) + 1;
-  return `L-${nextNumber}`;
+  return uniqueId("L", new Set(leads.map((lead) => lead.id)));
 }
 
 function nextCustomerId(customers: Customer[]) {
-  const nextNumber = customers.reduce((highest, customer) => {
-    const match = /^C-(\d+)$/.exec(customer.id);
-    if (!match) return highest;
-    return Math.max(highest, Number(match[1]));
-  }, 1000) + 1;
-  return `C-${nextNumber}`;
+  return uniqueId("C", new Set(customers.map((customer) => customer.id)));
+}
+
+function uniqueId(prefix: string, existingIds: Set<string>): string {
+  const randomPart = typeof crypto !== "undefined" && "randomUUID" in crypto
+    ? crypto.randomUUID().slice(0, 8)
+    : Math.random().toString(36).slice(2, 10);
+  const id = `${prefix}-${Date.now().toString(36).toUpperCase()}-${randomPart.toUpperCase()}`;
+  return existingIds.has(id) ? uniqueId(prefix, existingIds) : id;
 }
 
 function FormSection({ title, children }: { title: string; children: React.ReactNode }) {

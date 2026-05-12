@@ -411,10 +411,66 @@ function mergeByLatestUpdate<T extends { id: string; updatedAt?: string }>(remot
 }
 
 function mergeLeadsByLatestUpdate(remoteItems: Lead[], localItems: Lead[]) {
-  return mergeByLatestUpdate(remoteItems, localItems).map((lead) => ({
-    ...lead,
-    updatedAt: lead.updatedAt ?? leadUpdatedAt(lead),
-  }));
+  const items = new Map<string, Lead>();
+  const usedIds = new Set<string>();
+
+  for (const remoteItem of remoteItems) {
+    const lead = normalizeLeadTimestamp(remoteItem);
+    items.set(lead.id, lead);
+    usedIds.add(lead.id);
+  }
+
+  for (const localItem of localItems) {
+    const localLead = normalizeLeadTimestamp(localItem);
+    const remoteLead = items.get(localLead.id);
+    if (!remoteLead) {
+      items.set(localLead.id, localLead);
+      usedIds.add(localLead.id);
+      continue;
+    }
+
+    if (sameLeadRecord(remoteLead, localLead)) {
+      if (timestamp(localLead.updatedAt) >= timestamp(remoteLead.updatedAt)) {
+        items.set(localLead.id, localLead);
+      }
+      continue;
+    }
+
+    const conflictId = uniqueConflictId(localLead.id, usedIds);
+    items.set(conflictId, {
+      ...localLead,
+      id: conflictId,
+      updatedAt: new Date().toISOString(),
+    });
+  }
+
+  return Array.from(items.values());
+}
+
+function normalizeLeadTimestamp(lead: Lead) {
+  return { ...lead, updatedAt: lead.updatedAt ?? leadUpdatedAt(lead) };
+}
+
+function sameLeadRecord(left: Lead, right: Lead) {
+  return leadFingerprint(left) === leadFingerprint(right);
+}
+
+function leadFingerprint(lead: Lead) {
+  return [lead.title, lead.company, lead.contact, lead.email, lead.phone]
+    .map((value) => (value || "").trim().toLowerCase())
+    .join("|");
+}
+
+function uniqueConflictId(baseId: string, usedIds: Set<string>) {
+  const cleanBase = baseId.replace(/-DUP-\d+$/i, "");
+  let index = 2;
+  let nextId = `${cleanBase}-DUP-${index}`;
+  while (usedIds.has(nextId)) {
+    index += 1;
+    nextId = `${cleanBase}-DUP-${index}`;
+  }
+  usedIds.add(nextId);
+  return nextId;
 }
 
 function mergeProductsByLatestUpdate(remoteItems: CrmState["products"], localItems: CrmState["products"]) {
