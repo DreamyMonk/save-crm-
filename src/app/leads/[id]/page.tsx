@@ -138,7 +138,7 @@ export default function LeadDetailPage() {
             customerType: "Business",
             businessName: currentLead.company,
             contactType: "Primary",
-            salesAgent: currentState.team.find((member) => member.id === currentLead.assignedTo)?.name ?? "Aarav Admin",
+            salesAgent: currentState.team.find((member) => member.id === currentLead.assignedTo)?.name ?? "vinay dhanekula",
             secondSalesAgent: currentState.team.find((member) => member.id === currentLead.substituteAssignedTo)?.name ?? "",
             firstName: currentLead.contact.split(" ")[0] ?? currentLead.contact,
             lastName: currentLead.contact.split(" ").slice(1).join(" "),

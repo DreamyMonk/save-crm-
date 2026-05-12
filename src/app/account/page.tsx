@@ -23,7 +23,7 @@ export default function AccountPage() {
           kind: "local-admin",
           user: localAdmin,
           email: localAdmin.email ?? "admin@admin.com",
-          displayName: "Aarav Admin",
+          displayName: "vinay dhanekula",
         });
         return;
       }

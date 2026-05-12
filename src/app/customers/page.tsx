@@ -53,7 +53,7 @@ export default function CustomersPage() {
   const [editingCustomerId, setEditingCustomerId] = useState<string | null>(null);
   const assigneeOptions = useMemo(() => {
     const activeMembers = state.team.filter((member) => member.active).map((member) => member.name).filter(Boolean);
-    return activeMembers.length ? activeMembers : ["Aarav Admin"];
+    return activeMembers.length ? activeMembers : ["vinay dhanekula"];
   }, [state.team]);
 
   const customers = useMemo(() => {
@@ -262,7 +262,7 @@ export default function CustomersPage() {
                     <td className="whitespace-nowrap px-3 py-3">{customer.email || "-"}</td>
                     <td className="whitespace-nowrap px-3 py-3">{customer.phone || customer.mobile || "-"}</td>
                     <td className="min-w-48 px-3 py-3">{customer.wantedProduct || "-"}</td>
-                    <td className="whitespace-nowrap px-3 py-3">{customer.salesAgent || "Aarav Admin"}</td>
+                    <td className="whitespace-nowrap px-3 py-3">{customer.salesAgent || "vinay dhanekula"}</td>
                     <td className="px-3 py-2">
                       {customer.leadId ? (
                         <Link href={`/leads/${customer.leadId}`} className="font-semibold text-[#003CBB]">
@@ -331,7 +331,7 @@ function customerFromForm(form: FormData, id: string): Customer {
     rating: String(form.get("rating") || "Not Rated"),
     salesSource: String(form.get("salesSource") || ""),
     leadGenerator: String(form.get("leadGenerator") || ""),
-    salesAgent: String(form.get("salesAgent") || "Aarav Admin"),
+    salesAgent: String(form.get("salesAgent") || "vinay dhanekula"),
     agent: String(form.get("agent") || ""),
     secondSalesAgent: String(form.get("secondSalesAgent") || ""),
     abn: String(form.get("abn") || ""),
@@ -381,7 +381,7 @@ function customerFromCsv(headers: string[], row: string[], id: string): Customer
     rating: get("Rating"),
     salesSource: get("Sales Source"),
     leadGenerator: get("Lead Generator"),
-    salesAgent: get("Sales Agent") || "Aarav Admin",
+    salesAgent: get("Sales Agent") || "vinay dhanekula",
     agent: get("Agent"),
     secondSalesAgent: get("Second Sales Agent"),
     abn: get("ABN"),
@@ -483,7 +483,7 @@ function CustomerEditDrawer({
             <Select name="rating" label="Rating" options={["Not Rated", "1", "2", "3", "4", "5"]} defaultValue={customer.rating ?? "Not Rated"} />
             <Input name="salesSource" label="Sales Source" defaultValue={customer.salesSource ?? ""} />
             <Input name="leadGenerator" label="Lead Generator" defaultValue={customer.leadGenerator ?? ""} />
-            <Select name="salesAgent" label="Assigned to" options={assigneeOptions} defaultValue={customer.salesAgent ?? "Aarav Admin"} />
+            <Select name="salesAgent" label="Assigned to" options={assigneeOptions} defaultValue={customer.salesAgent ?? "vinay dhanekula"} />
             <Input name="agent" label="Agent" defaultValue={customer.agent ?? ""} />
             <Input name="secondSalesAgent" label="Second Sales Agent" defaultValue={customer.secondSalesAgent ?? ""} />
           </FormSection>

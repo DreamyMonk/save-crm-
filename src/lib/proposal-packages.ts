@@ -25,7 +25,7 @@ export function proposalPackageFromQuote(quote: QuoteRecord, customer?: Customer
     templateType: templateTypeForCategory(quote.productCategory),
     publicToken: existingPackage?.publicToken ?? quote.id,
     status: proposalStatusFromQuote(quote),
-    assignedAgent: customer?.salesAgent || existingPackage?.assignedAgent || "Aarav Admin",
+    assignedAgent: customer?.salesAgent || existingPackage?.assignedAgent || "vinay dhanekula",
     substituteAgent: customer?.secondSalesAgent || existingPackage?.substituteAgent,
     sentBy: quote.proposalSentBy ?? existingPackage?.sentBy,
     sentAt: quote.proposalSentAt ?? existingPackage?.sentAt,

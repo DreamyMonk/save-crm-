@@ -261,7 +261,7 @@ function customerFromForm(form: FormData, id: string, assignedAgent?: string, se
     rating: String(form.get("rating") || "Not Rated"),
     salesSource: String(form.get("salesSource") || ""),
     leadGenerator: String(form.get("leadGenerator") || ""),
-    salesAgent: assignedAgent || "Aarav Admin",
+    salesAgent: assignedAgent || "vinay dhanekula",
     agent: String(form.get("agent") || ""),
     secondSalesAgent: secondAgent || "",
     abn: String(form.get("abn") || ""),
