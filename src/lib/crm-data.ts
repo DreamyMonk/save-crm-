@@ -62,6 +62,7 @@ export type LeadActivity = {
 
 export type Lead = {
   id: string;
+  updatedAt?: string;
   title: string;
   company: string;
   contact: string;

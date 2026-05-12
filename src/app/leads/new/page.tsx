@@ -52,6 +52,7 @@ export default function NewLeadPage() {
     const createdAt = new Date().toISOString();
     const lead: Lead = {
       id: leadId,
+      updatedAt: createdAt,
       title: leadTitle,
       company: companyName,
       contact: customerName,

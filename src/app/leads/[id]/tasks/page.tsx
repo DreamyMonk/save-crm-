@@ -22,7 +22,7 @@ export default function LeadTasksPage() {
     event.preventDefault();
     if (!lead || !taskTitle.trim()) return;
     const task: Task = { id: `T-${Date.now()}`, title: taskTitle, due: "Today", status: "Open" };
-    setState({ ...state, leads: state.leads.map((item) => (item.id === lead.id ? { ...item, tasks: [...item.tasks, task] } : item)) });
+    setState({ ...state, leads: state.leads.map((item) => (item.id === lead.id ? { ...item, updatedAt: new Date().toISOString(), tasks: [...item.tasks, task] } : item)) });
     setTaskTitle("");
   }
 
@@ -30,7 +30,7 @@ export default function LeadTasksPage() {
     event.preventDefault();
     if (!lead || !noteBody.trim()) return;
     const note: Note = { id: `N-${Date.now()}`, body: noteBody, createdAt: "Now" };
-    setState({ ...state, leads: state.leads.map((item) => (item.id === lead.id ? { ...item, notes: [...item.notes, note] } : item)) });
+    setState({ ...state, leads: state.leads.map((item) => (item.id === lead.id ? { ...item, updatedAt: new Date().toISOString(), notes: [...item.notes, note] } : item)) });
     setNoteBody("");
   }
 

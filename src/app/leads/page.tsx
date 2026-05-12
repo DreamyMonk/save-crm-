@@ -47,9 +47,10 @@ export default function LeadsPage() {
   function moveLead(leadId: string, stageId: string) {
     const targetLead = state.leads.find((lead) => lead.id === leadId);
     if (!targetLead || !canAccessLead(currentMember, targetLead)) return;
+    const updatedAt = new Date().toISOString();
     setState({
       ...state,
-      leads: state.leads.map((lead) => (lead.id === leadId ? { ...lead, stageId } : lead)),
+      leads: state.leads.map((lead) => (lead.id === leadId ? { ...lead, stageId, updatedAt } : lead)),
     });
   }
 
@@ -64,6 +65,7 @@ export default function LeadsPage() {
     const assignedAt = new Date().toISOString();
     const nextLead: Lead = {
       ...lead,
+      updatedAt: assignedAt,
       assignedTo: memberId,
       activities: [
         {

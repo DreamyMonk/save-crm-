@@ -83,9 +83,10 @@ export default function LeadDetailPage() {
   }
 
   function updateLead(updates: Partial<Lead>) {
+    const updatedAt = new Date().toISOString();
     setState({
       ...state,
-      leads: state.leads.map((item) => (item.id === leadId ? { ...item, ...updates } : item)),
+      leads: state.leads.map((item) => (item.id === leadId ? { ...item, ...updates, updatedAt } : item)),
     });
   }
 
@@ -154,6 +155,7 @@ export default function LeadDetailPage() {
           item.id === currentLead.id
             ? {
                 ...item,
+                updatedAt,
                 notes: [
                   ...item.notes,
                   {
