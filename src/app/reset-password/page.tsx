@@ -23,31 +23,41 @@ export default function ResetPasswordPage() {
     const email = String(form.get("email") || "").trim();
 
     try {
-      await sendPasswordResetEmail(getFirebaseAuth(), email, {
-        url: `${window.location.origin}/login`,
-        handleCodeInApp: false,
-      });
-      await fetch("/api/auth/reset-password", {
+      const serverSent = await requestServerReset(email, state.settings.resend);
+      if (!serverSent) {
+        await sendPasswordResetEmail(getFirebaseAuth(), email, {
+          url: `${window.location.origin}/login`,
+          handleCodeInApp: false,
+        });
+        await fetch("/api/auth/reset-password", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            email,
+            resend: state.settings.resend,
+            notifyOnly: true,
+          }),
+        }).catch(() => undefined);
+      }
+
+      setMessage("Password reset email requested. Check your inbox.");
+    } catch (resetError) {
+      setError(resetError instanceof Error ? friendlyResetError(resetError.message) : "Could not send reset email.");
+    } finally {
+      setSending(false);
+    }
+  }
+
+  async function requestServerReset(email: string, resend: unknown) {
+    const response = await fetch("/api/auth/reset-password", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           email,
-          resend: state.settings.resend,
-          notifyOnly: true,
+          resend,
         }),
-      }).catch(() => undefined);
-
-      setMessage("Password reset email requested. Check your inbox.");
-    } catch (resetError) {
-      const fallbackSent = await requestServerReset(email);
-      if (fallbackSent) {
-        setMessage("Password reset email requested. Check your inbox.");
-      } else {
-        setError(resetError instanceof Error ? friendlyResetError(resetError.message) : "Could not send reset email.");
-      }
-    } finally {
-      setSending(false);
-    }
+      });
+    return response.ok;
   }
 
   return (
@@ -89,15 +99,6 @@ export default function ResetPasswordPage() {
       </div>
     </main>
   );
-}
-
-async function requestServerReset(email: string) {
-  const response = await fetch("/api/auth/reset-password", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email }),
-  });
-  return response.ok;
 }
 
 function friendlyResetError(message: string) {
