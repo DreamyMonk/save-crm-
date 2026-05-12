@@ -22,8 +22,8 @@ export default function LeadsPage() {
 
   const activePipeline = state.pipelines.find((pipeline) => pipeline.id === pipelineId) ?? state.pipelines[0];
   const assignable = useMemo(() => {
-    if (canManageAllLeads) return state.team.filter((member) => member.active && member.modules.includes("leads"));
-    return currentMember && currentMember.modules.includes("leads") ? [currentMember] : [];
+    if (canManageAllLeads) return state.team.filter(isLeadAssignableMember);
+    return currentMember && isLeadAssignableMember(currentMember) ? [currentMember] : [];
   }, [canManageAllLeads, currentMember, state.team]);
   const scopedLeads = useMemo(() => {
     if (!memberReady) return [];
@@ -186,6 +186,13 @@ export default function LeadsPage() {
 function initialPipelineIdFromUrl() {
   if (typeof window === "undefined") return "";
   return new URLSearchParams(window.location.search).get("pipeline") ?? "";
+}
+
+function isLeadAssignableMember(member: { active: boolean; name: string; role: string; modules: string[] }) {
+  const role = member.role.toLowerCase();
+  const name = member.name.trim().toLowerCase().replace(/\s+/g, " ");
+  if (name === "aarav admin" || name === "arav admin") return false;
+  return member.active && (member.modules.includes("leads") || role.includes("sales") || role.includes("lead") || role.includes("admin"));
 }
 
 function LeadCard({ lead, owner, members, canAssign, onAssign }: { lead: Lead; owner: string; members: { id: string; name: string }[]; canAssign: boolean; onAssign: (leadId: string, memberId: string) => void }) {

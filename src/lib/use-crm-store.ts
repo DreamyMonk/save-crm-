@@ -15,11 +15,14 @@ type SyncState = "loading" | "firebase" | "local" | "saving";
 function normalizeState(state: CrmState): CrmState {
   const legacyEmailKey = "mail" + "jet";
   const legacyEmailSettings = (state.settings as unknown as Record<string, CrmState["settings"]["resend"] | undefined> | undefined)?.[legacyEmailKey];
+  const deprecatedTeamKeys = new Set((state.team ?? initialCrmState.team).filter(isDeprecatedTeamMember).flatMap(accessMemberKeys));
   const rawNormalizedTeam = ensureHardcodedAdmin(
-    (state.team ?? initialCrmState.team).map((member) => ({
-      ...member,
-      modules: normalizeMemberModules(member.modules),
-    })),
+    (state.team ?? initialCrmState.team)
+      .filter((member) => !isDeprecatedTeamMember(member))
+      .map((member) => ({
+        ...member,
+        modules: normalizeMemberModules(member.modules),
+      })),
   );
   const deletedTeamMemberKeys = Array.from(new Set(state.deletedTeamMemberKeys ?? []));
   const deletedCustomerIds = Array.from(new Set(state.deletedCustomerIds ?? []));
@@ -35,11 +38,12 @@ function normalizeState(state: CrmState): CrmState {
     deletedProductIds,
     leads: (state.leads ?? initialCrmState.leads).map((lead) => ({
       ...lead,
+      assignedTo: deprecatedTeamKeys.has(lead.assignedTo) ? "admin" : lead.assignedTo,
+      substituteAssignedTo: lead.substituteAssignedTo && deprecatedTeamKeys.has(lead.substituteAssignedTo) ? "" : lead.substituteAssignedTo ?? "",
       leadSource: normalizeLeadSource(lead.leadSource ?? lead.source),
       salesPhase: normalizeSalesPhase(lead.salesPhase, lead.stageId),
       ticketSize: lead.ticketSize ?? lead.amount,
       productInterest: lead.productInterest ?? lead.customFields?.find((field) => field.label.toLowerCase().includes("product"))?.value ?? lead.title,
-      substituteAssignedTo: lead.substituteAssignedTo ?? "",
       updatedAt: lead.updatedAt ?? leadUpdatedAt(lead),
       callCount: lead.callCount ?? lead.activities?.filter((activity) => activity.type === "Call").length ?? 0,
       lastContactedAt: lead.lastContactedAt ?? lead.activities?.[0]?.createdAt,
@@ -60,7 +64,8 @@ function normalizeState(state: CrmState): CrmState {
         customerType: customer.customerType ?? "Business",
         businessName: customer.businessName ?? customer.address ?? "",
         contactType: customer.contactType ?? "Primary",
-        salesAgent: customer.salesAgent ?? "vinay dhanekula",
+        salesAgent: isDeprecatedTeamName(customer.salesAgent) ? "vinay dhanekula" : customer.salesAgent ?? "vinay dhanekula",
+        secondSalesAgent: isDeprecatedTeamName(customer.secondSalesAgent) ? "" : customer.secondSalesAgent,
       })),
     products: mergeProductsByLatestUpdate(state.products ?? [], initialCrmState.products).filter((product) => !deletedProductIds.includes(product.id)),
     quotes: state.quotes ?? initialCrmState.quotes,
@@ -396,6 +401,15 @@ function mergeDeletedTeamMemberKeys(remoteState: CrmState, localState: CrmState)
 
 function isProtectedAdmin(member: CrmState["team"][number]) {
   return member.uid === "hardcoded-admin" || member.email?.trim().toLowerCase() === "admin@admin.com";
+}
+
+function isDeprecatedTeamMember(member: CrmState["team"][number]) {
+  return !isProtectedAdmin(member) && isDeprecatedTeamName(member.name);
+}
+
+function isDeprecatedTeamName(name?: string) {
+  const normalized = name?.trim().toLowerCase().replace(/\s+/g, " ") ?? "";
+  return normalized === "aarav admin" || normalized === "arav admin";
 }
 
 function mergeByLatestUpdate<T extends { id: string; updatedAt?: string }>(remoteItems: T[], localItems: T[]) {

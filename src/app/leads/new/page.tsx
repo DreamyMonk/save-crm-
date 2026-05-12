@@ -22,8 +22,8 @@ export default function NewLeadPage() {
   const { member: currentMember, ready: memberReady } = useCurrentTeamMember(state.team);
   const canManageAssignments = canManageLeads(currentMember);
   const members = useMemo(() => {
-    if (canManageAssignments) return state.team.filter((member) => member.active && member.modules.includes("leads"));
-    return currentMember && currentMember.modules.includes("leads") ? [currentMember] : [];
+    if (canManageAssignments) return state.team.filter(isLeadAssignableMember);
+    return currentMember && isLeadAssignableMember(currentMember) ? [currentMember] : [];
   }, [canManageAssignments, currentMember, state.team]);
   const defaultAssignee = canManageAssignments ? state.team.find((member) => member.id === "admin") ?? state.team.find((member) => member.role === "Admin") ?? members[0] : currentMember;
 
@@ -281,6 +281,13 @@ function customerFromForm(form: FormData, id: string, assignedAgent?: string, se
     address,
     wantedProduct: String(form.get("wantedProduct") || form.get("productInterest") || ""),
   };
+}
+
+function isLeadAssignableMember(member: { active: boolean; name: string; role: string; modules: string[] }) {
+  const role = member.role.toLowerCase();
+  const name = member.name.trim().toLowerCase().replace(/\s+/g, " ");
+  if (name === "aarav admin" || name === "arav admin") return false;
+  return member.active && (member.modules.includes("leads") || role.includes("sales") || role.includes("lead") || role.includes("admin"));
 }
 
 function nextLeadId(leads: Lead[]) {
