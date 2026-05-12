@@ -690,6 +690,7 @@ function buildProposalHtml(template: string, quote: QuoteRecord, customer: Custo
   normalizeTemplateImages(doc);
   removeCoverLocationBadges(doc);
   removeCoverStats(doc);
+  removeHotWaterComparisonPage(doc);
 
   const title = doc.querySelector("title");
   if (title) title.textContent = `SavePlanet - ${quote.id} Proposal`;
@@ -966,6 +967,16 @@ function removeCoverLocationBadges(doc: Document) {
 function removeCoverStats(doc: Document) {
   doc.querySelectorAll(".cover-content > .stat-grid, .cover-content .stat-card, .cov-main > .cov-stats, .cov-main .cov-stat").forEach((element) => {
     element.remove();
+  });
+}
+
+function removeHotWaterComparisonPage(doc: Document) {
+  doc.querySelectorAll(".toc-item").forEach((item) => {
+    if (item.textContent?.toLowerCase().includes("heat pump vs solar hw")) item.remove();
+  });
+
+  doc.querySelectorAll(".compare-table").forEach((table) => {
+    table.closest(".page")?.remove();
   });
 }
 
