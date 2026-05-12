@@ -688,6 +688,7 @@ function buildProposalHtml(template: string, quote: QuoteRecord, customer: Custo
   const doc = parser.parseFromString(template, "text/html");
   const quotePage = doc.querySelector(".quot-pad")?.closest(".page");
   normalizeTemplateImages(doc);
+  removeCoverLocationBadges(doc);
 
   const title = doc.querySelector("title");
   if (title) title.textContent = `SavePlanet - ${quote.id} Proposal`;
@@ -951,6 +952,13 @@ function normalizeTemplateImages(doc: Document) {
       return;
     }
     image.src = inlineSvgDataUrl(productPlaceholderSvg(image.alt || assetName(src)));
+  });
+}
+
+function removeCoverLocationBadges(doc: Document) {
+  doc.querySelectorAll(".top-bar > .badge, .cov-nav > .cov-tag").forEach((badge) => {
+    const text = badge.textContent?.toLowerCase() ?? "";
+    if (text.includes("victoria") || text.includes("veu")) badge.remove();
   });
 }
 
