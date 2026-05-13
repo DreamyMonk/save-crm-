@@ -192,7 +192,7 @@ function isLeadAssignableMember(member: { active: boolean; name: string; role: s
   const role = member.role.toLowerCase();
   const name = member.name.trim().toLowerCase().replace(/\s+/g, " ");
   if (name === "aarav admin" || name === "arav admin") return false;
-  return member.active && (member.modules.includes("leads") || role.includes("sales") || role.includes("lead") || role.includes("admin"));
+  return member.active && (role.includes("sales") || role.includes("lead") || role.includes("admin") || member.modules.includes("leads") || member.modules.includes("dashboard"));
 }
 
 function LeadCard({ lead, owner, members, canAssign, onAssign }: { lead: Lead; owner: string; members: { id: string; name: string }[]; canAssign: boolean; onAssign: (leadId: string, memberId: string) => void }) {

@@ -48,8 +48,8 @@ export default function LeadDetailPage() {
 
   const pipeline = state.pipelines.find((item) => item.id === lead.pipelineId);
   const members = canManageAssignments
-    ? state.team.filter((member) => member.active && member.modules.includes("leads"))
-    : currentMember && currentMember.modules.includes("leads")
+    ? state.team.filter(isLeadAssignableMember)
+    : currentMember && isLeadAssignableMember(currentMember)
       ? [currentMember]
       : [];
   const owner = state.team.find((member) => member.id === lead.assignedTo)?.name ?? "Unassigned";
@@ -340,6 +340,13 @@ export default function LeadDetailPage() {
       </div>
     </CrmShell>
   );
+}
+
+function isLeadAssignableMember(member: { active: boolean; name: string; role: string; modules: string[] }) {
+  const role = member.role.toLowerCase();
+  const name = member.name.trim().toLowerCase().replace(/\s+/g, " ");
+  if (name === "aarav admin" || name === "arav admin") return false;
+  return member.active && (role.includes("sales") || role.includes("lead") || role.includes("admin") || member.modules.includes("leads") || member.modules.includes("dashboard"));
 }
 
 function formatActivityDate(value: string) {
