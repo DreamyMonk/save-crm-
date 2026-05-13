@@ -399,7 +399,7 @@ function mergeDeletedTeamMemberKeys(remoteState: CrmState, localState: CrmState)
   const protectedKeys = new Set([...remoteState.team, ...localState.team].filter(isProtectedAdmin).flatMap(accessMemberKeys));
   return removeLiveMemberKeysFromDeletedKeys(
     Array.from(new Set([...(remoteState.deletedTeamMemberKeys ?? []), ...(localState.deletedTeamMemberKeys ?? [])])).filter((key) => !protectedKeys.has(key)),
-    [...remoteState.team, ...localState.team],
+    localState.team,
   );
 }
 
@@ -575,7 +575,7 @@ async function saveMergedState(state: CrmState) {
   const remoteState = await readRemoteState() ?? initialCrmState;
   const deletedTeamMemberKeys = removeLiveMemberKeysFromDeletedKeys(
     Array.from(new Set([...(remoteState.deletedTeamMemberKeys ?? []), ...(state.deletedTeamMemberKeys ?? [])])),
-    [...remoteState.team, ...state.team],
+    state.team,
   );
   const deletedCustomerIds = mergeDeletedIds(remoteState.deletedCustomerIds, state.deletedCustomerIds);
   const deletedProductIds = mergeDeletedIds(remoteState.deletedProductIds, state.deletedProductIds);
