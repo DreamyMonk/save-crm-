@@ -108,7 +108,7 @@ export default function AccessPage() {
         deletedTeamMemberKeys: (currentState.deletedTeamMemberKeys ?? []).filter((key) => !memberKeys.includes(key)),
         team: currentExistingId
           ? currentState.team.map((item) => (item.id === currentExistingId ? { ...item, ...member, id: currentExistingId } : item))
-          : [...currentState.team, member],
+          : [member, ...currentState.team],
       };
     });
   }
