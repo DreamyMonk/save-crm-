@@ -20,6 +20,18 @@ export const heatPumpProductImageUrls = {
   ecoGenica: "https://saveplanet.com.au/images/heatpump_product/a3429038bb9cd8a7b95ae878f427d853.jpeg",
 } as const;
 
+export const solarProductImageUrls = {
+  panelBlack: "https://saveplanet.com.au/images/solar_product/122ab820b84040a43a1e0d7ae5ce9976.webp",
+  panelFramed: "https://saveplanet.com.au/images/solar_product/19612aa17ecd3b4efdeb83ed60c5c8f7.webp",
+  panelGrid: "https://saveplanet.com.au/images/solar_product/c88593906eafb829b36fe351ef71d767.webp",
+  panelPair: "https://saveplanet.com.au/images/solar_product/fddb820c383ce7cf2b91530bf95181c6.webp",
+  sofarStorage: "https://saveplanet.com.au/images/battary%20stoorage%20product/462cbabc965f0b70aca7d5c4a0024d53.jpg",
+  solixStorage: "https://saveplanet.com.au/images/battary%20stoorage%20product/4be9658bfd078c4513d965a941125009.jpg",
+  pylontechStorage: "https://saveplanet.com.au/images/battary%20stoorage%20product/4cb8104e14826f6931a47a3786dc7bba.png",
+  foxStorage: "https://saveplanet.com.au/images/battary%20stoorage%20product/55dc897ed335a5432a2e7a8d5536a8fc.jpg",
+  goodweStorage: "https://saveplanet.com.au/images/battary%20stoorage%20product/9fcc54149a639de3afe43da19fa9ed93.png",
+} as const;
+
 type ProductImageInput = Pick<Product, "category" | "brandName" | "productName"> & Partial<Pick<Product, "model" | "productType" | "productConfiguration">>;
 
 export function defaultAirconProductImage(product: ProductImageInput) {
@@ -60,7 +72,28 @@ export function defaultHeatPumpProductImage(product: ProductImageInput) {
 }
 
 export function defaultProductImage(product: ProductImageInput) {
-  return defaultAirconProductImage(product) || defaultHeatPumpProductImage(product);
+  return defaultAirconProductImage(product) || defaultHeatPumpProductImage(product) || defaultSolarProductImage(product);
+}
+
+export function defaultSolarProductImage(product: ProductImageInput) {
+  const brand = normalize(product.brandName);
+  const text = normalize(`${product.brandName} ${product.productName} ${product.model ?? ""} ${product.productType ?? ""} ${product.productConfiguration ?? ""}`);
+
+  if (product.category === "Solar") {
+    if (text.includes("bifacial") || text.includes("dual glass")) return solarProductImageUrls.panelPair;
+    if (text.includes("black") || text.includes("all black")) return solarProductImageUrls.panelBlack;
+    if (text.includes("mono") || text.includes("module")) return solarProductImageUrls.panelGrid;
+    return solarProductImageUrls.panelFramed;
+  }
+
+  if (product.category !== "Inverter" && product.category !== "Solar Battery") return "";
+  if (brand.includes("fox") || text.includes("foxess")) return solarProductImageUrls.foxStorage;
+  if (brand.includes("goodwe")) return solarProductImageUrls.goodweStorage;
+  if (brand.includes("so far") || brand.includes("sofar") || text.includes("sofar")) return solarProductImageUrls.sofarStorage;
+  if (brand.includes("pylontech")) return solarProductImageUrls.pylontechStorage;
+  if (brand.includes("solix") || text.includes("anker")) return solarProductImageUrls.solixStorage;
+
+  return product.category === "Solar Battery" ? solarProductImageUrls.pylontechStorage : solarProductImageUrls.goodweStorage;
 }
 
 export function withDefaultProductImage<T extends ProductImageInput & { imageUrl?: string }>(product: T): T {

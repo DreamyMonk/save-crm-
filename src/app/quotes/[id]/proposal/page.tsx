@@ -1190,7 +1190,7 @@ function productSummaryPage(quote: QuoteRecord, calculations: Calculations, cate
 
 function productLineImage(item: QuoteLineItem, category: string) {
   if (item.imageUrl) return item.imageUrl;
-  if (category !== "Aircon" && category !== "Heat Pump") return "";
+  if (category !== "Aircon" && category !== "Heat Pump" && category !== "Solar" && category !== "Inverter" && category !== "Solar Battery") return "";
   return defaultProductImage({
     category,
     brandName: item.brand,
