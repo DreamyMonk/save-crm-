@@ -4,7 +4,8 @@ import { FormEvent, useMemo, useState } from "react";
 import Link from "next/link";
 import { Download, Pencil, Save, Search, Trash2, Upload, UserPlus, X } from "lucide-react";
 import { CrmShell, PageHeader } from "@/components/crm-shell";
-import { Customer } from "@/lib/crm-data";
+import { Customer, Lead, TeamMember } from "@/lib/crm-data";
+import { canAccessLead, canManageLeads, useCurrentTeamMember } from "@/lib/use-current-team-member";
 import { useCrmStore } from "@/lib/use-crm-store";
 
 const customerTemplateHeaders = [
@@ -51,15 +52,22 @@ export default function CustomersPage() {
   const [message, setMessage] = useState("");
   const [newCustomerType, setNewCustomerType] = useState<Customer["customerType"]>("Business");
   const [editingCustomerId, setEditingCustomerId] = useState<string | null>(null);
+  const { member: currentMember, ready: memberReady } = useCurrentTeamMember(state.team);
+  const canManageCustomers = canManageLeads(currentMember);
   const assigneeOptions = useMemo(() => {
-    const activeMembers = state.team.filter((member) => member.active).map((member) => member.name).filter(Boolean);
+    const activeMembers = canManageCustomers
+      ? state.team.filter((member) => member.active).map((member) => member.name).filter(Boolean)
+      : currentMember?.name
+        ? [currentMember.name]
+        : [];
     return activeMembers.length ? activeMembers : ["vinay dhanekula"];
-  }, [state.team]);
+  }, [canManageCustomers, currentMember, state.team]);
 
   const customers = useMemo(() => {
     const term = search.toLowerCase();
-    return state.customers.filter((customer) => customerSearchText(customer).toLowerCase().includes(term));
-  }, [search, state.customers]);
+    if (!memberReady) return [];
+    return state.customers.filter((customer) => canAccessCustomer(currentMember, customer, state.leads) && customerSearchText(customer).toLowerCase().includes(term));
+  }, [currentMember, memberReady, search, state.customers, state.leads]);
   const editingCustomer = useMemo(() => state.customers.find((customer) => customer.id === editingCustomerId) ?? null, [editingCustomerId, state.customers]);
 
   function addCustomer(event: FormEvent<HTMLFormElement>) {
@@ -350,6 +358,17 @@ function customerFromForm(form: FormData, id: string): Customer {
     address,
     wantedProduct: String(form.get("wantedProduct") || ""),
   };
+}
+
+function canAccessCustomer(member: TeamMember | null | undefined, customer: Customer, leads: Lead[]) {
+  if (!member) return false;
+  if (canManageLeads(member)) return true;
+  const linkedLead = customer.leadId ? leads.find((lead) => lead.id === customer.leadId) : undefined;
+  if (linkedLead && canAccessLead(member, linkedLead)) return true;
+  const memberName = member.name.trim().toLowerCase();
+  return [customer.salesAgent, customer.secondSalesAgent, customer.agent]
+    .filter(Boolean)
+    .some((name) => name?.trim().toLowerCase() === memberName);
 }
 
 function customerFromCsv(headers: string[], row: string[], id: string): Customer {
