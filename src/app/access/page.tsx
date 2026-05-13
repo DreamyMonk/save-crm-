@@ -35,6 +35,11 @@ export default function AccessPage() {
     const role = String(form.get("role") || "Sales Agent");
     const selectedModules = (Object.keys(moduleLabels) as ModuleKey[]).filter((module) => form.get(module) === "on");
     const modules = selectedModules.length ? selectedModules : defaultModules;
+    if (email.toLowerCase() === "admin@admin.com") {
+      setMessage("The built-in admin account already exists. Use a different email for new users.");
+      setCreatingUser(false);
+      return;
+    }
 
     let secondaryApp: ReturnType<typeof initializeApp> | undefined;
     try {
