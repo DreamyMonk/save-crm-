@@ -115,7 +115,7 @@ function QuotesWorkspace() {
   const gstRate = 10;
   const [rebate, setRebate] = useState(0);
   const [solarVicLoan, setSolarVicLoan] = useState(0);
-  const depositPercent = 50;
+  const depositPercent = 0;
   const [customDepositAmount, setCustomDepositAmount] = useState(0);
   const annualEnergyProductionKwh = 0;
   const discountedPaybackYears = 0;
@@ -477,7 +477,7 @@ function QuotesWorkspace() {
       solarVicLoan: draft.solarVicLoan,
       deductions: draft.deductions,
       depositPercent,
-      depositAmount: customDepositAmount > 0 ? customDepositAmount : undefined,
+      depositAmount: customDepositAmount > 0 ? customDepositAmount : 0,
       annualEnergyProductionKwh,
       discountedPaybackYears,
       annualBillSavings,
@@ -723,7 +723,7 @@ function QuotesWorkspace() {
               {deductionRows.map((row) => (
                 <SummaryRow key={row.label} label={row.label} value={`-${currency(row.value)}`} discount />
               ))}
-              <SummaryRow label={customDepositAmount > 0 ? "Deposit" : `Deposit (${depositPercent}%)`} value={currency(calculations.depositAmount)} />
+              <SummaryRow label="Deposit" value={currency(calculations.depositAmount)} />
               <SummaryRow label="Balance due" value={currency(calculations.balanceDue)} strong />
             </div>
             <div className="mt-5 rounded-lg bg-[#003CBB] p-4 text-white">
@@ -849,7 +849,7 @@ function calculateQuote(
   const finalPriceIncGst = systemTotalIncGst - totalDeductions;
   const payableAmount = Math.max(0, finalPriceIncGst);
   const requestedDepositAmount = Number(options.depositAmount ?? 0);
-  const depositAmount = requestedDepositAmount > 0 ? requestedDepositAmount : payableAmount * (options.depositPercent / 100);
+  const depositAmount = requestedDepositAmount > 0 ? requestedDepositAmount : 0;
   const balanceDue = Math.max(0, payableAmount - depositAmount);
   const netExGst = finalPriceIncGst / (1 + options.gstRate / 100);
   const netIncGst = finalPriceIncGst;

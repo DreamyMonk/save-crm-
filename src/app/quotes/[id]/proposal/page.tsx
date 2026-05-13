@@ -598,7 +598,6 @@ async function proposalEmailHtml(category: ProductCategory, customer: Customer |
 }
 
 function fillMailTemplate(template: string, customer: Customer | undefined, quote: QuoteRecord, link: string, calculations: Calculations, isUpdatedProposal = false) {
-  const savings = quote.annualBillSavings && quote.annualBillSavings > 0 ? quote.annualBillSavings : calculations.totalDeductions;
   const replacements: Record<string, string> = {
     customer_name: customerName(customer),
     proposal_intro: isUpdatedProposal
@@ -615,7 +614,7 @@ function fillMailTemplate(template: string, customer: Customer | undefined, quot
       : "Let’s get started today!",
     proposal_link: link,
     logo_url: savePlanetLogoUrl,
-    savings: moneyWithoutDollar(savings),
+    savings: moneyWithoutDollar(calculations.finalPriceIncGst),
     quote_id: quote.id,
     customer_email: customer?.email || "Not provided",
     final_price: currency(calculations.finalPriceIncGst),
@@ -900,11 +899,11 @@ function modernTotalsMarkup(quote: QuoteRecord, calculations: Calculations) {
 }
 
 function depositLabel(quote: QuoteRecord) {
-  return quote.depositAmount && quote.depositAmount > 0 ? "Deposit" : `Deposit (${quote.depositPercent ?? 50}%)`;
+  return quote.depositAmount && quote.depositAmount > 0 ? "Deposit" : "Deposit";
 }
 
 function depositTermsLabel(quote: QuoteRecord) {
-  return quote.depositAmount && quote.depositAmount > 0 ? `Deposit ${currency(quote.depositAmount)}` : `${quote.depositPercent ?? 50}% Deposit`;
+  return quote.depositAmount && quote.depositAmount > 0 ? `Deposit ${currency(quote.depositAmount)}` : "Deposit $0";
 }
 
 function proposalDeductionRows(quote: QuoteRecord, calculations: Calculations) {
@@ -962,7 +961,7 @@ function normalizeTemplateImages(doc: Document) {
       return;
     }
     if (src.includes("heatpump")) {
-      image.src = heatPumpProductImageUrls.emerald;
+      image.src = heatPumpProductImageUrls.ecoGenica;
       image.alt = "Heat Pump Hot Water System";
       return;
     }
@@ -1359,7 +1358,7 @@ function calculateQuote(quote: QuoteRecord) {
   const finalPriceIncGst = systemTotalIncGst - totalDeductions;
   const payableAmount = Math.max(0, finalPriceIncGst);
   const requestedDepositAmount = Number(quote.depositAmount ?? 0);
-  const depositAmount = requestedDepositAmount > 0 ? requestedDepositAmount : payableAmount * ((quote.depositPercent ?? 50) / 100);
+  const depositAmount = requestedDepositAmount > 0 ? requestedDepositAmount : 0;
   const balanceDue = Math.max(0, payableAmount - depositAmount);
   const netExGst = finalPriceIncGst / (1 + quote.gstRate / 100);
   const netIncGst = finalPriceIncGst;
