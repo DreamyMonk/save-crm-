@@ -7,7 +7,7 @@ import { onAuthStateChanged, User } from "firebase/auth";
 import { CheckCircle2, Download, PenLine, Save, Send } from "lucide-react";
 import { CrmShell, PageHeader } from "@/components/crm-shell";
 import { RichTextEditor } from "@/components/rich-text-editor";
-import { defaultProductImage } from "@/lib/aircon-product-images";
+import { defaultProductImage, heatPumpProductImageUrls, solarProductImageUrls } from "@/lib/aircon-product-images";
 import { CrmState, Customer, Product, ProductCategory, QuoteLineItem, QuoteRecord, TeamMember, currency } from "@/lib/crm-data";
 import { getFirebaseAuth } from "@/lib/firebase";
 import { invoiceFromQuote, syncProposalCollections } from "@/lib/proposal-packages";
@@ -959,6 +959,26 @@ function normalizeTemplateImages(doc: Document) {
     if (src.includes("logo")) {
       image.src = savePlanetLogoUrl;
       image.alt = "SavePlanet";
+      return;
+    }
+    if (src.includes("heatpump")) {
+      image.src = heatPumpProductImageUrls.emerald;
+      image.alt = "Heat Pump Hot Water System";
+      return;
+    }
+    if (src.includes("panel")) {
+      image.src = solarProductImageUrls.panelPair;
+      image.alt = "Solar Panels";
+      return;
+    }
+    if (src.includes("inverter")) {
+      image.src = solarProductImageUrls.goodweStorage;
+      image.alt = "Hybrid Inverter";
+      return;
+    }
+    if (src.includes("battery")) {
+      image.src = solarProductImageUrls.pylontechStorage;
+      image.alt = "Lithium Battery";
       return;
     }
     image.src = inlineSvgDataUrl(productPlaceholderSvg(image.alt || assetName(src)));
