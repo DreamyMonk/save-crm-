@@ -6,9 +6,10 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Save, Trash2 } from "lucide-react";
 import { CrmShell, PageHeader } from "@/components/crm-shell";
 import { withDefaultProductImage } from "@/lib/aircon-product-images";
-import { Product, QuoteLineItem, QuoteRecord, currency } from "@/lib/crm-data";
+import { Customer, Lead, Product, QuoteLineItem, QuoteRecord, TeamMember, currency } from "@/lib/crm-data";
 import { displayBrandForCategory, isAllowedBrandForCategory } from "@/lib/product-brand-rules";
 import { syncProposalCollections } from "@/lib/proposal-packages";
+import { canAccessLead, canManageLeads, useCurrentTeamMember } from "@/lib/use-current-team-member";
 import { useCrmStore } from "@/lib/use-crm-store";
 
 const schemes = ["STC HP", "STC SOLAR + BATTERY", "VEU APP - VIC Appliances", "VEU HP - VIC Water Heating", "VEU RESI", "VEU SH - VIC Space Heating/Cooling", "Off Scheme"];
@@ -60,7 +61,11 @@ function QuotesWorkspace() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const loadedEditQuoteIdRef = useRef("");
-  const customers = state.customers;
+  const { member: currentMember, ready: memberReady } = useCurrentTeamMember(state.team);
+  const customers = useMemo(() => {
+    if (!memberReady) return [];
+    return state.customers.filter((customer) => canAccessCustomer(currentMember, customer, state.leads));
+  }, [currentMember, memberReady, state.customers, state.leads]);
   const [productCategory, setProductCategory] = useState("Aircon");
   const [productBrand, setProductBrand] = useState("All");
   const [productType, setProductType] = useState("All");
@@ -779,6 +784,17 @@ function customLine(role: QuoteLineItem["role"], brand: string, model: string, q
 function firstQuoteCategory(items: QuoteLineItem[], products: Product[]) {
   const productId = items.find((item) => item.productId)?.productId;
   return products.find((product) => product.id === productId)?.category ?? "Aircon";
+}
+
+function canAccessCustomer(member: TeamMember | null | undefined, customer: Customer, leads: Lead[]) {
+  if (!member) return false;
+  if (canManageLeads(member)) return true;
+  const linkedLead = customer.leadId ? leads.find((lead) => lead.id === customer.leadId) : undefined;
+  if (linkedLead && canAccessLead(member, linkedLead)) return true;
+  const memberName = member.name.trim().toLowerCase();
+  return [customer.salesAgent, customer.secondSalesAgent, customer.agent]
+    .filter(Boolean)
+    .some((name) => name?.trim().toLowerCase() === memberName);
 }
 
 function filterProductsForQuote(products: Product[], categories: string[], brand: string, productType: string, productConfiguration: string, search: string) {
