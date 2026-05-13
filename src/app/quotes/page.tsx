@@ -5,6 +5,7 @@ import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Save, Trash2 } from "lucide-react";
 import { CrmShell, PageHeader } from "@/components/crm-shell";
+import { withDefaultAirconProductImage } from "@/lib/aircon-product-images";
 import { Product, QuoteLineItem, QuoteRecord, currency } from "@/lib/crm-data";
 import { displayBrandForCategory, isAllowedBrandForCategory } from "@/lib/product-brand-rules";
 import { syncProposalCollections } from "@/lib/proposal-packages";
@@ -737,12 +738,16 @@ function QuotesWorkspace() {
 }
 
 function lineFromProduct(product: Product, role: QuoteLineItem["role"], area: string, areaM2: number, quantity: number, productPrice: number, installPrice: number, certificates: number, notes: string): QuoteLineItem {
+  const productWithImage = withDefaultAirconProductImage(product);
   return {
     id: `${role.replace(/\s/g, "-")}-${product.id}-${area.replace(/\s/g, "-")}`,
     role,
     productId: product.id,
+    imageUrl: productWithImage.imageUrl,
     model: product.model ?? product.productName,
     brand: product.brandName,
+    productType: product.productType,
+    productConfiguration: product.productConfiguration,
     area,
     areaM2,
     recommendedHeatingOutput: recommendedHeatingOutput(areaM2),

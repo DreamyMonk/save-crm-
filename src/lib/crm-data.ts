@@ -163,8 +163,11 @@ export type QuoteLineItem = {
   id: string;
   role: "Product" | "Outdoor Unit" | "Indoor Head" | "Accessory" | "Install";
   productId?: string;
+  imageUrl?: string;
   model: string;
   brand: string;
+  productType?: string;
+  productConfiguration?: string;
   area: string;
   areaM2?: number;
   recommendedHeatingOutput?: string;

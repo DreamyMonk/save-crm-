@@ -2,6 +2,7 @@
 
 import { Dispatch, SetStateAction, useCallback, useEffect, useRef, useState } from "react";
 import { collection, doc, getDoc, getDocs, onSnapshot, writeBatch } from "firebase/firestore";
+import { withDefaultAirconProductImage } from "./aircon-product-images";
 import { CrmState, Lead, LeadSalesPhase, LeadSource, ModuleKey, ProposalPackage, QuoteRecord, initialCrmState } from "./crm-data";
 import { getFirebaseDb } from "./firebase";
 
@@ -67,7 +68,7 @@ function normalizeState(state: CrmState): CrmState {
         salesAgent: isDeprecatedTeamName(customer.salesAgent) ? "vinay dhanekula" : customer.salesAgent ?? "vinay dhanekula",
         secondSalesAgent: isDeprecatedTeamName(customer.secondSalesAgent) ? "" : customer.secondSalesAgent,
       })),
-    products: mergeProductsByLatestUpdate(state.products ?? [], initialCrmState.products).filter((product) => !deletedProductIds.includes(product.id)),
+    products: mergeProductsByLatestUpdate(state.products ?? [], initialCrmState.products).map(withDefaultAirconProductImage).filter((product) => !deletedProductIds.includes(product.id)),
     quotes: state.quotes ?? initialCrmState.quotes,
     proposalPackages: normalizeProposalPackages(state),
     invoices: state.invoices ?? initialCrmState.invoices,
@@ -574,7 +575,7 @@ async function saveMergedState(state: CrmState) {
     deletedProductIds,
     team: mergeByUpdatedAccess(remoteState.team, state.team, deletedTeamMemberKeys),
     leads: mergeLeadsByLatestUpdate(remoteState.leads, state.leads),
-    products: (state.products.length === 0 && remoteState.products.length > 0 ? remoteState.products : mergeProductsByLatestUpdate(remoteState.products, state.products)).filter((product) => !deletedProductIds.includes(product.id)),
+    products: (state.products.length === 0 && remoteState.products.length > 0 ? remoteState.products : mergeProductsByLatestUpdate(remoteState.products, state.products)).map(withDefaultAirconProductImage).filter((product) => !deletedProductIds.includes(product.id)),
     customers: mergeByLatestUpdate(remoteState.customers, state.customers).filter((customer) => !deletedCustomerIds.includes(customer.id)),
     quotes: state.quotes.length === 0 && remoteState.quotes.length > 0 ? remoteState.quotes : mergeQuotesByLatestProposalActivity(remoteState.quotes, state.quotes),
     proposalPackages: state.proposalPackages.length === 0 && remoteState.proposalPackages.length > 0 ? remoteState.proposalPackages : mergeProposalPackagesByLatestActivity(remoteState.proposalPackages, state.proposalPackages),

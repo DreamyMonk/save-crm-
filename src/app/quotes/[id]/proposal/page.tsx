@@ -7,6 +7,7 @@ import { onAuthStateChanged, User } from "firebase/auth";
 import { CheckCircle2, Download, PenLine, Save, Send } from "lucide-react";
 import { CrmShell, PageHeader } from "@/components/crm-shell";
 import { RichTextEditor } from "@/components/rich-text-editor";
+import { defaultAirconProductImage } from "@/lib/aircon-product-images";
 import { CrmState, Customer, Product, ProductCategory, QuoteLineItem, QuoteRecord, TeamMember, currency } from "@/lib/crm-data";
 import { getFirebaseAuth } from "@/lib/firebase";
 import { invoiceFromQuote, syncProposalCollections } from "@/lib/proposal-packages";
@@ -1117,7 +1118,7 @@ function SignaturePad({ value, onChange, autoName, autoFont }: { value?: string;
 function productSummaryPage(quote: QuoteRecord, calculations: Calculations, category: string) {
   const keyProducts = quote.items.map((item) => `
     <tr>
-      <td>${escapeHtml(`${item.brand} ${item.model}`)}<span class="desc-sub">${escapeHtml(`${item.role} - ${item.area || "Whole home"}`)}</span></td>
+      <td>${productImageMarkup(productLineImage(item, category), `${item.brand} ${item.model}`)}<span class="item-title">${escapeHtml(`${item.brand} ${item.model}`)}</span><span class="desc-sub">${escapeHtml(`${item.role} - ${item.area || "Whole home"}`)}</span></td>
       <td class="c">${item.quantity}</td>
       <td class="r">${currency(item.productPrice)}</td>
       <td class="r">${currency(item.installPrice)}</td>
@@ -1185,6 +1186,24 @@ function productSummaryPage(quote: QuoteRecord, calculations: Calculations, cate
       <div class="page-num">Appendix A</div>
     </div>
   `;
+}
+
+function productLineImage(item: QuoteLineItem, category: string) {
+  if (item.imageUrl) return item.imageUrl;
+  if (category !== "Aircon") return "";
+  return defaultAirconProductImage({
+    category: "Aircon",
+    brandName: item.brand,
+    productName: item.model,
+    model: item.model,
+    productType: item.productType,
+    productConfiguration: item.productConfiguration || item.notes,
+  });
+}
+
+function productImageMarkup(src: string, alt: string) {
+  if (!src) return "";
+  return `<img src="${escapeHtml(src)}" alt="${escapeHtml(alt)}" style="width:64px;height:48px;object-fit:contain;border:1px solid #d9e6dc;border-radius:8px;background:#fff;margin-right:10px;vertical-align:middle;">`;
 }
 
 function productSummaryLead(category: string) {
