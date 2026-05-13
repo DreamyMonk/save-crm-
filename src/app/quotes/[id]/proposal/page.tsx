@@ -7,7 +7,7 @@ import { onAuthStateChanged, User } from "firebase/auth";
 import { CheckCircle2, Download, PenLine, Save, Send } from "lucide-react";
 import { CrmShell, PageHeader } from "@/components/crm-shell";
 import { RichTextEditor } from "@/components/rich-text-editor";
-import { defaultAirconProductImage } from "@/lib/aircon-product-images";
+import { defaultProductImage } from "@/lib/aircon-product-images";
 import { CrmState, Customer, Product, ProductCategory, QuoteLineItem, QuoteRecord, TeamMember, currency } from "@/lib/crm-data";
 import { getFirebaseAuth } from "@/lib/firebase";
 import { invoiceFromQuote, syncProposalCollections } from "@/lib/proposal-packages";
@@ -1190,9 +1190,9 @@ function productSummaryPage(quote: QuoteRecord, calculations: Calculations, cate
 
 function productLineImage(item: QuoteLineItem, category: string) {
   if (item.imageUrl) return item.imageUrl;
-  if (category !== "Aircon") return "";
-  return defaultAirconProductImage({
-    category: "Aircon",
+  if (category !== "Aircon" && category !== "Heat Pump") return "";
+  return defaultProductImage({
+    category,
     brandName: item.brand,
     productName: item.model,
     model: item.model,

@@ -4,7 +4,7 @@ import { FormEvent, useMemo, useState } from "react";
 import * as XLSX from "xlsx";
 import { Download, PackagePlus, Save, Search, Trash2, Upload } from "lucide-react";
 import { CrmShell, PageHeader } from "@/components/crm-shell";
-import { withDefaultAirconProductImage } from "@/lib/aircon-product-images";
+import { withDefaultProductImage } from "@/lib/aircon-product-images";
 import { Product, ProductCategory, currency } from "@/lib/crm-data";
 import { displayBrandForCategory, isAllowedBrandForCategory } from "@/lib/product-brand-rules";
 import { useCrmStore } from "@/lib/use-crm-store";
@@ -93,7 +93,7 @@ export default function ProductsPage() {
   function addProduct(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
-    const product = { ...withDefaultAirconProductImage(productFromForm(form, nextProductId(state.products))), updatedAt: new Date().toISOString() };
+    const product = { ...withDefaultProductImage(productFromForm(form, nextProductId(state.products))), updatedAt: new Date().toISOString() };
     setState((currentState) => ({
       ...currentState,
       deletedProductIds: (currentState.deletedProductIds ?? []).filter((id) => id !== product.id),
@@ -131,7 +131,7 @@ export default function ProductsPage() {
     let nextProductNumber = highestProductNumber(state.products) + 1;
     const imported = body
       .filter((row) => row.some(Boolean))
-      .map((row) => ({ ...withDefaultAirconProductImage(productFromCsv(headers, row, `P-${nextProductNumber++}`, bulkCategory)), updatedAt: new Date().toISOString() }));
+      .map((row) => ({ ...withDefaultProductImage(productFromCsv(headers, row, `P-${nextProductNumber++}`, bulkCategory)), updatedAt: new Date().toISOString() }));
     const importedIds = new Set(imported.map((product) => product.id));
     setState((currentState) => ({
       ...currentState,
