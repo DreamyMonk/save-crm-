@@ -10,6 +10,7 @@ import { firebaseConfig, getFirebaseAuth } from "@/lib/firebase";
 import { useCrmStore } from "@/lib/use-crm-store";
 
 const defaultModules: ModuleKey[] = ["dashboard", "leads"];
+const savePlanetLogoUrl = "https://saveplanet.com.au/images/SAVEPLANET-LOGO-7%20(1).webp";
 
 export default function AccessPage() {
   const { state, setState } = useCrmStore();
@@ -408,6 +409,7 @@ function accessCreatedEmailHtml({
           <table width="620" cellpadding="0" cellspacing="0" style="max-width:620px;background:#ffffff;border-radius:14px;overflow:hidden;border:1px solid #d9e2f2;box-shadow:0 8px 28px rgba(15,23,42,0.08);">
             <tr>
               <td style="background:#003CBB;padding:28px 30px;color:#ffffff;">
+                <img src="${savePlanetLogoUrl}" alt="SavePlanet" width="190" style="display:block;max-width:190px;height:auto;margin:0 0 18px;border:0;background:#ffffff;border-radius:10px;padding:10px 14px;" />
                 <div style="font-size:12px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;color:#dbe7ff;">SavePlanet CRM</div>
                 <h1 style="margin:10px 0 0;font-size:28px;line-height:1.2;">Your access is ready</h1>
                 <p style="margin:10px 0 0;color:#dbe7ff;font-size:15px;">You can now sign in to your assigned CRM modules.</p>

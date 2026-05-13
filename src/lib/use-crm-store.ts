@@ -76,7 +76,7 @@ function normalizeState(state: CrmState): CrmState {
       ...initialCrmState.settings,
       ...(state.settings ?? {}),
       loginImageUrl: state.settings?.loginImageUrl ?? initialCrmState.settings.loginImageUrl,
-      logoUrl: state.settings?.logoUrl ?? initialCrmState.settings.logoUrl,
+      logoUrl: state.settings?.logoUrl || initialCrmState.settings.logoUrl,
       resend: {
         ...initialCrmState.settings.resend,
         ...(state.settings?.resend ?? legacyEmailSettings ?? {}),

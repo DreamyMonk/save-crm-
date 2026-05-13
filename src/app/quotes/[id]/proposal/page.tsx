@@ -27,6 +27,7 @@ const mailTemplateUrls = {
   "Solar Battery": "/mail-templates/solar_inverter_battary.html",
 } as const;
 const savePlanetNotificationEmail = "info@saveplanet.com.au";
+const savePlanetLogoUrl = "https://saveplanet.com.au/images/SAVEPLANET-LOGO-7%20(1).webp";
 const signatureFonts = [
   { label: "Elegant Script", value: "Brush Script MT, Segoe Script, cursive" },
   { label: "Classic Hand", value: "Segoe Script, Lucida Handwriting, cursive" },
@@ -612,6 +613,7 @@ function fillMailTemplate(template: string, customer: Customer | undefined, quot
       ? "Thanks for reviewing the revised proposal. We’re ready to move ahead once you’re happy with the update."
       : "Let’s get started today!",
     proposal_link: link,
+    logo_url: savePlanetLogoUrl,
     savings: moneyWithoutDollar(savings),
     quote_id: quote.id,
     customer_email: customer?.email || "Not provided",
@@ -946,10 +948,15 @@ function applyModernSignature(doc: Document, quote: QuoteRecord, customer: Custo
 }
 
 function normalizeTemplateImages(doc: Document) {
+  doc.querySelectorAll<HTMLImageElement>(".cov-logo img, .logo-chip img, .ty-logo-card img").forEach((image) => {
+    image.src = savePlanetLogoUrl;
+    image.alt = "SavePlanet";
+  });
+
   doc.querySelectorAll<HTMLImageElement>('img[src^="assets/"]').forEach((image) => {
     const src = image.getAttribute("src") ?? "";
     if (src.includes("logo")) {
-      image.src = inlineSvgDataUrl(savePlanetLogoSvg());
+      image.src = savePlanetLogoUrl;
       image.alt = "SavePlanet";
       return;
     }
@@ -986,10 +993,6 @@ function assetName(src: string) {
 
 function inlineSvgDataUrl(svg: string) {
   return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
-}
-
-function savePlanetLogoSvg() {
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="240" height="70" viewBox="0 0 240 70"><rect width="240" height="70" rx="14" fill="#fff"/><path d="M35 12c18 0 31 13 31 29S53 58 35 58c9-10 9-36 0-46Z" fill="#08c7cc"/><path d="M66 12c15 5 25 16 25 29S81 65 66 58c9-10 9-36 0-46Z" fill="#ff6b2c"/><text x="104" y="43" font-family="Arial, Helvetica, sans-serif" font-size="24" font-weight="800" fill="#0b3b2c">SavePlanet</text></svg>`;
 }
 
 function productPlaceholderSvg(label: string) {

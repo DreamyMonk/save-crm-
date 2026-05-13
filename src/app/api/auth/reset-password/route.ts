@@ -11,6 +11,7 @@ type ResendConfig = {
 const FALLBACK_RESEND_API_KEY = "re_AAMy2FPa_BDLsSmAi4kCcGHjGzqT5mUwb";
 const DEFAULT_RESEND_FROM_EMAIL = "noreply@saveplanet.au";
 const DEFAULT_RESEND_FROM_NAME = "SavePlanet CRM";
+const SAVEPLANET_LOGO_URL = "https://saveplanet.com.au/images/SAVEPLANET-LOGO-7%20(1).webp";
 
 async function sendResendNotification(email: string, resend: ResendConfig | undefined, resetLink?: string, temporaryPassword?: string) {
   const resolvedResend = resolveResendSettings(resend);
@@ -154,6 +155,7 @@ function resetPasswordEmailHtml(email: string, resetLink?: string, temporaryPass
           <table width="620" cellpadding="0" cellspacing="0" style="max-width:620px;background:#ffffff;border-radius:14px;overflow:hidden;border:1px solid #d9e2f2;box-shadow:0 8px 28px rgba(15,23,42,0.08);">
             <tr>
               <td style="background:#003CBB;padding:30px;color:#ffffff;">
+                <img src="${SAVEPLANET_LOGO_URL}" alt="SavePlanet" width="190" style="display:block;max-width:190px;height:auto;margin:0 0 18px;border:0;background:#ffffff;border-radius:10px;padding:10px 14px;" />
                 <div style="font-size:12px;font-weight:800;letter-spacing:0.14em;text-transform:uppercase;color:#dbe7ff;">SavePlanet CRM</div>
                 <h1 style="margin:10px 0 0;font-size:28px;line-height:1.2;">Reset your password</h1>
                 <p style="margin:10px 0 0;color:#dbe7ff;font-size:15px;line-height:1.5;">Use the secure link below to choose a new CRM password.</p>

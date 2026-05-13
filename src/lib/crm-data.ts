@@ -620,7 +620,7 @@ export const initialCrmState: CrmState = {
   ],
   settings: {
     loginImageUrl: "https://images.unsplash.com/photo-1497366754035-f200968a6e72?auto=format&fit=crop&w=1400&q=80",
-    logoUrl: "",
+    logoUrl: "https://saveplanet.com.au/images/SAVEPLANET-LOGO-7%20(1).webp",
     resend: {
       apiKey: "",
       fromEmail: "noreply@saveplanet.au",
