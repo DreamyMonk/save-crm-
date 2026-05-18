@@ -19,6 +19,7 @@ export default function LeadsPage() {
   const [message, setMessage] = useState("");
   const { member: currentMember, ready: memberReady } = useCurrentTeamMember(state.team);
   const canManageAllLeads = canManageLeads(currentMember);
+  const canDeleteLeads = isAdminMember(currentMember);
 
   const activePipeline = state.pipelines.find((pipeline) => pipeline.id === pipelineId) ?? state.pipelines[0];
   const assignable = useMemo(() => {
@@ -93,8 +94,8 @@ export default function LeadsPage() {
   }
 
   function deleteLead(leadId: string) {
-    if (!canManageAllLeads) {
-      setMessage("Only admins and lead coordinators can delete leads.");
+    if (!canDeleteLeads) {
+      setMessage("Only admins can delete leads.");
       return;
     }
     const lead = state.leads.find((item) => item.id === leadId);
@@ -190,7 +191,7 @@ export default function LeadsPage() {
                 </div>
                 <div className="space-y-3 p-3">
                   {stageLeads.map((lead) => (
-                    <LeadCard key={lead.id} lead={lead} owner={state.team.find((member) => member.id === lead.assignedTo)?.name ?? "Unassigned"} members={assignable} canAssign={canManageAllLeads} onAssign={assignLead} onDelete={deleteLead} />
+                    <LeadCard key={lead.id} lead={lead} owner={state.team.find((member) => member.id === lead.assignedTo)?.name ?? "Unassigned"} members={assignable} canAssign={canManageAllLeads} canDelete={canDeleteLeads} onAssign={assignLead} onDelete={deleteLead} />
                   ))}
                 </div>
               </section>
@@ -214,7 +215,11 @@ function isLeadAssignableMember(member: { active: boolean; name: string; role: s
   return member.active && (role.includes("sales") || role.includes("lead") || role.includes("admin") || member.modules.includes("leads") || member.modules.includes("dashboard"));
 }
 
-function LeadCard({ lead, owner, members, canAssign, onAssign, onDelete }: { lead: Lead; owner: string; members: { id: string; name: string }[]; canAssign: boolean; onAssign: (leadId: string, memberId: string) => void; onDelete: (leadId: string) => void }) {
+function isAdminMember(member: { role: string } | null | undefined) {
+  return member?.role.trim().toLowerCase() === "admin";
+}
+
+function LeadCard({ lead, owner, members, canAssign, canDelete, onAssign, onDelete }: { lead: Lead; owner: string; members: { id: string; name: string }[]; canAssign: boolean; canDelete: boolean; onAssign: (leadId: string, memberId: string) => void; onDelete: (leadId: string) => void }) {
   return (
     <article
       draggable
@@ -238,7 +243,7 @@ function LeadCard({ lead, owner, members, canAssign, onAssign, onDelete }: { lea
         <Link href={`/leads/${lead.id}/tasks`} className="inline-flex h-9 items-center justify-center rounded-lg border border-[#d7e3ff] bg-white text-[#003CBB] transition hover:bg-[#eef4ff]" title="Tasks and notes">
           <ClipboardList size={16} />
         </Link>
-        {canAssign ? (
+        {canDelete ? (
           <button type="button" onClick={() => onDelete(lead.id)} className="inline-flex h-9 items-center justify-center rounded-lg bg-rose-600 px-3 text-white transition hover:bg-rose-700" title="Delete lead">
             <Trash2 size={16} />
           </button>

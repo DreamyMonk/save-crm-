@@ -6,10 +6,13 @@ import { useMemo, useState } from "react";
 import { CrmShell, PageHeader } from "@/components/crm-shell";
 import { QuoteRecord } from "@/lib/crm-data";
 import { htmlToPlainText } from "@/lib/text";
+import { useCurrentTeamMember } from "@/lib/use-current-team-member";
 import { useCrmStore } from "@/lib/use-crm-store";
 
 export default function ProposalsPage() {
   const { state, setState } = useCrmStore();
+  const { member: currentMember } = useCurrentTeamMember(state.team);
+  const canDeleteProposals = isAdminMember(currentMember);
   const [proposalSearch, setProposalSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
   const [dateFilter, setDateFilter] = useState("All");
@@ -55,7 +58,7 @@ export default function ProposalsPage() {
   const changesCount = packageRows.filter((proposalPackage) => proposalPackage.changeRequestHtml).length;
 
   function deleteProposal(quote: QuoteRecord) {
-    if (!canDeleteProposal(quote)) return;
+    if (!canDeleteProposals || !canDeleteProposal(quote)) return;
     const confirmed = window.confirm(`Delete proposal ${quote.id}?`);
     if (!confirmed) return;
     setState((currentState) => ({
@@ -163,7 +166,7 @@ export default function ProposalsPage() {
                           <Link href={`/quotes/${quote.id}/proposal`} className="inline-flex h-9 items-center gap-2 rounded-lg bg-[#003CBB] px-3 text-xs font-semibold text-white">
                             <ExternalLink size={14} /> Open proposal
                           </Link>
-                          {canDeleteProposal(quote) ? (
+                          {canDeleteProposals && canDeleteProposal(quote) ? (
                             <button onClick={() => deleteProposal(quote)} className="inline-flex h-9 items-center gap-2 rounded-lg bg-rose-600 px-3 text-xs font-semibold text-white">
                               <Trash2 size={14} /> Delete
                             </button>
@@ -288,6 +291,10 @@ function proposalStatus(quote: QuoteRecord) {
 
 function canDeleteProposal(quote: QuoteRecord) {
   return !quote.proposalOpenedAt && !quote.customerSignedAt && !quote.proposalChangeRequestHtml;
+}
+
+function isAdminMember(member: { role: string } | null | undefined) {
+  return member?.role.trim().toLowerCase() === "admin";
 }
 
 function matchesStatusFilter(quote: QuoteRecord, statusFilter: string) {
