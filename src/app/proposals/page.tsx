@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ExternalLink, Search, X } from "lucide-react";
+import { ExternalLink, Search, Trash2, X } from "lucide-react";
 import { useMemo, useState } from "react";
 import { CrmShell, PageHeader } from "@/components/crm-shell";
 import { QuoteRecord } from "@/lib/crm-data";
@@ -9,7 +9,7 @@ import { htmlToPlainText } from "@/lib/text";
 import { useCrmStore } from "@/lib/use-crm-store";
 
 export default function ProposalsPage() {
-  const { state } = useCrmStore();
+  const { state, setState } = useCrmStore();
   const [proposalSearch, setProposalSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
   const [dateFilter, setDateFilter] = useState("All");
@@ -53,6 +53,22 @@ export default function ProposalsPage() {
   const openedCount = packageRows.filter((proposalPackage) => proposalPackage.openedAt).length;
   const signedCount = packageRows.filter((proposalPackage) => proposalPackage.signedAt).length;
   const changesCount = packageRows.filter((proposalPackage) => proposalPackage.changeRequestHtml).length;
+
+  function deleteProposal(quote: QuoteRecord) {
+    if (!canDeleteProposal(quote)) return;
+    const confirmed = window.confirm(`Delete proposal ${quote.id}?`);
+    if (!confirmed) return;
+    setState((currentState) => ({
+      ...currentState,
+      quotes: currentState.quotes.filter((item) => item.id !== quote.id),
+      proposalPackages: currentState.proposalPackages.filter((item) => item.quoteId !== quote.id),
+      invoices: currentState.invoices.filter((invoice) => invoice.id !== currentState.proposalPackages.find((item) => item.quoteId === quote.id)?.invoiceId),
+    }));
+    if (selectedQuoteId === quote.id) {
+      setSelectedQuoteId("");
+      setDetailsOpen(false);
+    }
+  }
 
   return (
     <CrmShell>
@@ -147,6 +163,11 @@ export default function ProposalsPage() {
                           <Link href={`/quotes/${quote.id}/proposal`} className="inline-flex h-9 items-center gap-2 rounded-lg bg-[#003CBB] px-3 text-xs font-semibold text-white">
                             <ExternalLink size={14} /> Open proposal
                           </Link>
+                          {canDeleteProposal(quote) ? (
+                            <button onClick={() => deleteProposal(quote)} className="inline-flex h-9 items-center gap-2 rounded-lg bg-rose-600 px-3 text-xs font-semibold text-white">
+                              <Trash2 size={14} /> Delete
+                            </button>
+                          ) : null}
                         </div>
                       </Td>
                     </tr>
@@ -263,6 +284,10 @@ function proposalStatus(quote: QuoteRecord) {
   if (quote.proposalOpenedAt) return "Opened";
   if (quote.proposalSentAt) return "Sent";
   return "Draft";
+}
+
+function canDeleteProposal(quote: QuoteRecord) {
+  return !quote.proposalOpenedAt && !quote.customerSignedAt && !quote.proposalChangeRequestHtml;
 }
 
 function matchesStatusFilter(quote: QuoteRecord, statusFilter: string) {

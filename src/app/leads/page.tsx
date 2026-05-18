@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ClipboardList, Plus, Search, Settings2 } from "lucide-react";
+import { ClipboardList, Plus, Search, Settings2, Trash2 } from "lucide-react";
 import { ButtonLink, CrmShell, PageHeader } from "@/components/crm-shell";
 import { Lead, LeadSource, currency } from "@/lib/crm-data";
 import { isDeliverableEmail, sendResendEmail } from "@/lib/send-email";
@@ -92,6 +92,25 @@ export default function LeadsPage() {
     }
   }
 
+  function deleteLead(leadId: string) {
+    if (!canManageAllLeads) {
+      setMessage("Only admins and lead coordinators can delete leads.");
+      return;
+    }
+    const lead = state.leads.find((item) => item.id === leadId);
+    if (!lead) return;
+    const confirmed = window.confirm(`Delete lead "${lead.title}"? Linked customers and invoices will stay, but the lead link will be removed.`);
+    if (!confirmed) return;
+    setState((currentState) => ({
+      ...currentState,
+      leads: currentState.leads.filter((item) => item.id !== leadId),
+      customers: currentState.customers.map((customer) => (customer.leadId === leadId ? { ...customer, leadId: undefined, updatedAt: new Date().toISOString() } : customer)),
+      invoices: currentState.invoices.map((invoice) => (invoice.leadId === leadId ? { ...invoice, leadId: undefined } : invoice)),
+      proposalPackages: currentState.proposalPackages.map((proposalPackage) => (proposalPackage.leadId === leadId ? { ...proposalPackage, leadId: undefined } : proposalPackage)),
+    }));
+    setMessage(`Lead ${lead.id} deleted.`);
+  }
+
   return (
     <CrmShell>
       <PageHeader
@@ -171,7 +190,7 @@ export default function LeadsPage() {
                 </div>
                 <div className="space-y-3 p-3">
                   {stageLeads.map((lead) => (
-                    <LeadCard key={lead.id} lead={lead} owner={state.team.find((member) => member.id === lead.assignedTo)?.name ?? "Unassigned"} members={assignable} canAssign={canManageAllLeads} onAssign={assignLead} />
+                    <LeadCard key={lead.id} lead={lead} owner={state.team.find((member) => member.id === lead.assignedTo)?.name ?? "Unassigned"} members={assignable} canAssign={canManageAllLeads} onAssign={assignLead} onDelete={deleteLead} />
                   ))}
                 </div>
               </section>
@@ -195,7 +214,7 @@ function isLeadAssignableMember(member: { active: boolean; name: string; role: s
   return member.active && (role.includes("sales") || role.includes("lead") || role.includes("admin") || member.modules.includes("leads") || member.modules.includes("dashboard"));
 }
 
-function LeadCard({ lead, owner, members, canAssign, onAssign }: { lead: Lead; owner: string; members: { id: string; name: string }[]; canAssign: boolean; onAssign: (leadId: string, memberId: string) => void }) {
+function LeadCard({ lead, owner, members, canAssign, onAssign, onDelete }: { lead: Lead; owner: string; members: { id: string; name: string }[]; canAssign: boolean; onAssign: (leadId: string, memberId: string) => void; onDelete: (leadId: string) => void }) {
   return (
     <article
       draggable
@@ -215,10 +234,15 @@ function LeadCard({ lead, owner, members, canAssign, onAssign }: { lead: Lead; o
         <span className="rounded-md bg-[#f6f8fc] px-2 py-1 font-semibold text-[#4f5e55]">{lead.leadSource ?? lead.source}</span>
         <span className="rounded-md bg-[#f6f8fc] px-2 py-1 font-semibold text-[#4f5e55]">{lead.salesPhase ?? "Enquiry"}</span>
       </div>
-      <div className="mt-3 border-t border-[#edf2e9] pt-3">
+      <div className="mt-3 flex items-center gap-2 border-t border-[#edf2e9] pt-3">
         <Link href={`/leads/${lead.id}/tasks`} className="inline-flex h-9 items-center justify-center rounded-lg border border-[#d7e3ff] bg-white text-[#003CBB] transition hover:bg-[#eef4ff]" title="Tasks and notes">
           <ClipboardList size={16} />
         </Link>
+        {canAssign ? (
+          <button type="button" onClick={() => onDelete(lead.id)} className="inline-flex h-9 items-center justify-center rounded-lg bg-rose-600 px-3 text-white transition hover:bg-rose-700" title="Delete lead">
+            <Trash2 size={16} />
+          </button>
+        ) : null}
       </div>
       {canAssign ? (
         <label className="mt-3 block text-xs font-semibold text-[#657267]">
