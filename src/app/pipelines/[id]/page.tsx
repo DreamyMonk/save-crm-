@@ -12,6 +12,7 @@ export default function PipelineOptionsPage() {
   const { state, setState } = useCrmStore();
   const [stageName, setStageName] = useState("");
   const [message, setMessage] = useState("");
+  const [stageDrafts, setStageDrafts] = useState<Record<string, string>>({});
   const pipeline = state.pipelines.find((item) => item.id === id);
 
   function addStage(event: FormEvent<HTMLFormElement>) {
@@ -36,17 +37,28 @@ export default function PipelineOptionsPage() {
 
   function updateStageName(stageId: string, value: string) {
     if (!pipeline) return;
+    const nextName = value.trim();
+    if (!nextName) {
+      setStageDrafts((drafts) => ({ ...drafts, [stageId]: pipeline.stages.find((stage) => stage.id === stageId)?.name ?? "" }));
+      setMessage("Stage name cannot be empty.");
+      return;
+    }
     setState((currentState) => ({
       ...currentState,
       pipelines: currentState.pipelines.map((item) =>
         item.id === pipeline.id
           ? {
               ...item,
-              stages: item.stages.map((stage) => (stage.id === stageId ? { ...stage, name: value } : stage)),
+              stages: item.stages.map((stage) => (stage.id === stageId ? { ...stage, name: nextName } : stage)),
             }
           : item,
       ),
     }));
+    setStageDrafts((drafts) => {
+      const nextDrafts = { ...drafts };
+      delete nextDrafts[stageId];
+      return nextDrafts;
+    });
     setMessage("Stage name updated.");
   }
 
@@ -126,7 +138,18 @@ export default function PipelineOptionsPage() {
                   </div>
                   <div className="mt-3 flex items-center gap-2">
                     <span className={`size-2.5 shrink-0 rounded-full ${stage.color}`} />
-                    <input value={stage.name} onChange={(event) => updateStageName(stage.id, event.target.value)} className="h-10 min-w-0 flex-1 rounded-lg border border-[#d7dfd0] px-3 text-sm font-semibold outline-none" />
+                    <input
+                      value={stageDrafts[stage.id] ?? stage.name}
+                      onChange={(event) => setStageDrafts((drafts) => ({ ...drafts, [stage.id]: event.target.value }))}
+                      onBlur={(event) => updateStageName(stage.id, event.target.value)}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter") {
+                          event.preventDefault();
+                          event.currentTarget.blur();
+                        }
+                      }}
+                      className="h-10 min-w-0 flex-1 rounded-lg border border-[#d7dfd0] px-3 text-sm font-semibold outline-none"
+                    />
                   </div>
                 </div>
               ))}
