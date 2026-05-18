@@ -68,6 +68,28 @@ export function RichTextEditor({ value, onChange, placeholder, minHeight = 220 }
   return (
     <div ref={containerRef} className="overflow-hidden rounded-lg border border-[#d7dfd0] bg-white">
       <div ref={editorRef} style={{ minHeight }} />
+      <style jsx global>{`
+        .ql-container.ql-snow,
+        .ql-toolbar.ql-snow {
+          background: #ffffff;
+          color: #0f172a;
+        }
+
+        .ql-editor,
+        .ql-editor p,
+        .ql-editor li,
+        .ql-editor span,
+        .ql-editor strong,
+        .ql-editor em,
+        .ql-editor u {
+          color: #0f172a !important;
+        }
+
+        .ql-editor.ql-blank::before {
+          color: #657267;
+          opacity: 1;
+        }
+      `}</style>
     </div>
   );
 }
