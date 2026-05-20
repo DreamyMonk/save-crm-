@@ -28,6 +28,10 @@ function normalizeState(state: CrmState): CrmState {
   const deletedTeamMemberKeys = removeLiveMemberKeysFromDeletedKeys(state.deletedTeamMemberKeys ?? [], rawNormalizedTeam);
   const deletedCustomerIds = Array.from(new Set(state.deletedCustomerIds ?? []));
   const deletedProductIds = Array.from(new Set(state.deletedProductIds ?? []));
+  const deletedLeadIds = Array.from(new Set(state.deletedLeadIds ?? []));
+  const deletedQuoteIds = Array.from(new Set(state.deletedQuoteIds ?? []));
+  const deletedProposalPackageIds = Array.from(new Set(state.deletedProposalPackageIds ?? []));
+  const deletedInvoiceIds = Array.from(new Set(state.deletedInvoiceIds ?? []));
   const normalizedTeam = mergeByUpdatedAccess(rawNormalizedTeam, [], deletedTeamMemberKeys);
   return {
     ...initialCrmState,
@@ -37,6 +41,10 @@ function normalizeState(state: CrmState): CrmState {
     deletedTeamMemberKeys,
     deletedCustomerIds,
     deletedProductIds,
+    deletedLeadIds,
+    deletedQuoteIds,
+    deletedProposalPackageIds,
+    deletedInvoiceIds,
     leads: (state.leads ?? initialCrmState.leads).map((lead) => ({
       ...lead,
       assignedTo: deprecatedTeamKeys.has(lead.assignedTo) ? "admin" : lead.assignedTo,
@@ -57,7 +65,7 @@ function normalizeState(state: CrmState): CrmState {
         callsAndVoicemail: false,
         inboundCallsAndSms: false,
       },
-    })),
+    })).filter((lead) => !deletedLeadIds.includes(lead.id)),
     customers: (state.customers ?? initialCrmState.customers)
       .filter((customer) => !deletedCustomerIds.includes(customer.id))
       .map((customer) => ({
@@ -69,9 +77,9 @@ function normalizeState(state: CrmState): CrmState {
         secondSalesAgent: isDeprecatedTeamName(customer.secondSalesAgent) ? "" : customer.secondSalesAgent,
       })),
     products: mergeProductsByLatestUpdate(state.products ?? [], initialCrmState.products).map(withDefaultProductImage).filter((product) => !deletedProductIds.includes(product.id)),
-    quotes: state.quotes ?? initialCrmState.quotes,
+    quotes: (state.quotes ?? initialCrmState.quotes).filter((quote) => !deletedQuoteIds.includes(quote.id)),
     proposalPackages: normalizeProposalPackages(state),
-    invoices: state.invoices ?? initialCrmState.invoices,
+    invoices: (state.invoices ?? initialCrmState.invoices).filter((invoice) => !deletedInvoiceIds.includes(invoice.id)),
     appointments: state.appointments ?? initialCrmState.appointments,
     settings: {
       ...initialCrmState.settings,
@@ -128,8 +136,10 @@ function normalizeSalesPhase(value: Lead["salesPhase"], stageId: string): LeadSa
 }
 
 function normalizeProposalPackages(state: CrmState) {
-  const quotes = state.quotes ?? initialCrmState.quotes;
-  const existingPackages = state.proposalPackages ?? [];
+  const deletedQuoteIds = new Set(state.deletedQuoteIds ?? []);
+  const deletedProposalPackageIds = new Set(state.deletedProposalPackageIds ?? []);
+  const quotes = (state.quotes ?? initialCrmState.quotes).filter((quote) => !deletedQuoteIds.has(quote.id));
+  const existingPackages = (state.proposalPackages ?? []).filter((proposalPackage) => !deletedProposalPackageIds.has(proposalPackage.id) && !deletedQuoteIds.has(proposalPackage.quoteId));
   const packageByQuote = new Map(existingPackages.map((proposalPackage) => [proposalPackage.quoteId, proposalPackage]));
   return quotes.map((quote) => packageFromQuote(quote, packageByQuote.get(quote.id), state));
 }
@@ -343,17 +353,26 @@ function mergeLocalCollections(remoteState: CrmState, localState: CrmState | nul
   const deletedTeamMemberKeys = mergeDeletedTeamMemberKeys(remoteState, localState);
   const deletedCustomerIds = mergeDeletedIds(remoteState.deletedCustomerIds, localState.deletedCustomerIds);
   const deletedProductIds = mergeDeletedIds(remoteState.deletedProductIds, localState.deletedProductIds);
+  const deletedLeadIds = mergeDeletedIds(remoteState.deletedLeadIds, localState.deletedLeadIds);
+  const deletedQuoteIds = mergeDeletedIds(remoteState.deletedQuoteIds, localState.deletedQuoteIds);
+  const deletedProposalPackageIds = mergeDeletedIds(remoteState.deletedProposalPackageIds, localState.deletedProposalPackageIds);
+  const deletedInvoiceIds = mergeDeletedIds(remoteState.deletedInvoiceIds, localState.deletedInvoiceIds);
   return {
     ...remoteState,
     deletedTeamMemberKeys,
     deletedCustomerIds,
     deletedProductIds,
+    deletedLeadIds,
+    deletedQuoteIds,
+    deletedProposalPackageIds,
+    deletedInvoiceIds,
     team: mergeByUpdatedAccess(remoteState.team, localState.team, deletedTeamMemberKeys),
-    leads: mergeLeadsByLatestUpdate(remoteState.leads, localState.leads),
+    leads: mergeLeadsByLatestUpdate(remoteState.leads, localState.leads).filter((lead) => !deletedLeadIds.includes(lead.id)),
     products: mergeProductsByLatestUpdate(remoteState.products, localState.products).filter((product) => !deletedProductIds.includes(product.id)),
     customers: mergeByLatestUpdate(remoteState.customers, localState.customers).filter((customer) => !deletedCustomerIds.includes(customer.id)),
-    quotes: mergeQuotesByLatestProposalActivity(remoteState.quotes, localState.quotes),
-    proposalPackages: mergeProposalPackagesByLatestActivity(remoteState.proposalPackages, localState.proposalPackages),
+    quotes: mergeQuotesByLatestProposalActivity(remoteState.quotes, localState.quotes).filter((quote) => !deletedQuoteIds.includes(quote.id)),
+    proposalPackages: mergeProposalPackagesByLatestActivity(remoteState.proposalPackages, localState.proposalPackages).filter((proposalPackage) => !deletedProposalPackageIds.includes(proposalPackage.id) && !deletedQuoteIds.includes(proposalPackage.quoteId)),
+    invoices: mergeInvoicesWithDeletedIds(remoteState.invoices, localState.invoices, deletedInvoiceIds),
   };
 }
 
@@ -506,6 +525,18 @@ function mergeDeletedIds(remoteIds: string[] | undefined, localIds: string[] | u
   return Array.from(new Set([...(remoteIds ?? []), ...(localIds ?? [])]));
 }
 
+function mergeInvoicesWithDeletedIds(remoteItems: CrmState["invoices"], localItems: CrmState["invoices"], deletedInvoiceIds: string[]) {
+  const deletedIds = new Set(deletedInvoiceIds);
+  const items = new Map<string, CrmState["invoices"][number]>();
+  for (const item of remoteItems) {
+    if (!deletedIds.has(item.id)) items.set(item.id, item);
+  }
+  for (const localItem of localItems) {
+    if (!deletedIds.has(localItem.id)) items.set(localItem.id, localItem);
+  }
+  return Array.from(items.values());
+}
+
 function mergeQuotesByLatestProposalActivity(remoteItems: QuoteRecord[], localItems: QuoteRecord[]) {
   const items = new Map<string, QuoteRecord>();
   for (const item of remoteItems) {
@@ -579,17 +610,26 @@ async function saveMergedState(state: CrmState) {
   );
   const deletedCustomerIds = mergeDeletedIds(remoteState.deletedCustomerIds, state.deletedCustomerIds);
   const deletedProductIds = mergeDeletedIds(remoteState.deletedProductIds, state.deletedProductIds);
+  const deletedLeadIds = mergeDeletedIds(remoteState.deletedLeadIds, state.deletedLeadIds);
+  const deletedQuoteIds = mergeDeletedIds(remoteState.deletedQuoteIds, state.deletedQuoteIds);
+  const deletedProposalPackageIds = mergeDeletedIds(remoteState.deletedProposalPackageIds, state.deletedProposalPackageIds);
+  const deletedInvoiceIds = mergeDeletedIds(remoteState.deletedInvoiceIds, state.deletedInvoiceIds);
   const mergedState = {
     ...state,
     deletedTeamMemberKeys,
     deletedCustomerIds,
     deletedProductIds,
+    deletedLeadIds,
+    deletedQuoteIds,
+    deletedProposalPackageIds,
+    deletedInvoiceIds,
     team: mergeByUpdatedAccess(remoteState.team, state.team, deletedTeamMemberKeys),
-    leads: mergeLeadsByLatestUpdate(remoteState.leads, state.leads),
+    leads: mergeLeadsByLatestUpdate(remoteState.leads, state.leads).filter((lead) => !deletedLeadIds.includes(lead.id)),
     products: (state.products.length === 0 && remoteState.products.length > 0 ? remoteState.products : mergeProductsByLatestUpdate(remoteState.products, state.products)).map(withDefaultProductImage).filter((product) => !deletedProductIds.includes(product.id)),
     customers: mergeByLatestUpdate(remoteState.customers, state.customers).filter((customer) => !deletedCustomerIds.includes(customer.id)),
-    quotes: state.quotes.length === 0 && remoteState.quotes.length > 0 ? remoteState.quotes : mergeQuotesByLatestProposalActivity(remoteState.quotes, state.quotes),
-    proposalPackages: state.proposalPackages.length === 0 && remoteState.proposalPackages.length > 0 ? remoteState.proposalPackages : mergeProposalPackagesByLatestActivity(remoteState.proposalPackages, state.proposalPackages),
+    quotes: (state.quotes.length === 0 && remoteState.quotes.length > 0 ? remoteState.quotes : mergeQuotesByLatestProposalActivity(remoteState.quotes, state.quotes)).filter((quote) => !deletedQuoteIds.includes(quote.id)),
+    proposalPackages: (state.proposalPackages.length === 0 && remoteState.proposalPackages.length > 0 ? remoteState.proposalPackages : mergeProposalPackagesByLatestActivity(remoteState.proposalPackages, state.proposalPackages)).filter((proposalPackage) => !deletedProposalPackageIds.includes(proposalPackage.id) && !deletedQuoteIds.includes(proposalPackage.quoteId)),
+    invoices: mergeInvoicesWithDeletedIds(remoteState.invoices, state.invoices, deletedInvoiceIds),
   };
   await writeRemoteState(mergedState);
   return mergedState;

@@ -104,6 +104,7 @@ export default function LeadsPage() {
     if (!confirmed) return;
     setState((currentState) => ({
       ...currentState,
+      deletedLeadIds: Array.from(new Set([...(currentState.deletedLeadIds ?? []), leadId])),
       leads: currentState.leads.filter((item) => item.id !== leadId),
       customers: currentState.customers.map((customer) => (customer.leadId === leadId ? { ...customer, leadId: undefined, updatedAt: new Date().toISOString() } : customer)),
       invoices: currentState.invoices.map((invoice) => (invoice.leadId === leadId ? { ...invoice, leadId: undefined } : invoice)),

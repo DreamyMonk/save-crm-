@@ -339,6 +339,10 @@ export type CrmState = {
   deletedTeamMemberKeys?: string[];
   deletedCustomerIds?: string[];
   deletedProductIds?: string[];
+  deletedLeadIds?: string[];
+  deletedQuoteIds?: string[];
+  deletedProposalPackageIds?: string[];
+  deletedInvoiceIds?: string[];
   invoices: Invoice[];
   appointments: Appointment[];
   settings: CrmSettings;

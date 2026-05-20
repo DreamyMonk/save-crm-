@@ -61,12 +61,18 @@ export default function ProposalsPage() {
     if (!canDeleteProposals || !canDeleteProposal(quote)) return;
     const confirmed = window.confirm(`Delete proposal ${quote.id}?`);
     if (!confirmed) return;
-    setState((currentState) => ({
-      ...currentState,
-      quotes: currentState.quotes.filter((item) => item.id !== quote.id),
-      proposalPackages: currentState.proposalPackages.filter((item) => item.quoteId !== quote.id),
-      invoices: currentState.invoices.filter((invoice) => invoice.id !== currentState.proposalPackages.find((item) => item.quoteId === quote.id)?.invoiceId),
-    }));
+    setState((currentState) => {
+      const linkedPackage = currentState.proposalPackages.find((item) => item.quoteId === quote.id);
+      return {
+        ...currentState,
+        deletedQuoteIds: Array.from(new Set([...(currentState.deletedQuoteIds ?? []), quote.id])),
+        deletedProposalPackageIds: linkedPackage ? Array.from(new Set([...(currentState.deletedProposalPackageIds ?? []), linkedPackage.id])) : currentState.deletedProposalPackageIds,
+        deletedInvoiceIds: linkedPackage?.invoiceId ? Array.from(new Set([...(currentState.deletedInvoiceIds ?? []), linkedPackage.invoiceId])) : currentState.deletedInvoiceIds,
+        quotes: currentState.quotes.filter((item) => item.id !== quote.id),
+        proposalPackages: currentState.proposalPackages.filter((item) => item.quoteId !== quote.id),
+        invoices: linkedPackage?.invoiceId ? currentState.invoices.filter((invoice) => invoice.id !== linkedPackage.invoiceId) : currentState.invoices,
+      };
+    });
     if (selectedQuoteId === quote.id) {
       setSelectedQuoteId("");
       setDetailsOpen(false);
