@@ -23,7 +23,18 @@ export function RichTextEditor({ value, onChange, placeholder, minHeight = 220 }
   const containerRef = useRef<HTMLDivElement | null>(null);
   const editorRef = useRef<HTMLDivElement | null>(null);
   const quillRef = useRef<Quill | null>(null);
-  const lastHtmlRef = useRef(value);
+  const onChangeRef = useRef(onChange);
+  const valueRef = useRef(value || "");
+  const lastHtmlRef = useRef(value || "");
+  const applyingValueRef = useRef(false);
+
+  useEffect(() => {
+    onChangeRef.current = onChange;
+  }, [onChange]);
+
+  useEffect(() => {
+    valueRef.current = value || "";
+  }, [value]);
 
   useEffect(() => {
     let mounted = true;
@@ -38,12 +49,15 @@ export function RichTextEditor({ value, onChange, placeholder, minHeight = 220 }
         modules: { toolbar },
       });
       quillRef.current = quill;
-      quill.clipboard.dangerouslyPasteHTML(value || "");
-      lastHtmlRef.current = value || "";
+      applyingValueRef.current = true;
+      quill.clipboard.dangerouslyPasteHTML(valueRef.current);
+      applyingValueRef.current = false;
+      lastHtmlRef.current = valueRef.current;
       quill.on("text-change", () => {
-        const html = quill.getSemanticHTML();
+        if (applyingValueRef.current) return;
+        const html = quill.root.innerHTML;
         lastHtmlRef.current = html;
-        onChange(html);
+        onChangeRef.current(html);
       });
     }
 
@@ -52,13 +66,15 @@ export function RichTextEditor({ value, onChange, placeholder, minHeight = 220 }
     return () => {
       mounted = false;
     };
-  }, [onChange, placeholder, value]);
+  }, [placeholder]);
 
   useEffect(() => {
     const quill = quillRef.current;
     if (!quill || value === lastHtmlRef.current) return;
     const selection = quill.getSelection();
+    applyingValueRef.current = true;
     quill.clipboard.dangerouslyPasteHTML(value || "");
+    applyingValueRef.current = false;
     lastHtmlRef.current = value || "";
     if (selection) {
       quill.setSelection(selection);
