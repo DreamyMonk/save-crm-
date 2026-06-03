@@ -343,14 +343,14 @@ function ProposalWorkspace({ publicView = false, allowAnonymous = false }: { pub
         }
       />
       {message ? <p className="mx-8 mt-4 rounded-lg bg-[#eef4ff] p-3 text-sm font-semibold text-[#003CBB]">{message}</p> : null}
-        <main className="bg-[#dfe6df] p-6">
+        <main className="bg-[#dfe6df] p-3 sm:p-6">
         <iframe
           ref={iframeRef}
           title="SavePlanet drafted proposal"
           srcDoc={proposalHtml}
-          className="mx-auto h-[calc(100vh-190px)] min-h-[760px] w-full max-w-[900px] rounded border border-[#c7d3e8] bg-white shadow-lg"
+          className="mx-auto h-[70vh] min-h-[560px] w-full max-w-[900px] rounded border border-[#c7d3e8] bg-white shadow-lg sm:h-[calc(100vh-190px)] sm:min-h-[760px]"
         />
-        {effectivePublicView ? <section className="mx-auto mt-5 grid max-w-[900px] gap-4 rounded-lg border border-[#d9e2f2] bg-white p-5 shadow-sm lg:grid-cols-[1fr_auto]">
+        {effectivePublicView ? <section className="mx-auto mt-5 grid max-w-[900px] gap-4 rounded-lg border border-[#d9e2f2] bg-white p-4 shadow-sm sm:p-5 lg:grid-cols-[1fr_auto]">
           <div>
             <div className="flex items-center gap-2">
               <PenLine size={18} />
@@ -773,10 +773,20 @@ function buildProposalHtml(template: string, quote: QuoteRecord, customer: Custo
       function fitProposalToPhone(){
         var screenWidth = window.innerWidth || document.documentElement.clientWidth || 0;
         var pageWidth = 794;
-        var scale = screenWidth && screenWidth < 820 ? Math.min(1, Math.max(0.42, (screenWidth - 24) / pageWidth)) : 1;
-        var pageGap = scale < 1 ? (-1123 * (1 - scale) + 18) + "px" : "24px";
+        var scale = screenWidth && screenWidth < 820 ? Math.min(1, Math.max(0.36, (screenWidth - 24) / pageWidth)) : 1;
+        var pageGap = scale < 1 ? "16px" : "24px";
         document.documentElement.style.setProperty("--proposal-mobile-scale", String(scale));
         document.documentElement.style.setProperty("--proposal-mobile-gap", pageGap);
+        document.querySelectorAll(".page,.cover,.ty-page").forEach(function(page){
+          var slot = page.parentElement && page.parentElement.classList.contains("proposal-scale-slot") ? page.parentElement : null;
+          if(!slot){
+            slot = document.createElement("div");
+            slot.className = "proposal-scale-slot";
+            page.parentNode.insertBefore(slot, page);
+            slot.appendChild(page);
+          }
+          slot.style.height = scale < 1 ? Math.ceil(page.offsetHeight * scale) + 16 + "px" : "";
+        });
       }
       fitProposalToPhone();
       window.addEventListener("resize", fitProposalToPhone);
@@ -787,10 +797,10 @@ function buildProposalHtml(template: string, quote: QuoteRecord, customer: Custo
   style.textContent = [
     "@page{size:A4;margin:0;}",
     "html,body{max-width:100%;overflow-x:hidden;}",
-    ".page{width:210mm!important;min-height:297mm!important;max-width:210mm!important;box-sizing:border-box!important;}",
-    "@media screen{body{background:#dfe6df!important;padding:20px 0!important;}.page{margin:0 auto 24px!important;box-shadow:0 14px 30px rgba(15,23,42,.14);}.page:last-child{margin-bottom:0!important;}}",
-    "@media screen and (max-width:820px){html,body{overflow-x:hidden!important;}body{padding:12px 0!important;}.page{transform:scale(var(--proposal-mobile-scale,1));transform-origin:top center;margin:0 auto var(--proposal-mobile-gap,18px)!important;min-height:297mm!important;}}",
-    "@media print{html,body{width:210mm!important;background:#fff!important;margin:0!important;padding:0!important;overflow:visible!important;}.page{width:210mm!important;min-height:297mm!important;margin:0!important;box-shadow:none!important;break-after:page;page-break-after:always;}.page:last-child{break-after:auto;page-break-after:auto;}}",
+    ".page,.cover,.ty-page{width:210mm!important;min-height:297mm!important;max-width:210mm!important;box-sizing:border-box!important;}",
+    "@media screen{body{background:#dfe6df!important;padding:20px 0!important;}.proposal-scale-slot{display:contents;}.page,.cover,.ty-page{margin:0 auto 24px!important;box-shadow:0 14px 30px rgba(15,23,42,.14);}.page:last-child,.cover:last-child,.ty-page:last-child{margin-bottom:0!important;}}",
+    "@media screen and (max-width:820px){html,body{width:100%!important;overflow-x:hidden!important;}body{padding:12px 0!important;}.proposal-scale-slot{display:block!important;width:100%!important;overflow:visible!important;}.page,.cover,.ty-page{display:block!important;width:210mm!important;max-width:210mm!important;min-width:210mm!important;height:297mm!important;min-height:297mm!important;transform:scale(var(--proposal-mobile-scale,1));transform-origin:top left;margin:0 0 0 50%!important;translate:-50% 0;}.page:last-child,.cover:last-child,.ty-page:last-child{margin-bottom:0!important;}}",
+    "@media print{html,body{width:210mm!important;background:#fff!important;margin:0!important;padding:0!important;overflow:visible!important;}.proposal-scale-slot{display:contents!important;}.page,.cover,.ty-page{width:210mm!important;min-height:297mm!important;margin:0!important;box-shadow:none!important;break-after:page;page-break-after:always;}.page:last-child,.cover:last-child,.ty-page:last-child{break-after:auto;page-break-after:auto;}}",
     ".cov-card-item span{display:block;max-width:100%;overflow-wrap:anywhere;line-height:1.35;}",
     ".cov-card{align-items:start;}",
     ".saved-customer-signature{display:block;max-width:320px;max-height:90px;margin:10px 0 6px;object-fit:contain;}",

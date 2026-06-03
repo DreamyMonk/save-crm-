@@ -23,6 +23,16 @@ const schemesByCategory: Record<string, string[]> = {
 const priceTiers = ["Contractor Price", "Retail Price", "Custom Price"];
 const installTiers = ["Tier 1 (Metro / Standard)", "Tier 2 (Regional)", "Tier 3 (Complex Install)", "Custom"];
 const baselineOptions = ["GAS Ducted Heater NO Air Con", "Gas heater + existing air con", "Electric resistance heater", "No existing system"];
+const roomOptions = ["Bedroom 1", "Bedroom 2", "Bedroom 3", "Bedroom 4", "Bedroom 5", "Guest Room", "Dining Room", "Family Room", "Kitchen"];
+const areaRangeOptions = ["0 - 4m2", "5 - 10m2", "11 - 15m2", "16 - 20m2", "21 - 25m2", "26 - 30m2", "31 - 35m2", "36 - 40m2", "41 - 45m2"];
+const indoorSystemTypes = ["Multi Head", "VRF"];
+const supplementalVrfIndoorHeads: Product[] = [
+  makeMideaVrfIndoorHead("AIR-MIDEA-VRF-IDU-28", "MIH34GHN18(AU)-A", "2.8"),
+  makeMideaVrfIndoorHead("AIR-MIDEA-VRF-IDU-36", "MIH42GHN18(AU)-A", "3.6"),
+  makeMideaVrfIndoorHead("AIR-MIDEA-VRF-IDU-45", "MIH51GHN18(AU)-A", "4.5"),
+  makeMideaVrfIndoorHead("AIR-MIDEA-VRF-IDU-56", "MIH64GHN18(AU)-A", "5.6"),
+  makeMideaVrfIndoorHead("AIR-MIDEA-VRF-IDU-80", "MIH93GHN18(AU)-A", "8.0"),
+];
 const fallbackProductCategories = ["All", "Aircon", "Heat Pump", "Solar", "Solar Battery", "Inverter"];
 const quoteTabs = [
   {
@@ -103,9 +113,10 @@ function QuotesWorkspace() {
   const [activityDate, setActivityDate] = useState("2026-05-02");
   const [baseline, setBaseline] = useState(baselineOptions[0]);
   const [outdoorModel, setOutdoorModel] = useState("");
+  const [indoorSystemType, setIndoorSystemType] = useState("VRF");
   const [headModel, setHeadModel] = useState("");
   const [headArea, setHeadArea] = useState("Bedroom 1");
-  const [headAreaM2, setHeadAreaM2] = useState(20);
+  const [headAreaM2Range, setHeadAreaM2Range] = useState("16 - 20m2");
   const [quantity, setQuantity] = useState(1);
   const [productPrice, setProductPrice] = useState(0);
   const [installPrice, setInstallPrice] = useState(0);
@@ -131,8 +142,14 @@ function QuotesWorkspace() {
   const activeSelectedCustomerId = customers.some((item) => item.id === selectedCustomerId) ? selectedCustomerId : (customers[0]?.id ?? "");
   const customer = customers.find((item) => item.id === activeSelectedCustomerId);
   const isAirconCategory = productCategory === "Aircon";
-  const selectedOutdoorModel = quoteProducts.some((product) => product.id === outdoorModel) ? outdoorModel : (quoteProducts[0]?.id ?? "");
-  const selectedHeadModel = quoteProducts.some((product) => product.id === headModel) ? headModel : (quoteProducts[0]?.id ?? "");
+  const outdoorUnitProducts = useMemo(() => quoteProducts.filter(isAirconOutdoorUnit), [quoteProducts]);
+  const indoorHeadProducts = useMemo(() => {
+    if (indoorSystemType === "VRF") return supplementalVrfIndoorHeads;
+    const multiHeadProducts = quoteProducts.filter(isAirconMultiHeadProduct);
+    return multiHeadProducts.length ? multiHeadProducts : quoteProducts.filter((product) => product.productConfiguration?.toLowerCase().includes("multiple split"));
+  }, [indoorSystemType, quoteProducts]);
+  const selectedOutdoorModel = outdoorUnitProducts.some((product) => product.id === outdoorModel) ? outdoorModel : (outdoorUnitProducts[0]?.id ?? "");
+  const selectedHeadModel = indoorHeadProducts.some((product) => product.id === headModel) ? headModel : (indoorHeadProducts[0]?.id ?? "");
   const selectedProductModel = quoteProducts.some((product) => product.id === headModel) ? headModel : (quoteProducts[0]?.id ?? "");
   const isSolarCategory = productCategory === "Solar" || productCategory === "Inverter" || productCategory === "Solar Battery";
   const isHeatPumpCategory = productCategory === "Heat Pump";
@@ -238,8 +255,9 @@ function QuotesWorkspace() {
       setItems(quote.items);
       const indoor = quote.items.find((item) => item.role === "Indoor Head") ?? firstItem;
       setBaseline(quote.items.find((item) => item.role === "Outdoor Unit")?.area ?? baselineOptions[0]);
+      setIndoorSystemType(indoor?.productConfiguration?.toLowerCase().includes("variable refrigerant flow") ? "VRF" : "Multi Head");
       setHeadArea(indoor?.area ?? "Bedroom 1");
-      setHeadAreaM2(indoor?.areaM2 ?? 20);
+      setHeadAreaM2Range(areaRangeFromM2(indoor?.areaM2 ?? 20));
       setQuantity(indoor?.quantity ?? 1);
       setProductPrice(indoor?.productPrice ?? 0);
       setInstallPrice(indoor?.installPrice ?? 0);
@@ -299,7 +317,7 @@ function QuotesWorkspace() {
   }, [editQuoteId, state.quotes]);
 
   function addOutdoor() {
-    const product = quoteProducts.find((item) => item.id === selectedOutdoorModel);
+    const product = outdoorUnitProducts.find((item) => item.id === selectedOutdoorModel);
     if (!product) {
       setMessage("Import or select a product first.");
       return;
@@ -312,17 +330,20 @@ function QuotesWorkspace() {
   }
 
   function addHead() {
-    if (items.filter((item) => item.role === "Indoor Head").length >= 4) {
-      setMessage("Maximum 4 indoor heads allowed.");
-      return;
-    }
-    const product = quoteProducts.find((item) => item.id === selectedHeadModel);
+    const product = indoorHeadProducts.find((item) => item.id === selectedHeadModel);
     if (!product) {
       setMessage("Import or select a product first.");
       return;
     }
-    setItems((current) => [...current, lineFromProduct(product, "Indoor Head", headArea, headAreaM2, quantity, productPrice || product.price, installPrice, certificates, "Indoor + outdoor combined system price")]);
-    setMessage(`${product.model ?? product.productName} added with combined indoor/outdoor system price.`);
+    const areaM2 = areaRangeToM2(headAreaM2Range);
+    setItems((current) => [
+      ...current,
+      {
+        ...lineFromProduct(product, "Indoor Head", headArea, areaM2, 1, productPrice || product.price, installPrice, certificates, `${indoorSystemType} indoor head for ${headAreaM2Range}`),
+        id: `Indoor-Head-${product.id}-${headArea.replace(/\s/g, "-")}-${current.length + 1}`,
+      },
+    ]);
+    setMessage(`${product.model ?? product.productName} added for ${headArea}.`);
   }
 
   function addProductLine() {
@@ -643,21 +664,24 @@ function QuotesWorkspace() {
               ) : isAirconCategory ? (
                 <>
                   <ModuleCard title="Outdoor Unit" badge="Required">
-                    <Select label="Outdoor Unit (always outside)" value={selectedOutdoorModel} options={quoteProducts.map((item) => item.id)} labelFor={(value) => productLabel(productById(quoteProducts, value))} onChange={setOutdoorModel} />
+                    <Select label="Outdoor Unit" value={selectedOutdoorModel} options={outdoorUnitProducts.map((item) => item.id)} labelFor={(value) => airconProductLabel(productById(outdoorUnitProducts, value), "outdoor")} onChange={setOutdoorModel} />
                     <button onClick={addOutdoor} className="h-10 rounded-lg bg-[#003CBB] px-4 text-sm font-semibold text-white">Add selected as outdoor unit</button>
                   </ModuleCard>
-                  <ModuleCard title="Indoor Heads" badge="At least one required">
+                  <ModuleCard title="Indoor Heads" badge="Unlimited rooms">
                     <div className="grid gap-3 md:grid-cols-2">
-                      <Select label="Product Configuration" value={activeProductConfiguration} options={productConfigurationOptions} onChange={setProductConfiguration} />
-                      <Select label="Indoor Head (up to 4)" value={selectedHeadModel} options={quoteProducts.map((item) => item.id)} labelFor={(value) => productLabel(productById(quoteProducts, value))} onChange={setHeadModel} />
+                      <Select label="Indoor System" value={indoorSystemType} options={indoorSystemTypes} onChange={(value) => { setIndoorSystemType(value); setHeadModel(""); }} />
+                      <Select label="Indoor Head" value={selectedHeadModel} options={indoorHeadProducts.map((item) => item.id)} labelFor={(value) => airconProductLabel(productById(indoorHeadProducts, value), "indoor")} onChange={setHeadModel} />
                       <Select label="Original Equipment" value={baseline} options={baselineOptions} onChange={setBaseline} />
-                      <Input label="Area" value={headArea} onChange={(event) => setHeadArea(event.target.value)} />
-                      <NumberInput label="Area (m2)" value={headAreaM2} onChange={setHeadAreaM2} />
-                      <NumberInput label="Upgrade Quantity" value={quantity} onChange={setQuantity} />
+                      <Select label="Room" value={headArea} options={roomOptions} onChange={setHeadArea} />
+                      <Select label="Area (m2)" value={headAreaM2Range} options={areaRangeOptions} onChange={setHeadAreaM2Range} />
+                    </div>
+                    <button onClick={addHead} className="h-10 rounded-lg bg-[#003CBB] px-4 text-sm font-semibold text-white">Add room</button>
+                  </ModuleCard>
+                  <ModuleCard title="Cost" badge="Pricing">
+                    <div className="grid gap-3 md:grid-cols-2">
                       <NumberInput label="Combined indoor + outdoor price (per unit), $" value={productPrice} onChange={setProductPrice} />
                       <NumberInput label="Install Cost, $" value={installPrice} onChange={setInstallPrice} />
                     </div>
-                    <button onClick={addHead} className="h-10 rounded-lg bg-[#003CBB] px-4 text-sm font-semibold text-white">Add combined system line</button>
                   </ModuleCard>
                   <ModuleCard title="Rebate" badge="VEU + Custom">
                     <div className="grid gap-3 md:grid-cols-2">
@@ -714,6 +738,7 @@ function QuotesWorkspace() {
               <span className="mt-1 block font-semibold text-[#003CBB]">{activeQuoteTab.templateName}</span>
             </a>
             <div className="mt-5 divide-y divide-[#e5edf7] text-sm">
+              <AddedProductList items={quoteDraft.items} addons={addons} />
               <SummaryRow label="Products" value={currency(quoteDraft.items.reduce((sum, item) => sum + item.productPrice * item.quantity, 0))} />
               <SummaryRow label="Installation" value={currency(quoteDraft.items.reduce((sum, item) => sum + item.installPrice * item.quantity, 0))} />
               <SummaryRow label="Additional costs" value={currency(addons.reduce((sum, item) => sum + item.productPrice * item.quantity, 0))} />
@@ -740,6 +765,50 @@ function QuotesWorkspace() {
       </div>
     </CrmShell>
   );
+}
+
+function makeMideaVrfIndoorHead(id: string, model: string, capacityKw: string): Product {
+  return {
+    id,
+    category: "Aircon",
+    productClass: "6F",
+    productName: model,
+    brandName: "Midea",
+    model,
+    productType: "Non-Ducted",
+    productConfiguration: "Multiple split - variable refrigerant flow",
+    productUnitMount: "Wall Hung",
+    heatingCapacity: capacityKw,
+    coolingCapacity: capacityKw,
+    refrigerant: "R-410A",
+    status: "Approved",
+    imageUrl: "",
+    description: `Midea VRF ${capacityKw} kW indoor unit`,
+    price: 0,
+  };
+}
+
+function isAirconOutdoorUnit(product: Product) {
+  const configuration = product.productConfiguration?.toLowerCase() ?? "";
+  const model = (product.model ?? product.productName).toLowerCase();
+  return configuration.includes("multiple split") && !model.includes("mih") && !model.includes("idu");
+}
+
+function isAirconMultiHeadProduct(product: Product) {
+  const configuration = product.productConfiguration?.toLowerCase() ?? "";
+  return configuration.includes("multiple split") && !configuration.includes("variable refrigerant flow");
+}
+
+function areaRangeToM2(range: string) {
+  const matches = range.match(/\d+/g)?.map(Number) ?? [];
+  return matches.length ? matches[matches.length - 1] : 0;
+}
+
+function areaRangeFromM2(areaM2: number) {
+  return areaRangeOptions.find((option) => {
+    const matches = option.match(/\d+/g)?.map(Number) ?? [];
+    return matches.length >= 2 && areaM2 >= matches[0] && areaM2 <= matches[1];
+  }) ?? areaRangeOptions[0];
 }
 
 function lineFromProduct(product: Product, role: QuoteLineItem["role"], area: string, areaM2: number, quantity: number, productPrice: number, installPrice: number, certificates: number, notes: string): QuoteLineItem {
@@ -868,6 +937,25 @@ function productLabel(product?: Product) {
   return product ? `${product.brandName} ${product.model ?? product.productName}` : "";
 }
 
+function airconProductLabel(product: Product | undefined, role: "outdoor" | "indoor") {
+  if (!product) return "";
+  const model = product.model ?? product.productName;
+  const capacity = formatKw(product.heatingCapacity);
+  if (role === "outdoor" && product.productConfiguration?.toLowerCase().includes("variable refrigerant flow")) {
+    return `${product.brandName} - ${capacity} KW MULTI VRF- ${model}`;
+  }
+  if (role === "indoor" && product.productConfiguration?.toLowerCase().includes("variable refrigerant flow")) {
+    return `${product.brandName} - 24.4 KW VRF ${capacity} KW IDU - ${model}`;
+  }
+  return `${product.brandName} - ${capacity} KW ${model}`;
+}
+
+function formatKw(value?: string) {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return "0";
+  return numeric.toFixed(1);
+}
+
 function unique(values: string[]) {
   const cleaned = Array.from(new Set(values.filter(Boolean)));
   return cleaned.length ? cleaned : ["Select product"];
@@ -915,6 +1003,32 @@ function SummaryRow({ label, value, strong = false, discount = false }: { label:
     <div className={`flex items-center justify-between gap-4 py-3 ${strong ? "font-semibold text-[#0f172a]" : "text-[#657267]"} ${discount ? "text-emerald-700" : ""}`}>
       <span>{label}</span>
       <span className="font-semibold tabular-nums text-[#0f172a]">{value}</span>
+    </div>
+  );
+}
+
+function AddedProductList({ items, addons }: { items: QuoteLineItem[]; addons: QuoteLineItem[] }) {
+  const allItems = [...items, ...addons];
+  return (
+    <div className="py-3">
+      <div className="flex items-center justify-between gap-3">
+        <span className="font-semibold text-[#0f172a]">Added Product List</span>
+        <span className="text-xs font-semibold text-[#657267]">{allItems.length} added</span>
+      </div>
+      {allItems.length ? (
+        <div className="mt-3 space-y-2">
+          {allItems.map((item) => (
+            <div key={item.id} className="rounded-lg border border-[#e5edf7] bg-[#f8fbff] p-2.5">
+              <p className="line-clamp-2 text-sm font-semibold text-[#0f172a]">{item.brand} {item.model}</p>
+              <p className="mt-1 text-xs text-[#657267]">
+                {item.role} - {item.area || "Whole home"}{item.areaM2 ? ` - ${item.areaM2} m2` : ""} - Qty {item.quantity}
+              </p>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <p className="mt-2 text-xs text-[#657267]">No products added yet.</p>
+      )}
     </div>
   );
 }
