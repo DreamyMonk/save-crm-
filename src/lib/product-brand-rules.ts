@@ -1,6 +1,6 @@
 import { ProductCategory } from "@/lib/crm-data";
 
-const airconBrands = ["Midea", "Emerald", "Mitsubishi", "Daikin", "Eco genica", "Rinnai"];
+const airconBrands = ["Midea", "Emerald", "Mitsubishi", "Daikin", "Eco genica", "Rinnai", "Carrier", "Panasonic", "Hisense"];
 const heatPumpBrands = ["Powerbay", "Emerald", "Neo power", "Midea", "Eco genica"];
 const solarSystemBrands = ["Fox", "Goodwe", "So far", "Pylontech", "Solix"];
 
@@ -25,6 +25,9 @@ const brandAliases: Record<string, string[]> = {
   Mitsubishi: ["mitsubishi", "mitsubishielectric", "mitsubishiheavyindustries"],
   Daikin: ["daikin"],
   Rinnai: ["rinnai"],
+  Carrier: ["carrier"],
+  Panasonic: ["panasonic"],
+  Hisense: ["hisense"],
 };
 
 export function allowedBrandsForCategory(category: string) {

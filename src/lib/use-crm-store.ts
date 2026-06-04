@@ -3,13 +3,14 @@
 import { Dispatch, SetStateAction, useCallback, useEffect, useRef, useState } from "react";
 import { collection, doc, getDoc, getDocs, onSnapshot, writeBatch } from "firebase/firestore";
 import { withDefaultProductImage } from "./aircon-product-images";
-import { CrmState, Lead, LeadSalesPhase, LeadSource, ModuleKey, ProposalPackage, QuoteRecord, initialCrmState } from "./crm-data";
+import { CrmState, Lead, LeadSalesPhase, LeadSource, ModuleKey, ProductCategory, ProposalPackage, QuoteRecord, initialCrmState } from "./crm-data";
 import { getFirebaseDb } from "./firebase";
 
 const storageKey = "saveplanet-crm-state-v2";
 const crmDocumentPath = ["crmWorkspaces", "default"] as const;
 const crmChunksPath = ["crmWorkspaces", "default", "stateChunks"] as const;
 const stateChunkSize = 650_000;
+const seedProductReplacementCategories = new Set<ProductCategory>(["Aircon", "Heat Pump"]);
 
 type SyncState = "loading" | "firebase" | "local" | "saving";
 
@@ -169,13 +170,13 @@ function packageFromQuote(quote: QuoteRecord, existingPackage: ProposalPackage |
     assignedAgent: customer?.salesAgent || existingPackage?.assignedAgent || "vinay dhanekula",
     substituteAgent: customer?.secondSalesAgent || existingPackage?.substituteAgent,
     sentBy: quote.proposalSentBy ?? existingPackage?.sentBy,
-    sentAt: quote.proposalSentAt ?? existingPackage?.sentAt,
-    openedAt: quote.proposalOpenedAt ?? existingPackage?.openedAt,
-    openCount: quote.proposalOpenCount ?? existingPackage?.openCount ?? 0,
-    signedAt: quote.customerSignedAt ?? existingPackage?.signedAt,
-    signatureDataUrl: quote.customerSignatureDataUrl ?? existingPackage?.signatureDataUrl,
-    changeRequestHtml: quote.proposalChangeRequestHtml ?? existingPackage?.changeRequestHtml,
-    changeRequestedAt: quote.proposalChangeRequestedAt ?? existingPackage?.changeRequestedAt,
+    sentAt: quote.proposalSentAt,
+    openedAt: quote.proposalOpenedAt,
+    openCount: quote.proposalOpenCount ?? 0,
+    signedAt: quote.customerSignedAt,
+    signatureDataUrl: quote.customerSignatureDataUrl,
+    changeRequestHtml: quote.proposalChangeRequestHtml,
+    changeRequestedAt: quote.proposalChangeRequestedAt,
     lastActivityAt: quote.customerSignedAt ?? quote.proposalChangeRequestedAt ?? quote.proposalOpenedAt ?? quote.proposalSentAt ?? quote.activityDate,
   };
 }
@@ -518,7 +519,11 @@ function uniqueConflictId(baseId: string, usedIds: Set<string>) {
 }
 
 function mergeProductsByLatestUpdate(remoteItems: CrmState["products"], localItems: CrmState["products"]) {
-  return mergeByLatestUpdate(remoteItems, localItems);
+  const isReplacementCategory = (category: string) => seedProductReplacementCategories.has(category as ProductCategory);
+  const replacementProducts = initialCrmState.products.filter((product) => isReplacementCategory(product.category));
+  const remoteProducts = remoteItems.filter((product) => !isReplacementCategory(product.category));
+  const localProducts = localItems.filter((product) => !isReplacementCategory(product.category));
+  return [...replacementProducts, ...mergeByLatestUpdate(remoteProducts, localProducts)];
 }
 
 function mergeDeletedIds(remoteIds: string[] | undefined, localIds: string[] | undefined) {

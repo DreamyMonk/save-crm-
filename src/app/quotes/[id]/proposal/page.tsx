@@ -85,14 +85,16 @@ function ProposalWorkspace({ publicView = false, allowAnonymous = false }: { pub
   const hasSavedSignature = Boolean(quote?.customerSignatureDataUrl || quote?.customerSignedAt);
   const changeRequestHtml = quote ? (changeRequestDrafts[quote.id] ?? quote.proposalChangeRequestHtml ?? "") : "";
   const persistQuoteUpdate = useCallback((updatedQuote: QuoteRecord, invoiceAmount?: number) => {
-    const nextCustomer = state.customers.find((item) => item.id === updatedQuote.customerId);
-    const packageRecord = state.proposalPackages.find((item) => item.quoteId === updatedQuote.id || item.publicToken === updatedQuote.id);
-    const invoice = invoiceAmount === undefined
-      ? undefined
-      : invoiceFromQuote(updatedQuote, nextCustomer, invoiceAmount, updatedQuote.proposalSentBy || packageRecord?.sentBy || nextCustomer?.salesAgent || "SavePlanet Team");
-    setState(syncProposalCollections(state, updatedQuote, nextCustomer, invoice));
+    setState((currentState) => {
+      const nextCustomer = currentState.customers.find((item) => item.id === updatedQuote.customerId);
+      const packageRecord = currentState.proposalPackages.find((item) => item.quoteId === updatedQuote.id || item.publicToken === updatedQuote.id);
+      const invoice = invoiceAmount === undefined
+        ? undefined
+        : invoiceFromQuote(updatedQuote, nextCustomer, invoiceAmount, updatedQuote.proposalSentBy || packageRecord?.sentBy || nextCustomer?.salesAgent || "SavePlanet Team");
+      return syncProposalCollections(currentState, updatedQuote, nextCustomer, invoice);
+    });
     window.localStorage.setItem(`saveplanet-quote-${updatedQuote.id}`, JSON.stringify(updatedQuote));
-  }, [setState, state]);
+  }, [setState]);
 
   useEffect(() => {
     if (!quote || !calculations) return;
@@ -750,6 +752,7 @@ function buildProposalHtml(template: string, quote: QuoteRecord, customer: Custo
   if (bankReference) bankReference.textContent = quote.id;
 
   applyModernProposalTemplateData(doc, quote, customer, calculations);
+  replaceQuoteNumberPlaceholders(doc, quote.id);
 
   if (quote.customerSignatureDataUrl) {
     doc.querySelectorAll(".sig-fld.full").forEach((field) => {
@@ -866,6 +869,19 @@ function applyModernProposalTemplateData(doc: Document, quote: QuoteRecord, cust
   if (totals) totals.innerHTML = modernTotalsMarkup(quote, calculations);
 
   applyModernSignature(doc, quote, customer);
+}
+
+function replaceQuoteNumberPlaceholders(doc: Document, quoteId: string) {
+  doc.querySelectorAll<HTMLElement>("body *").forEach((element) => {
+    if (element.children.length) return;
+    const text = element.textContent?.trim() ?? "";
+    if (/^(SP-_{2,}|Q-\d+)$/i.test(text)) {
+      element.textContent = quoteId;
+    }
+    if (/^Quote\s*#\s*(SP-_{2,}|Q-\d+)$/i.test(text)) {
+      element.textContent = `Quote # ${quoteId}`;
+    }
+  });
 }
 
 function setModernBillingLines(box: Element | undefined, rows: Array<[string, string]>) {

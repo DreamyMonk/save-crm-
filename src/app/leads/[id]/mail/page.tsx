@@ -55,10 +55,10 @@ export default function LeadMailPage() {
       direction: "Out",
       createdAt: new Date().toLocaleString("en-AU"),
     };
-    setState({
-      ...state,
-      leads: state.leads.map((item) => (item.id === lead.id ? { ...item, updatedAt: new Date().toISOString(), mails: [...item.mails, mail] } : item)),
-    });
+    setState((currentState) => ({
+      ...currentState,
+      leads: currentState.leads.map((item) => (item.id === lead.id ? { ...item, updatedAt: new Date().toISOString(), mails: [...item.mails, mail] } : item)),
+    }));
     setBody("");
     setMessage("Outgoing email sent.");
   }

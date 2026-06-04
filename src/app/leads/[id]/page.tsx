@@ -84,10 +84,10 @@ export default function LeadDetailPage() {
 
   function updateLead(updates: Partial<Lead>) {
     const updatedAt = new Date().toISOString();
-    setState({
-      ...state,
-      leads: state.leads.map((item) => (item.id === leadId ? { ...item, ...updates, updatedAt } : item)),
-    });
+    setState((currentState) => ({
+      ...currentState,
+      leads: currentState.leads.map((item) => (item.id === leadId ? { ...item, ...updates, updatedAt } : item)),
+    }));
   }
 
   function updatePreference(field: keyof CommunicationPreferences, value: boolean) {

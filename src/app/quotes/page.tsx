@@ -139,14 +139,18 @@ function QuotesWorkspace() {
   const [message, setMessage] = useState("");
   const [currentQuoteId, setCurrentQuoteId] = useState("");
   const editQuoteId = searchParams.get("edit") ?? "";
+  const isEditingQuote = Boolean(editQuoteId);
   const activeSelectedCustomerId = customers.some((item) => item.id === selectedCustomerId) ? selectedCustomerId : (customers[0]?.id ?? "");
   const customer = customers.find((item) => item.id === activeSelectedCustomerId);
   const isAirconCategory = productCategory === "Aircon";
   const outdoorUnitProducts = useMemo(() => quoteProducts.filter(isAirconOutdoorUnit), [quoteProducts]);
   const indoorHeadProducts = useMemo(() => {
-    if (indoorSystemType === "VRF") return supplementalVrfIndoorHeads;
+    if (indoorSystemType === "VRF") {
+      const vrfIndoorProducts = quoteProducts.filter(isAirconVrfIndoorProduct);
+      return vrfIndoorProducts.length ? vrfIndoorProducts : supplementalVrfIndoorHeads;
+    }
     const multiHeadProducts = quoteProducts.filter(isAirconMultiHeadProduct);
-    return multiHeadProducts.length ? multiHeadProducts : quoteProducts.filter((product) => product.productConfiguration?.toLowerCase().includes("multiple split"));
+    return multiHeadProducts.length ? multiHeadProducts : quoteProducts.filter(isAirconIndoorProduct);
   }, [indoorSystemType, quoteProducts]);
   const selectedOutdoorModel = outdoorUnitProducts.some((product) => product.id === outdoorModel) ? outdoorModel : (outdoorUnitProducts[0]?.id ?? "");
   const selectedHeadModel = indoorHeadProducts.some((product) => product.id === headModel) ? headModel : (indoorHeadProducts[0]?.id ?? "");
@@ -233,6 +237,7 @@ function QuotesWorkspace() {
     const nextCustomer = customers.find((item) => item.id === customerId);
     setSelectedCustomerId(customerId);
     setDescription(nextCustomer?.name || nextCustomer?.businessName || "");
+    if (!isEditingQuote) setCurrentQuoteId("");
   }
 
   function loadQuoteForEditing(quote: QuoteRecord) {
@@ -516,7 +521,13 @@ function QuotesWorkspace() {
       setMessage(`Select at least one ${isSolarCategory ? "solar" : "heat pump"} product before generating the invoice.`);
       return;
     }
-    const existingQuote = !forceNew && currentQuoteId ? state.quotes.find((quote) => quote.id === currentQuoteId) : undefined;
+    const currentQuote = currentQuoteId ? state.quotes.find((quote) => quote.id === currentQuoteId) : undefined;
+    const canReuseCurrentQuote = Boolean(
+      !forceNew &&
+      currentQuote &&
+      (isEditingQuote || (currentQuote.status === "Draft" && !currentQuote.proposalSentAt && !currentQuote.customerSignedAt)),
+    );
+    const existingQuote = canReuseCurrentQuote ? currentQuote : undefined;
     const quoteId = existingQuote?.id ?? nextQuoteId(state.quotes);
     const builtQuote = buildQuote(status, quoteId, draft);
     const existingSubmitted = Boolean(existingQuote?.proposalSentAt || existingQuote?.proposalOpenedAt || existingQuote?.customerSignedAt || existingQuote?.customerSignatureDataUrl || existingQuote?.proposalChangeRequestHtml);
@@ -535,7 +546,10 @@ function QuotesWorkspace() {
           customerSignedAt: status === "Draft" ? undefined : existingQuote.customerSignedAt,
         }
       : builtQuote;
-    setState(syncProposalCollections(state, quote, customer));
+    setState((currentState) => {
+      const nextCustomer = currentState.customers.find((item) => item.id === customer.id) ?? customer;
+      return syncProposalCollections(currentState, quote, nextCustomer);
+    });
     window.localStorage.setItem(`saveplanet-quote-${quote.id}`, JSON.stringify(quote));
     setCurrentQuoteId(quote.id);
     setMessage(status === "Draft" ? "Draft proposal saved. Signature and send tracking were cleared for this revision." : existingQuote ? "Quote updated." : forceNew ? "New quote saved." : "Quote saved.");
@@ -791,12 +805,27 @@ function makeMideaVrfIndoorHead(id: string, model: string, capacityKw: string): 
 function isAirconOutdoorUnit(product: Product) {
   const configuration = product.productConfiguration?.toLowerCase() ?? "";
   const model = (product.model ?? product.productName).toLowerCase();
-  return configuration.includes("multiple split") && !model.includes("mih") && !model.includes("idu");
+  const name = product.productName.toLowerCase();
+  const mount = product.productUnitMount?.toLowerCase() ?? "";
+  const outdoorMarked = name.includes("outdoor") || mount.includes("outdoor");
+  const indoorMarked = name.includes("indoor") || mount.includes("wall hung") || model.includes("mih") || model.includes("hin") || model.includes("42qag") || model.includes("cs-rz") || model.includes("msz-");
+  return outdoorMarked || (!indoorMarked && (configuration.includes("multiple split") || product.productType === "Ducted"));
+}
+
+function isAirconIndoorProduct(product: Product) {
+  const name = product.productName.toLowerCase();
+  const mount = product.productUnitMount?.toLowerCase() ?? "";
+  return name.includes("indoor") || mount.includes("wall hung");
+}
+
+function isAirconVrfIndoorProduct(product: Product) {
+  const configuration = product.productConfiguration?.toLowerCase() ?? "";
+  return configuration.includes("variable refrigerant flow") && isAirconIndoorProduct(product);
 }
 
 function isAirconMultiHeadProduct(product: Product) {
   const configuration = product.productConfiguration?.toLowerCase() ?? "";
-  return configuration.includes("multiple split") && !configuration.includes("variable refrigerant flow");
+  return configuration.includes("multiple split") && !configuration.includes("variable refrigerant flow") && isAirconIndoorProduct(product);
 }
 
 function areaRangeToM2(range: string) {

@@ -1,4 +1,4 @@
-import { CrmState, Customer, Invoice, ProductCategory, ProposalPackage, QuoteRecord } from "./crm-data";
+import { CrmState, Customer, Invoice, Lead, ProductCategory, ProposalPackage, QuoteRecord } from "./crm-data";
 
 export function proposalStatusFromQuote(quote: QuoteRecord): ProposalPackage["status"] {
   if (quote.customerSignedAt) return "Signed";
@@ -28,13 +28,13 @@ export function proposalPackageFromQuote(quote: QuoteRecord, customer?: Customer
     assignedAgent: customer?.salesAgent || existingPackage?.assignedAgent || "vinay dhanekula",
     substituteAgent: customer?.secondSalesAgent || existingPackage?.substituteAgent,
     sentBy: quote.proposalSentBy ?? existingPackage?.sentBy,
-    sentAt: quote.proposalSentAt ?? existingPackage?.sentAt,
-    openedAt: quote.proposalOpenedAt ?? existingPackage?.openedAt,
-    openCount: quote.proposalOpenCount ?? existingPackage?.openCount ?? 0,
-    signedAt: quote.customerSignedAt ?? existingPackage?.signedAt,
-    signatureDataUrl: quote.customerSignatureDataUrl ?? existingPackage?.signatureDataUrl,
-    changeRequestHtml: quote.proposalChangeRequestHtml ?? existingPackage?.changeRequestHtml,
-    changeRequestedAt: quote.proposalChangeRequestedAt ?? existingPackage?.changeRequestedAt,
+    sentAt: quote.proposalSentAt,
+    openedAt: quote.proposalOpenedAt,
+    openCount: quote.proposalOpenCount ?? 0,
+    signedAt: quote.customerSignedAt,
+    signatureDataUrl: quote.customerSignatureDataUrl,
+    changeRequestHtml: quote.proposalChangeRequestHtml,
+    changeRequestedAt: quote.proposalChangeRequestedAt,
     lastActivityAt: quote.customerSignedAt ?? quote.proposalChangeRequestedAt ?? quote.proposalOpenedAt ?? quote.proposalSentAt ?? quote.activityDate,
   };
 }
@@ -77,16 +77,101 @@ export function invoiceFromQuote(quote: QuoteRecord, customer: Customer | undefi
 }
 
 export function syncProposalCollections(state: CrmState, quote: QuoteRecord, customer: Customer | undefined, invoice?: Invoice): CrmState {
+  const previousQuote = state.quotes.find((item) => item.id === quote.id);
   return {
     ...state,
     quotes: state.quotes.some((item) => item.id === quote.id)
       ? state.quotes.map((item) => (item.id === quote.id ? quote : item))
       : [quote, ...state.quotes],
     proposalPackages: upsertProposalPackage(state.proposalPackages ?? [], quote, customer, invoice?.id),
+    leads: updateLinkedLeadForProposal(state, quote, previousQuote, customer),
     invoices: invoice
       ? state.invoices.some((item) => item.id === invoice.id)
         ? state.invoices.map((item) => (item.id === invoice.id ? invoice : item))
         : [invoice, ...state.invoices]
       : state.invoices,
   };
+}
+
+function updateLinkedLeadForProposal(state: CrmState, quote: QuoteRecord, previousQuote: QuoteRecord | undefined, customer: Customer | undefined) {
+  const leadId = customer?.leadId;
+  if (!leadId) return state.leads;
+  const previousStatus = previousQuote ? proposalStatusFromQuote(previousQuote) : "Draft";
+  const nextStatus = proposalStatusFromQuote(quote);
+  return state.leads.map((lead) => {
+    if (lead.id !== leadId) return lead;
+    const updates = leadUpdatesForProposalStatus(lead, nextStatus);
+    if (!updates && previousStatus === nextStatus) return lead;
+    const updatedAt = proposalActivityDate(quote) ?? new Date().toISOString();
+    const activitySummary = `Proposal ${quote.id} status: ${nextStatus}.`;
+    const alreadyLogged = (lead.activities ?? []).some((activity) => activity.summary === activitySummary);
+    return {
+      ...lead,
+      ...(updates ?? {}),
+      updatedAt,
+      activities: alreadyLogged
+        ? lead.activities ?? []
+        : [
+            {
+              id: `A-${lead.id}-${(lead.activities ?? []).length + 1}`,
+              type: "Proposal" as const,
+              summary: activitySummary,
+              outcome: proposalActivityOutcome(nextStatus),
+              createdAt: updatedAt,
+              createdBy: quote.proposalSentBy || "SavePlanet CRM",
+            },
+            ...(lead.activities ?? []),
+          ],
+    };
+  });
+}
+
+function leadUpdatesForProposalStatus(lead: Lead, status: ProposalPackage["status"]): Partial<Lead> | undefined {
+  if (status === "Signed") {
+    return {
+      salesPhase: "Signed won",
+      stageId: leadStageForStatus(lead, "Signed") ?? lead.stageId,
+      probability: Math.max(lead.probability ?? 0, 100),
+    };
+  }
+  if (status === "Sent" || status === "Opened") {
+    return {
+      salesPhase: "Proposal sent",
+      stageId: leadStageForStatus(lead, "Sent") ?? lead.stageId,
+      probability: Math.max(lead.probability ?? 0, 70),
+    };
+  }
+  if (status === "Changes requested") {
+    return {
+      salesPhase: "Proposal pending",
+      stageId: leadStageForStatus(lead, "Changes requested") ?? lead.stageId,
+    };
+  }
+  return undefined;
+}
+
+function leadStageForStatus(lead: Lead, status: ProposalPackage["status"]) {
+  if (lead.pipelineId === "sales") {
+    if (status === "Signed") return "closed";
+    if (status === "Sent" || status === "Opened") return "proposal";
+    if (status === "Changes requested") return "quote-pending";
+  }
+  if (lead.pipelineId === "solar") {
+    if (status === "Signed") return "install";
+    if (status === "Sent" || status === "Opened") return "quote";
+    if (status === "Changes requested") return "approval";
+  }
+  return undefined;
+}
+
+function proposalActivityOutcome(status: ProposalPackage["status"]) {
+  if (status === "Signed") return "Customer signed the proposal.";
+  if (status === "Opened") return "Customer opened the proposal link.";
+  if (status === "Sent") return "Proposal email was sent to the customer.";
+  if (status === "Changes requested") return "Customer requested proposal changes.";
+  return "Proposal returned to draft.";
+}
+
+function proposalActivityDate(quote: QuoteRecord) {
+  return quote.customerSignedAt ?? quote.proposalChangeRequestedAt ?? quote.proposalOpenedAt ?? quote.proposalSentAt ?? quote.proposalUpdatedAt;
 }

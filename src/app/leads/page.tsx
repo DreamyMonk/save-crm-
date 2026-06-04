@@ -49,10 +49,10 @@ export default function LeadsPage() {
     const targetLead = state.leads.find((lead) => lead.id === leadId);
     if (!targetLead || !canAccessLead(currentMember, targetLead)) return;
     const updatedAt = new Date().toISOString();
-    setState({
-      ...state,
-      leads: state.leads.map((lead) => (lead.id === leadId ? { ...lead, stageId, updatedAt } : lead)),
-    });
+    setState((currentState) => ({
+      ...currentState,
+      leads: currentState.leads.map((lead) => (lead.id === leadId ? { ...lead, stageId, updatedAt } : lead)),
+    }));
   }
 
   async function assignLead(leadId: string, memberId: string) {
@@ -64,23 +64,29 @@ export default function LeadsPage() {
     const member = state.team.find((item) => item.id === memberId);
     if (!lead || !member) return;
     const assignedAt = new Date().toISOString();
-    const nextLead: Lead = {
-      ...lead,
-      updatedAt: assignedAt,
-      assignedTo: memberId,
-      activities: [
-        {
-          id: `A-${lead.id}-${(lead.activities ?? []).length + 1}`,
-          type: "Note",
-          summary: `Lead assigned to ${member.name}.`,
-          outcome: "Allocation updated by admin.",
-          createdAt: assignedAt,
-          createdBy: "Admin",
-        },
-        ...(lead.activities ?? []),
-      ],
-    };
-    setState({ ...state, leads: state.leads.map((item) => (item.id === leadId ? nextLead : item)) });
+    setState((currentState) => ({
+      ...currentState,
+      leads: currentState.leads.map((item) =>
+        item.id === leadId
+          ? {
+              ...item,
+              updatedAt: assignedAt,
+              assignedTo: memberId,
+              activities: [
+                {
+                  id: `A-${item.id}-${(item.activities ?? []).length + 1}`,
+                  type: "Note",
+                  summary: `Lead assigned to ${member.name}.`,
+                  outcome: "Allocation updated by admin.",
+                  createdAt: assignedAt,
+                  createdBy: "Admin",
+                },
+                ...(item.activities ?? []),
+              ],
+            }
+          : item,
+      ),
+    }));
     if (isDeliverableEmail(member.email)) {
       const sent = await sendResendEmail(state, {
         recipients: [{ email: member.email!, name: member.name }],
