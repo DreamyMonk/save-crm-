@@ -142,7 +142,10 @@ function normalizeProposalPackages(state: CrmState) {
   const quotes = (state.quotes ?? initialCrmState.quotes).filter((quote) => !deletedQuoteIds.has(quote.id));
   const existingPackages = (state.proposalPackages ?? []).filter((proposalPackage) => !deletedProposalPackageIds.has(proposalPackage.id) && !deletedQuoteIds.has(proposalPackage.quoteId));
   const packageByQuote = new Map(existingPackages.map((proposalPackage) => [proposalPackage.quoteId, proposalPackage]));
-  return quotes.map((quote) => packageFromQuote(quote, packageByQuote.get(quote.id), state));
+  const quotePackages = quotes.map((quote) => packageFromQuote(quote, packageByQuote.get(quote.id), state));
+  const quoteIds = new Set(quotes.map((quote) => quote.id));
+  const orphanPackages = existingPackages.filter((proposalPackage) => !quoteIds.has(proposalPackage.quoteId));
+  return [...quotePackages, ...orphanPackages];
 }
 
 function packageFromQuote(quote: QuoteRecord, existingPackage: ProposalPackage | undefined, state: CrmState): ProposalPackage {

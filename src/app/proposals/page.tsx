@@ -4,10 +4,27 @@ import Link from "next/link";
 import { ExternalLink, Search, Trash2, X } from "lucide-react";
 import { useMemo, useState } from "react";
 import { CrmShell, PageHeader } from "@/components/crm-shell";
-import { QuoteRecord } from "@/lib/crm-data";
+import { ProposalPackage, QuoteRecord } from "@/lib/crm-data";
 import { htmlToPlainText } from "@/lib/text";
 import { useCurrentTeamMember } from "@/lib/use-current-team-member";
 import { useCrmStore } from "@/lib/use-crm-store";
+
+type ProposalRow = {
+  quote?: QuoteRecord;
+  proposalPackage?: ProposalPackage;
+  quoteId: string;
+  customerName: string;
+  agent: string;
+  proposalName: string;
+  status: ProposalPackage["status"];
+  sentAt?: string;
+  openedAt?: string;
+  openCount: number;
+  signedAt?: string;
+  changeRequestHtml?: string;
+  changeRequestedAt?: string;
+  activityDate?: string;
+};
 
 export default function ProposalsPage() {
   const { state, setState } = useCrmStore();
@@ -22,28 +39,59 @@ export default function ProposalsPage() {
   const [detailsOpen, setDetailsOpen] = useState(false);
   const proposalRows = useMemo(() => {
     const term = proposalSearch.trim().toLowerCase();
-    return state.quotes
-      .map((quote) => {
-        const customer = state.customers.find((item) => item.id === quote.customerId);
-        const proposalPackage = state.proposalPackages.find((item) => item.quoteId === quote.id);
-        const agent = quote.proposalSentBy || customer?.salesAgent || "Not sent";
+    const packageByQuote = new Map(state.proposalPackages.map((proposalPackage) => [proposalPackage.quoteId, proposalPackage]));
+    const quoteIds = new Set(state.quotes.map((quote) => quote.id));
+    const quoteRows: ProposalRow[] = state.quotes.map((quote) => {
+      const customer = state.customers.find((item) => item.id === quote.customerId);
+      const proposalPackage = packageByQuote.get(quote.id);
+      const agent = quote.proposalSentBy || proposalPackage?.sentBy || proposalPackage?.assignedAgent || customer?.salesAgent || "Not sent";
+      const customerName = customer?.name || customer?.businessName || "Unknown customer";
+      const proposalName = quote.description || quote.id;
+      return {
+        quote,
+        proposalPackage,
+        quoteId: quote.id,
+        agent,
+        customerName,
+        proposalName,
+        status: proposalPackage?.status ?? proposalStatus(quote),
+        sentAt: quote.proposalSentAt ?? proposalPackage?.sentAt,
+        openedAt: quote.proposalOpenedAt ?? proposalPackage?.openedAt,
+        openCount: quote.proposalOpenCount ?? proposalPackage?.openCount ?? 0,
+        signedAt: quote.customerSignedAt ?? proposalPackage?.signedAt,
+        changeRequestHtml: quote.proposalChangeRequestHtml ?? proposalPackage?.changeRequestHtml,
+        changeRequestedAt: quote.proposalChangeRequestedAt ?? proposalPackage?.changeRequestedAt,
+        activityDate: proposalActivityDate(quote) ?? proposalPackage?.lastActivityAt,
+      };
+    });
+    const packageRows: ProposalRow[] = state.proposalPackages
+      .filter((proposalPackage) => !quoteIds.has(proposalPackage.quoteId))
+      .map((proposalPackage) => {
+        const customer = state.customers.find((item) => item.id === proposalPackage.customerId);
         const customerName = customer?.name || customer?.businessName || "Unknown customer";
-        const proposalName = quote.description || quote.id;
+        const categoryLabel = proposalPackage.productCategory ? `${proposalPackage.productCategory} proposal` : "Proposal";
         return {
-          quote,
           proposalPackage,
-          agent,
+          quoteId: proposalPackage.quoteId,
           customerName,
-          proposalName,
-          status: proposalPackage?.status ?? proposalStatus(quote),
+          agent: proposalPackage.sentBy || proposalPackage.assignedAgent || customer?.salesAgent || "Not sent",
+          proposalName: categoryLabel,
+          status: proposalPackage.status,
+          sentAt: proposalPackage.sentAt,
+          openedAt: proposalPackage.openedAt,
+          openCount: proposalPackage.openCount ?? 0,
+          signedAt: proposalPackage.signedAt,
+          changeRequestHtml: proposalPackage.changeRequestHtml,
+          changeRequestedAt: proposalPackage.changeRequestedAt,
+          activityDate: proposalPackage.lastActivityAt,
         };
-      })
-      .filter(({ quote, customerName, agent, proposalName }) => {
-        const matchesSearch = !term || [quote.id, proposalName, agent, customerName].join(" ").toLowerCase().includes(term);
-        return matchesSearch && matchesStatusFilter(quote, statusFilter) && matchesDateFilter(quote, dateFilter, rangeStart, rangeEnd);
       });
+    return [...quoteRows, ...packageRows].filter((row) => {
+      const matchesSearch = !term || [row.quoteId, row.proposalName, row.agent, row.customerName].join(" ").toLowerCase().includes(term);
+      return matchesSearch && matchesStatusFilter(row, statusFilter) && matchesDateFilter(row, dateFilter, rangeStart, rangeEnd);
+    });
   }, [dateFilter, proposalSearch, rangeEnd, rangeStart, state.customers, state.proposalPackages, state.quotes, statusFilter]);
-  const selectedRow = proposalRows.find((row) => row.quote.id === selectedQuoteId) ?? proposalRows[0];
+  const selectedRow = proposalRows.find((row) => row.quoteId === selectedQuoteId) ?? proposalRows[0];
   const packageRows = state.proposalPackages.length
     ? state.proposalPackages
     : state.quotes.map((quote) => ({
@@ -148,32 +196,36 @@ export default function ProposalsPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {proposalRows.map(({ quote, customerName, agent, proposalName, status }) => (
-                    <tr key={quote.id} className={`border-t border-[#e5edf7] ${selectedRow?.quote.id === quote.id ? "bg-[#eef4ff]" : ""}`}>
+                  {proposalRows.map((row) => (
+                    <tr key={row.quoteId} className={`border-t border-[#e5edf7] ${selectedRow?.quoteId === row.quoteId ? "bg-[#eef4ff]" : ""}`}>
                       <Td>
-                        <button onClick={() => { setSelectedQuoteId(quote.id); setDetailsOpen(true); }} className="text-left">
-                          <span className="block font-semibold text-[#0f172a]">{proposalName}</span>
-                          <span className="text-xs font-medium text-[#003CBB]">{quote.id}</span>
+                        <button onClick={() => { setSelectedQuoteId(row.quoteId); setDetailsOpen(true); }} className="text-left">
+                          <span className="block font-semibold text-[#0f172a]">{row.proposalName}</span>
+                          <span className="text-xs font-medium text-[#003CBB]">{row.quoteId}</span>
                         </button>
                       </Td>
-                      <Td>{customerName}</Td>
-                      <Td>{agent}</Td>
-                      <Td><StatusPill status={status} /></Td>
-                      <Td>{formatDateTime(quote.proposalSentAt)}</Td>
-                      <Td>{formatDateTime(quote.proposalOpenedAt)}</Td>
-                      <Td>{quote.proposalOpenCount ?? 0}</Td>
-                      <Td>{formatDateTime(quote.customerSignedAt)}</Td>
-                      <Td>{quote.proposalChangeRequestHtml ? formatDateTime(quote.proposalChangeRequestedAt) : "-"}</Td>
+                      <Td>{row.customerName}</Td>
+                      <Td>{row.agent}</Td>
+                      <Td><StatusPill status={row.status} /></Td>
+                      <Td>{formatDateTime(row.sentAt)}</Td>
+                      <Td>{formatDateTime(row.openedAt)}</Td>
+                      <Td>{row.openCount}</Td>
+                      <Td>{formatDateTime(row.signedAt)}</Td>
+                      <Td>{row.changeRequestHtml ? formatDateTime(row.changeRequestedAt) : "-"}</Td>
                       <Td>
                         <div className="flex items-center gap-2">
-                          <button onClick={() => { setSelectedQuoteId(quote.id); setDetailsOpen(true); }} className="inline-flex h-9 items-center rounded-lg border border-[#c7d3e8] px-3 text-xs font-semibold text-[#003CBB]">
+                          <button onClick={() => { setSelectedQuoteId(row.quoteId); setDetailsOpen(true); }} className="inline-flex h-9 items-center rounded-lg border border-[#c7d3e8] px-3 text-xs font-semibold text-[#003CBB]">
                             View
                           </button>
-                          <Link href={`/quotes/${quote.id}/proposal`} className="inline-flex h-9 items-center gap-2 rounded-lg bg-[#003CBB] px-3 text-xs font-semibold text-white">
-                            <ExternalLink size={14} /> Open proposal
-                          </Link>
-                          {canDeleteProposals && canDeleteProposal(quote) ? (
-                            <button onClick={() => deleteProposal(quote)} className="inline-flex h-9 items-center gap-2 rounded-lg bg-rose-600 px-3 text-xs font-semibold text-white">
+                          {row.quote ? (
+                            <Link href={`/quotes/${row.quoteId}/proposal`} className="inline-flex h-9 items-center gap-2 rounded-lg bg-[#003CBB] px-3 text-xs font-semibold text-white">
+                              <ExternalLink size={14} /> Open proposal
+                            </Link>
+                          ) : (
+                            <span className="inline-flex h-9 items-center rounded-lg bg-slate-100 px-3 text-xs font-semibold text-slate-500">Saved status only</span>
+                          )}
+                          {row.quote && canDeleteProposals && canDeleteProposal(row.quote) ? (
+                            <button onClick={() => { if (row.quote) deleteProposal(row.quote); }} className="inline-flex h-9 items-center gap-2 rounded-lg bg-rose-600 px-3 text-xs font-semibold text-white">
                               <Trash2 size={14} /> Delete
                             </button>
                           ) : null}
@@ -204,21 +256,27 @@ export default function ProposalsPage() {
                 </button>
               </div>
               <div className="flex-1 space-y-4 overflow-y-auto p-5">
-                <Detail label="Proposal" value={`${selectedRow.proposalName} (${selectedRow.quote.id})`} />
-                <Detail label="Package" value={selectedRow.proposalPackage?.id ?? `PP-${selectedRow.quote.id}`} />
+                <Detail label="Proposal" value={`${selectedRow.proposalName} (${selectedRow.quoteId})`} />
+                <Detail label="Package" value={selectedRow.proposalPackage?.id ?? `PP-${selectedRow.quoteId}`} />
                 <Detail label="Invoice" value={selectedRow.proposalPackage?.invoiceId ?? "Not generated yet"} />
                 <Detail label="Customer" value={selectedRow.customerName} />
                 <Detail label="Agent" value={selectedRow.agent} />
                 <Detail label="Substitute agent" value={selectedRow.proposalPackage?.substituteAgent || "Not assigned"} />
                 <Detail label="Status" value={selectedRow.status} />
-                <Link href={`/quotes/${selectedRow.quote.id}/proposal`} className="inline-flex h-10 items-center gap-2 rounded-lg bg-[#003CBB] px-4 text-sm font-semibold text-white">
-                  <ExternalLink size={16} /> Open proposal
-                </Link>
+                {selectedRow.quote ? (
+                  <Link href={`/quotes/${selectedRow.quoteId}/proposal`} className="inline-flex h-10 items-center gap-2 rounded-lg bg-[#003CBB] px-4 text-sm font-semibold text-white">
+                    <ExternalLink size={16} /> Open proposal
+                  </Link>
+                ) : (
+                  <p className="rounded-lg border border-dashed border-[#c7d3e8] bg-[#f8fbff] p-3 text-sm text-[#657267]">
+                    Proposal status is saved, but the quote detail is not available on this device yet.
+                  </p>
+                )}
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[#657267]">Client changes</p>
-                  {selectedRow.quote.proposalChangeRequestHtml ? (
+                  {selectedRow.changeRequestHtml ? (
                     <div className="mt-2 max-h-[420px] overflow-auto whitespace-pre-wrap rounded-lg border border-[#d9e2f2] bg-[#f8fbff] p-4 text-sm leading-6 text-[#0f172a]">
-                      {htmlToPlainText(selectedRow.quote.proposalChangeRequestHtml)}
+                      {htmlToPlainText(selectedRow.changeRequestHtml)}
                     </div>
                   ) : (
                     <p className="mt-2 rounded-lg border border-dashed border-[#c7d3e8] bg-[#f8fbff] p-4 text-sm text-[#657267]">No change request submitted yet.</p>
@@ -303,20 +361,20 @@ function isAdminMember(member: { role: string } | null | undefined) {
   return member?.role.trim().toLowerCase() === "admin";
 }
 
-function matchesStatusFilter(quote: QuoteRecord, statusFilter: string) {
+function matchesStatusFilter(row: ProposalRow, statusFilter: string) {
   if (statusFilter === "All") return true;
-  if (statusFilter === "Signed") return Boolean(quote.customerSignedAt);
-  if (statusFilter === "Opened") return Boolean(quote.proposalOpenedAt) && !quote.customerSignedAt && !quote.proposalChangeRequestHtml;
-  if (statusFilter === "Not opened") return Boolean(quote.proposalSentAt) && !quote.proposalOpenedAt;
-  if (statusFilter === "Changes requested") return Boolean(quote.proposalChangeRequestHtml);
-  if (statusFilter === "Sent") return Boolean(quote.proposalSentAt) && !quote.proposalOpenedAt && !quote.customerSignedAt && !quote.proposalChangeRequestHtml;
-  if (statusFilter === "Draft") return !quote.proposalSentAt;
+  if (statusFilter === "Signed") return Boolean(row.signedAt) || row.status === "Signed";
+  if (statusFilter === "Opened") return (Boolean(row.openedAt) || row.status === "Opened") && !row.signedAt && !row.changeRequestHtml;
+  if (statusFilter === "Not opened") return Boolean(row.sentAt) && !row.openedAt;
+  if (statusFilter === "Changes requested") return Boolean(row.changeRequestHtml) || row.status === "Changes requested";
+  if (statusFilter === "Sent") return (Boolean(row.sentAt) || row.status === "Sent") && !row.openedAt && !row.signedAt && !row.changeRequestHtml;
+  if (statusFilter === "Draft") return !row.sentAt && row.status === "Draft";
   return true;
 }
 
-function matchesDateFilter(quote: QuoteRecord, dateFilter: string, rangeStart: string, rangeEnd: string) {
+function matchesDateFilter(row: ProposalRow, dateFilter: string, rangeStart: string, rangeEnd: string) {
   if (dateFilter === "All") return true;
-  const value = proposalActivityDate(quote);
+  const value = row.activityDate;
   if (!value) return false;
   const timestamp = new Date(value).getTime();
   if (Number.isNaN(timestamp)) return false;
