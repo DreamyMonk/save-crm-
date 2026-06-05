@@ -1,16 +1,21 @@
 "use client";
 
 import Link from "next/link";
+import type { DragEvent } from "react";
 import { ClipboardList, Plus, Search, Settings2, Trash2 } from "lucide-react";
 import { ButtonLink, CrmShell, PageHeader } from "@/components/crm-shell";
 import { Lead, LeadSource, currency } from "@/lib/crm-data";
 import { isDeliverableEmail, sendResendEmail } from "@/lib/send-email";
 import { canAccessLead, canManageLeads, useCurrentTeamMember } from "@/lib/use-current-team-member";
 import { useCrmStore } from "@/lib/use-crm-store";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 export default function LeadsPage() {
   const { state, setState } = useCrmStore();
+  const boardRef = useRef<HTMLDivElement | null>(null);
+  const dragActiveRef = useRef(false);
+  const dragClientXRef = useRef<number | null>(null);
+  const autoScrollFrameRef = useRef<number | null>(null);
   const [pipelineId, setPipelineId] = useState(() => initialPipelineIdFromUrl() || state.pipelines[0]?.id || "");
   const [search, setSearch] = useState("");
   const [owner, setOwner] = useState("all");
@@ -20,6 +25,14 @@ export default function LeadsPage() {
   const { member: currentMember, ready: memberReady } = useCurrentTeamMember(state.team);
   const canManageAllLeads = canManageLeads(currentMember);
   const canDeleteLeads = isAdminMember(currentMember);
+
+  useEffect(() => {
+    return () => {
+      if (autoScrollFrameRef.current !== null) {
+        window.cancelAnimationFrame(autoScrollFrameRef.current);
+      }
+    };
+  }, []);
 
   const activePipeline = state.pipelines.find((pipeline) => pipeline.id === pipelineId) ?? state.pipelines[0];
   const assignable = useMemo(() => {
@@ -53,6 +66,55 @@ export default function LeadsPage() {
       ...currentState,
       leads: currentState.leads.map((lead) => (lead.id === leadId ? { ...lead, stageId, updatedAt } : lead)),
     }));
+  }
+
+  function startLeadDrag(event: DragEvent<HTMLElement>, leadId: string) {
+    event.dataTransfer.setData("leadId", leadId);
+    event.dataTransfer.effectAllowed = "move";
+    dragActiveRef.current = true;
+    updateBoardAutoScroll(event.clientX);
+  }
+
+  function stopLeadDrag() {
+    dragActiveRef.current = false;
+    dragClientXRef.current = null;
+    if (autoScrollFrameRef.current !== null) {
+      window.cancelAnimationFrame(autoScrollFrameRef.current);
+      autoScrollFrameRef.current = null;
+    }
+  }
+
+  function handleBoardDragOver(event: DragEvent<HTMLDivElement>) {
+    event.preventDefault();
+    if (dragActiveRef.current) updateBoardAutoScroll(event.clientX);
+  }
+
+  function updateBoardAutoScroll(clientX: number) {
+    dragClientXRef.current = clientX;
+    if (autoScrollFrameRef.current === null) {
+      autoScrollFrameRef.current = window.requestAnimationFrame(runBoardAutoScroll);
+    }
+  }
+
+  function runBoardAutoScroll() {
+    autoScrollFrameRef.current = null;
+    const board = boardRef.current;
+    const clientX = dragClientXRef.current;
+    if (!dragActiveRef.current || !board || clientX === null) return;
+    const rect = board.getBoundingClientRect();
+    const edgeSize = Math.min(140, Math.max(80, rect.width * 0.16));
+    let velocity = 0;
+
+    if (clientX < rect.left + edgeSize) {
+      velocity = -scrollVelocity(rect.left + edgeSize - clientX, edgeSize);
+    } else if (clientX > rect.right - edgeSize) {
+      velocity = scrollVelocity(clientX - (rect.right - edgeSize), edgeSize);
+    }
+
+    if (velocity !== 0) {
+      board.scrollLeft += velocity;
+    }
+    autoScrollFrameRef.current = window.requestAnimationFrame(runBoardAutoScroll);
   }
 
   async function assignLead(leadId: string, memberId: string) {
@@ -175,7 +237,7 @@ export default function LeadsPage() {
           </div>
         </div>
         {message ? <p className="rounded-lg bg-[#eef4ff] p-3 text-sm font-semibold text-[#003CBB]">{message}</p> : null}
-        <div className="grid auto-cols-[340px] grid-flow-col gap-4 overflow-x-auto pb-4">
+        <div ref={boardRef} onDragOver={handleBoardDragOver} className="grid auto-cols-[340px] grid-flow-col gap-4 overflow-x-auto overscroll-x-contain pb-4">
           {activePipeline?.stages.map((stage) => {
             const stageLeads = visibleLeads.filter((lead) => lead.stageId === stage.id);
             const stageAmount = stageLeads.reduce((sum, lead) => sum + lead.amount, 0);
@@ -183,7 +245,10 @@ export default function LeadsPage() {
               <section
                 key={stage.id}
                 onDragOver={(event) => event.preventDefault()}
-                onDrop={(event) => moveLead(event.dataTransfer.getData("leadId"), stage.id)}
+                onDrop={(event) => {
+                  moveLead(event.dataTransfer.getData("leadId"), stage.id);
+                  stopLeadDrag();
+                }}
                 className="min-h-[620px] rounded-lg border border-[#d7e3ff] bg-white shadow-sm"
               >
                 <div className="border-b border-[#e6edff] bg-[#f7faff] p-4">
@@ -198,7 +263,7 @@ export default function LeadsPage() {
                 </div>
                 <div className="space-y-3 p-3">
                   {stageLeads.map((lead) => (
-                    <LeadCard key={lead.id} lead={lead} owner={state.team.find((member) => member.id === lead.assignedTo)?.name ?? "Unassigned"} members={assignable} canAssign={canManageAllLeads} canDelete={canDeleteLeads} onAssign={assignLead} onDelete={deleteLead} />
+                    <LeadCard key={lead.id} lead={lead} owner={state.team.find((member) => member.id === lead.assignedTo)?.name ?? "Unassigned"} members={assignable} canAssign={canManageAllLeads} canDelete={canDeleteLeads} onAssign={assignLead} onDelete={deleteLead} onDragStart={startLeadDrag} onDragEnd={stopLeadDrag} />
                   ))}
                 </div>
               </section>
@@ -226,11 +291,37 @@ function isAdminMember(member: { role: string } | null | undefined) {
   return member?.role.trim().toLowerCase() === "admin";
 }
 
-function LeadCard({ lead, owner, members, canAssign, canDelete, onAssign, onDelete }: { lead: Lead; owner: string; members: { id: string; name: string }[]; canAssign: boolean; canDelete: boolean; onAssign: (leadId: string, memberId: string) => void; onDelete: (leadId: string) => void }) {
+function scrollVelocity(distanceIntoEdge: number, edgeSize: number) {
+  const strength = Math.min(1, Math.max(0, distanceIntoEdge / edgeSize));
+  return Math.ceil(6 + strength * 22);
+}
+
+function LeadCard({
+  lead,
+  owner,
+  members,
+  canAssign,
+  canDelete,
+  onAssign,
+  onDelete,
+  onDragStart,
+  onDragEnd,
+}: {
+  lead: Lead;
+  owner: string;
+  members: { id: string; name: string }[];
+  canAssign: boolean;
+  canDelete: boolean;
+  onAssign: (leadId: string, memberId: string) => void;
+  onDelete: (leadId: string) => void;
+  onDragStart: (event: DragEvent<HTMLElement>, leadId: string) => void;
+  onDragEnd: () => void;
+}) {
   return (
     <article
       draggable
-      onDragStart={(event) => event.dataTransfer.setData("leadId", lead.id)}
+      onDragStart={(event) => onDragStart(event, lead.id)}
+      onDragEnd={onDragEnd}
       className="rounded-lg border border-[#d7e3ff] bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:border-[#003CBB] hover:shadow-md"
     >
       <Link href={`/leads/${lead.id}`} className="block">
