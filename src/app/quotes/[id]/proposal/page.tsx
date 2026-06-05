@@ -222,7 +222,7 @@ function ProposalWorkspace({ publicView = false, allowAnonymous = false }: { pub
       const customerEmailHtml = await proposalEmailHtml(quoteCategory, customer, updatedQuote, link, calculations, isUpdatedProposal);
       const customerEmailSent = await sendResendEmail(state, {
         recipients: [{ email: customer.email, name: customerName(customer) }],
-        subject: isUpdatedProposal ? `We've updated your SavePlanet proposal - ${quote.id}` : `Your SavePlanet proposal is ready - ${quote.id}`,
+        subject: isUpdatedProposal ? `We've updated your SavePlanet proposal - ${updatedQuote.id}` : `Your SavePlanet proposal is ready - ${updatedQuote.id}`,
         text: proposalEmailBody(customer, updatedQuote, link, isUpdatedProposal),
         html: customerEmailHtml,
       });
@@ -230,7 +230,7 @@ function ProposalWorkspace({ publicView = false, allowAnonymous = false }: { pub
       const internalEmailSent = internalRecipients.length
         ? await sendResendEmail(state, {
             recipients: internalRecipients,
-            subject: `${isUpdatedProposal ? "Updated proposal sent" : "Proposal sent"}: ${quote.id}`,
+            subject: `${isUpdatedProposal ? "Updated proposal sent" : "Proposal sent"}: ${updatedQuote.id}`,
             text: proposalSentNotificationBody(customer, updatedQuote, link, isUpdatedProposal),
           })
         : true;
