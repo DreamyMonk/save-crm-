@@ -462,7 +462,7 @@ function mergeByLatestUpdate<T extends { id: string; updatedAt?: string }>(remot
   }
   for (const localItem of localItems) {
     const remoteItem = items.get(localItem.id);
-    if (!remoteItem || timestamp(localItem.updatedAt) >= timestamp(remoteItem.updatedAt)) {
+    if (!remoteItem || timestamp(localItem.updatedAt) > timestamp(remoteItem.updatedAt)) {
       items.set(localItem.id, localItem);
     }
   }
@@ -489,7 +489,7 @@ function mergeLeadsByLatestUpdate(remoteItems: Lead[], localItems: Lead[]) {
     }
 
     if (sameLeadRecord(remoteLead, localLead)) {
-      if (timestamp(localLead.updatedAt) >= timestamp(remoteLead.updatedAt)) {
+      if (timestamp(localLead.updatedAt) > timestamp(remoteLead.updatedAt)) {
         items.set(localLead.id, localLead);
       }
       continue;
@@ -563,7 +563,7 @@ function mergeQuotesByLatestProposalActivity(remoteItems: QuoteRecord[], localIt
   }
   for (const localItem of localItems) {
     const remoteItem = items.get(localItem.id);
-    if (!remoteItem || quoteActivityTimestamp(localItem) >= quoteActivityTimestamp(remoteItem)) {
+    if (!remoteItem || quoteActivityTimestamp(localItem) > quoteActivityTimestamp(remoteItem)) {
       items.set(localItem.id, localItem);
     }
   }
@@ -583,7 +583,7 @@ function mergeProposalPackagesByLatestActivity(remoteItems: ProposalPackage[], l
   }
   for (const localItem of localItems) {
     const remoteItem = items.get(localItem.id);
-    if (!remoteItem || proposalPackageActivityTimestamp(localItem) >= proposalPackageActivityTimestamp(remoteItem)) {
+    if (!remoteItem || proposalPackageActivityTimestamp(localItem) > proposalPackageActivityTimestamp(remoteItem)) {
       items.set(localItem.id, localItem);
     }
   }
