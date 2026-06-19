@@ -369,7 +369,7 @@ function proposalStatus(quote: QuoteRecord) {
 }
 
 function canDeleteProposal(quote: QuoteRecord) {
-  return !quote.proposalOpenedAt && !quote.customerSignedAt && !quote.proposalChangeRequestHtml;
+  return Boolean(quote.id);
 }
 
 function isAdminMember(member: { role: string } | null | undefined) {
