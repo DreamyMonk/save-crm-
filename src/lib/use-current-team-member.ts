@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { onAuthStateChanged, User } from "firebase/auth";
+import { fullAccessModules, isProtectedAdminEmail, protectedAdminMemberForEmail } from "./admin-access";
 import { Lead, TeamMember } from "./crm-data";
 import { getFirebaseAuth } from "./firebase";
 
@@ -31,11 +32,14 @@ export function useCurrentTeamMember(team: TeamMember[]) {
 
   const member = useMemo(() => {
     const normalizedEmail = identity?.email?.trim().toLowerCase();
-    return (
+    const matchedMember =
       team.find((item) => item.active && normalizedEmail && item.email?.trim().toLowerCase() === normalizedEmail) ??
-      team.find((item) => item.active && identity?.uid && item.uid === identity.uid) ??
-      null
-    );
+      team.find((item) => item.active && identity?.uid && item.uid === identity.uid);
+    if (isProtectedAdminEmail(normalizedEmail)) {
+      const protectedAdmin = protectedAdminMemberForEmail(normalizedEmail, identity?.uid);
+      return { ...(matchedMember ?? protectedAdmin!), modules: fullAccessModules, role: "Admin", active: true };
+    }
+    return matchedMember ?? null;
   }, [identity, team]);
 
   return { member, ready };

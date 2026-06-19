@@ -21,6 +21,7 @@ import {
   Users,
 } from "lucide-react";
 import { AuthGate, SignOutButton } from "./auth-gate";
+import { fullAccessModules, isProtectedAdminEmail, protectedAdminMemberForEmail } from "@/lib/admin-access";
 import { ModuleKey } from "@/lib/crm-data";
 import { useCrmStore } from "@/lib/use-crm-store";
 
@@ -63,10 +64,12 @@ function ShellFrame({ children, email, uid }: { children: React.ReactNode; email
   }, [ready]);
   const normalizedEmail = email?.trim().toLowerCase();
   const canUseCachedAccess = ready || accessWaitExpired;
-  const member = canUseCachedAccess
+  const protectedAdmin = protectedAdminMemberForEmail(normalizedEmail, uid);
+  const matchedMember = canUseCachedAccess
     ? state.team.find((item) => item.active && normalizedEmail && item.email?.trim().toLowerCase() === normalizedEmail) ??
       state.team.find((item) => item.active && item.uid === uid)
     : undefined;
+  const member = isProtectedAdminEmail(normalizedEmail) ? { ...(matchedMember ?? protectedAdmin!), modules: fullAccessModules, role: "Admin", active: true } : matchedMember;
   const allowedModules = member ? member.modules : [];
   const visibleNav = navItems.filter((item) => allowedModules.includes(item.module));
   const activeModule = navItems.find((item) => {

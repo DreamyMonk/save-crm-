@@ -5,6 +5,7 @@ import { createUserWithEmailAndPassword, getAuth, onAuthStateChanged, User } fro
 import { ShieldCheck, Trash2, UserPlus } from "lucide-react";
 import { FormEvent, useEffect, useRef, useState } from "react";
 import { CrmShell, PageHeader } from "@/components/crm-shell";
+import { isProtectedAdminEmail, isProtectedAdminMember } from "@/lib/admin-access";
 import { ModuleKey, TeamMember, moduleLabels } from "@/lib/crm-data";
 import { firebaseConfig, getFirebaseAuth } from "@/lib/firebase";
 import { useCrmStore } from "@/lib/use-crm-store";
@@ -35,8 +36,8 @@ export default function AccessPage() {
     const role = String(form.get("role") || "Sales Agent");
     const selectedModules = (Object.keys(moduleLabels) as ModuleKey[]).filter((module) => form.get(module) === "on");
     const modules = selectedModules.length ? selectedModules : defaultModules;
-    if (email.toLowerCase() === "admin@admin.com") {
-      setMessage("The built-in admin account already exists. Use a different email for new users.");
+    if (isProtectedAdminEmail(email)) {
+      setMessage("This protected admin account already exists. Use a different email for new users.");
       setCreatingUser(false);
       return;
     }
@@ -320,7 +321,7 @@ function isCurrentMember(member: TeamMember, user: User | null) {
 }
 
 function isProtectedAdmin(member: TeamMember) {
-  return member.uid === "hardcoded-admin" || member.email?.trim().toLowerCase() === "admin@admin.com";
+  return isProtectedAdminMember(member);
 }
 
 function accessMemberKeys(member: TeamMember) {

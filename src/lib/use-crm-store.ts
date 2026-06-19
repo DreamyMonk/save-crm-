@@ -2,6 +2,7 @@
 
 import { Dispatch, SetStateAction, useCallback, useEffect, useRef, useState } from "react";
 import { collection, doc, getDoc, getDocs, onSnapshot, writeBatch } from "firebase/firestore";
+import { fullAccessModules, isProtectedAdminEmail, isProtectedAdminMember, protectedAdminMemberForEmail } from "./admin-access";
 import { withDefaultProductImage } from "./aircon-product-images";
 import { CrmState, Lead, LeadSalesPhase, LeadSource, ModuleKey, ProductCategory, ProposalPackage, QuoteRecord, initialCrmState } from "./crm-data";
 import { getFirebaseDb } from "./firebase";
@@ -18,7 +19,7 @@ function normalizeState(state: CrmState): CrmState {
   const legacyEmailKey = "mail" + "jet";
   const legacyEmailSettings = (state.settings as unknown as Record<string, CrmState["settings"]["resend"] | undefined> | undefined)?.[legacyEmailKey];
   const deprecatedTeamKeys = new Set((state.team ?? initialCrmState.team).filter(isDeprecatedTeamMember).flatMap(accessMemberKeys));
-  const rawNormalizedTeam = ensureHardcodedAdmin(
+  const rawNormalizedTeam = ensureProtectedAdmins(
     (state.team ?? initialCrmState.team)
       .filter((member) => !isDeprecatedTeamMember(member))
       .map((member) => ({
@@ -198,21 +199,28 @@ function normalizeMemberModules(modules: CrmState["team"][number]["modules"]) {
   return Array.from(new Set((modules ?? []).filter((module): module is ModuleKey => validModules.has(module))));
 }
 
-function ensureHardcodedAdmin(team: CrmState["team"]) {
-  const adminModules = Object.keys(initialCrmStateModuleLabels()) as ModuleKey[];
-  const existingIndex = team.findIndex((member) => member.uid === "hardcoded-admin" || member.email?.trim().toLowerCase() === "admin@admin.com");
-  const hardcodedAdmin = {
-    id: existingIndex >= 0 ? team[existingIndex].id : "admin",
-    uid: "hardcoded-admin",
-    email: "admin@admin.com",
-    name: "vinay dhanekula",
-    role: "Admin",
-    modules: adminModules,
-    active: true,
-    accessUpdatedAt: existingIndex >= 0 ? team[existingIndex].accessUpdatedAt : new Date().toISOString(),
-  };
-  if (existingIndex < 0) return [hardcodedAdmin, ...team];
-  return team.map((member, index) => (index === existingIndex ? { ...member, ...hardcodedAdmin } : member));
+function ensureProtectedAdmins(team: CrmState["team"]) {
+  const protectedAdmins = [protectedAdminMemberForEmail("admin@admin.com"), protectedAdminMemberForEmail("vinay@saveplanet.com.au")].filter((member): member is CrmState["team"][number] => Boolean(member));
+  const nextTeam = [...team];
+  protectedAdmins.forEach((protectedAdmin) => {
+    const existingIndex = nextTeam.findIndex((member) => member.uid === protectedAdmin.uid || (isProtectedAdminEmail(member.email) && member.email?.trim().toLowerCase() === protectedAdmin.email));
+    if (existingIndex < 0) {
+      nextTeam.unshift(protectedAdmin);
+      return;
+    }
+    const existing = nextTeam[existingIndex];
+    nextTeam[existingIndex] = {
+      ...existing,
+      uid: existing.uid || protectedAdmin.uid,
+      email: protectedAdmin.email,
+      name: existing.name || protectedAdmin.name,
+      role: "Admin",
+      modules: fullAccessModules,
+      active: true,
+      accessUpdatedAt: existing.accessUpdatedAt ?? protectedAdmin.accessUpdatedAt,
+    };
+  });
+  return nextTeam;
 }
 
 export function useCrmStore() {
@@ -410,7 +418,7 @@ function mergeByUpdatedAccess(remoteTeam: CrmState["team"], localTeam: CrmState[
       mergedByKey.set(key, member);
     }
   }
-  return ensureHardcodedAdmin(Array.from(mergedByKey.values()));
+  return ensureProtectedAdmins(Array.from(mergedByKey.values()));
 }
 
 function accessMemberKey(member: CrmState["team"][number]) {
@@ -435,7 +443,7 @@ function removeLiveMemberKeysFromDeletedKeys(deletedKeys: string[], team: CrmSta
 }
 
 function isProtectedAdmin(member: CrmState["team"][number]) {
-  return member.uid === "hardcoded-admin" || member.email?.trim().toLowerCase() === "admin@admin.com";
+  return isProtectedAdminMember(member);
 }
 
 function isDeprecatedTeamMember(member: CrmState["team"][number]) {
