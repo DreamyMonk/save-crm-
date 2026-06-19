@@ -160,11 +160,10 @@ function QuotesWorkspace() {
   const selectedProductModel = quoteProducts.some((product) => product.id === headModel) ? headModel : (quoteProducts[0]?.id ?? "");
   const isSolarCategory = productCategory === "Solar" || productCategory === "Inverter" || productCategory === "Solar Battery";
   const isHeatPumpCategory = productCategory === "Heat Pump";
-  const solarFilteredProducts = useMemo(() => filterProductsForQuote(state.products, ["Solar", "Inverter", "Solar Battery"], activeBrand, activeProductType, activeProductConfiguration, productSearch), [activeBrand, activeProductConfiguration, activeProductType, productSearch, state.products]);
+  const solarPanels = useMemo(() => productsWithCategoryFallback(state.products, ["Solar"], activeBrand, activeProductType, activeProductConfiguration, productSearch), [activeBrand, activeProductConfiguration, activeProductType, productSearch, state.products]);
+  const solarInverters = useMemo(() => productsWithCategoryFallback(state.products, ["Inverter"], activeBrand, activeProductType, activeProductConfiguration, productSearch), [activeBrand, activeProductConfiguration, activeProductType, productSearch, state.products]);
+  const solarBatteries = useMemo(() => productsWithCategoryFallback(state.products, ["Solar Battery"], activeBrand, activeProductType, activeProductConfiguration, productSearch), [activeBrand, activeProductConfiguration, activeProductType, productSearch, state.products]);
   const heatPumpProducts = useMemo(() => filterProductsForQuote(state.products, ["Heat Pump"], activeBrand, activeProductType, activeProductConfiguration, productSearch), [activeBrand, activeProductConfiguration, activeProductType, productSearch, state.products]);
-  const solarPanels = solarFilteredProducts.filter((product) => product.category === "Solar");
-  const solarInverters = solarFilteredProducts.filter((product) => product.category === "Inverter");
-  const solarBatteries = solarFilteredProducts.filter((product) => product.category === "Solar Battery");
   const [solarPanelProduct, setSolarPanelProduct] = useState(solarPanels[0]?.id ?? "");
   const [solarPanelQty, setSolarPanelQty] = useState(0);
   const [solarPanelPrice, setSolarPanelPrice] = useState(0);
@@ -912,6 +911,12 @@ function filterProductsForQuote(products: Product[], categories: string[], brand
     const matchesSearch = !term || [product.brandName, product.model, product.productName, product.productType, product.productConfiguration, product.productClass].join(" ").toLowerCase().includes(term);
     return matchesCategory && matchesBrand && matchesType && matchesConfiguration && matchesSearch;
   });
+}
+
+function productsWithCategoryFallback(products: Product[], categories: string[], brand: string, productType: string, productConfiguration: string, search: string) {
+  const filteredProducts = filterProductsForQuote(products, categories, brand, productType, productConfiguration, search);
+  if (filteredProducts.length) return filteredProducts;
+  return filterProductsForQuote(products, categories, "All", "All", "All", "");
 }
 
 function reserveNextQuoteId(state: CrmState) {
