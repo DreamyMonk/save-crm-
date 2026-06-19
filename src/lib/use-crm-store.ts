@@ -251,21 +251,27 @@ export function useCrmStore() {
 
     async function loadRemoteState() {
       try {
-        clearLegacyCrmCache();
+        const legacyState = readLegacyCrmState();
         const ref = doc(getFirebaseDb(), ...crmDocumentPath);
         const savedRemoteState = await readRemoteState();
         if (!active) return;
         if (savedRemoteState) {
-          const remoteState = savedRemoteState;
+          const remoteState = legacyState ? mergeLocalCollections(savedRemoteState, legacyState) : savedRemoteState;
+          if (legacyState && JSON.stringify(remoteState) !== JSON.stringify(savedRemoteState)) {
+            await writeRemoteState(remoteState);
+          }
           lastSavedState.current = JSON.stringify(remoteState);
           setBaseState(remoteState);
           stateRef.current = remoteState;
         } else {
-          const nextState = normalizeState(initialCrmState);
+          const nextState = legacyState ? mergeLocalCollections(normalizeState(initialCrmState), legacyState, { includeLocalDeletes: true }) : normalizeState(initialCrmState);
           await writeRemoteState(nextState);
           lastSavedState.current = JSON.stringify(nextState);
           setBaseState(nextState);
           stateRef.current = nextState;
+        }
+        if (legacyState) {
+          clearLegacyCrmCache();
         }
         unsubscribe = onSnapshot(ref, async (remoteSnapshot) => {
           if (!active || !remoteSnapshot.exists()) return;
@@ -331,6 +337,75 @@ export function useCrmStore() {
   }, [ready, state, syncState]);
 
   return { state, setState, ready, syncState, syncError };
+}
+
+function readLegacyCrmState() {
+  if (typeof window === "undefined") return null;
+  const savedState = readLegacyStoredCrmState();
+  const savedQuotes = readLegacySavedQuotes();
+  const savedCustomers = readLegacyProposalCustomers();
+  if (!savedState && savedQuotes.length === 0 && savedCustomers.length === 0) return null;
+
+  const quoteById = new Map((savedState?.quotes ?? []).map((quote) => [quote.id, quote]));
+  savedQuotes.forEach((quote) => {
+    quoteById.set(quote.id, latestQuote([quoteById.get(quote.id), quote]) ?? quote);
+  });
+
+  const customerById = new Map((savedState?.customers ?? []).map((customer) => [customer.id, customer]));
+  savedCustomers.forEach((customer) => {
+    const currentCustomer = customerById.get(customer.id);
+    customerById.set(customer.id, timestamp(customer.updatedAt) >= timestamp(currentCustomer?.updatedAt) ? customer : currentCustomer ?? customer);
+  });
+
+  return normalizeState({
+    ...(savedState ?? initialCrmState),
+    customers: Array.from(customerById.values()),
+    quotes: Array.from(quoteById.values()),
+  });
+}
+
+function readLegacyStoredCrmState() {
+  if (typeof window === "undefined") return null;
+  const saved = window.localStorage.getItem(legacyStorageKey);
+  if (!saved) return null;
+  try {
+    return normalizeState(JSON.parse(saved) as CrmState);
+  } catch {
+    return null;
+  }
+}
+
+function readLegacySavedQuotes() {
+  if (typeof window === "undefined") return [];
+  const quotes: QuoteRecord[] = [];
+  for (let index = 0; index < window.localStorage.length; index += 1) {
+    const key = window.localStorage.key(index);
+    if (!key || !key.startsWith("saveplanet-quote-")) continue;
+    const quote = parseLegacyJson<QuoteRecord>(window.localStorage.getItem(key));
+    if (quote?.id) quotes.push(quote);
+  }
+  return quotes;
+}
+
+function readLegacyProposalCustomers() {
+  if (typeof window === "undefined") return [];
+  const customers: CrmState["customers"] = [];
+  for (let index = 0; index < window.localStorage.length; index += 1) {
+    const key = window.localStorage.key(index);
+    if (!key || !key.startsWith("saveplanet-proposal-customer-")) continue;
+    const customer = parseLegacyJson<CrmState["customers"][number] | null>(window.localStorage.getItem(key));
+    if (customer?.id) customers.push(customer);
+  }
+  return customers;
+}
+
+function parseLegacyJson<T>(value: string | null) {
+  if (!value) return null;
+  try {
+    return JSON.parse(value) as T;
+  } catch {
+    return null;
+  }
 }
 
 function clearLegacyCrmCache() {
@@ -527,7 +602,8 @@ function mergeProductsByLatestUpdate(remoteItems: CrmState["products"], localIte
 
 function mergeDeletedIds<T extends { id: string }>(remoteIds: string[] | undefined, localIds: string[] | undefined, liveItems: T[] = []) {
   const liveIds = new Set(liveItems.map((item) => item.id));
-  return Array.from(new Set([...(remoteIds ?? []), ...(localIds ?? [])])).filter((id) => !liveIds.has(id));
+  const liveLocalIds = (localIds ?? []).filter((id) => !liveIds.has(id));
+  return Array.from(new Set([...(remoteIds ?? []), ...liveLocalIds]));
 }
 
 function mergeInvoicesWithDeletedIds(remoteItems: CrmState["invoices"], localItems: CrmState["invoices"], deletedInvoiceIds: string[]) {
