@@ -4,7 +4,7 @@ import Link from "next/link";
 import { Download, ExternalLink, Search, Trash2, X } from "lucide-react";
 import { useMemo, useState } from "react";
 import { CrmShell, PageHeader } from "@/components/crm-shell";
-import { ProposalPackage, QuoteRecord } from "@/lib/crm-data";
+import { Customer, ProposalPackage, QuoteRecord } from "@/lib/crm-data";
 import { htmlToPlainText } from "@/lib/text";
 import { useCurrentTeamMember } from "@/lib/use-current-team-member";
 import { useCrmStore } from "@/lib/use-crm-store";
@@ -46,7 +46,7 @@ export default function ProposalsPage() {
       const displayQuote = latestQuote([quote, proposalPackage?.quoteSnapshot]) ?? quote;
       const customer = state.customers.find((item) => item.id === displayQuote.customerId) ?? proposalPackage?.customerSnapshot;
       const agent = displayQuote.proposalSentBy || proposalPackage?.sentBy || proposalPackage?.assignedAgent || customer?.salesAgent || "Not sent";
-      const customerName = customer?.name || customer?.businessName || "Unknown customer";
+      const customerName = proposalCustomerName(customer, displayQuote.description);
       const proposalName = displayQuote.description || displayQuote.id;
       return {
         quote: displayQuote,
@@ -70,7 +70,7 @@ export default function ProposalsPage() {
       .map((proposalPackage) => {
         const quote = proposalPackage.quoteSnapshot;
         const customer = state.customers.find((item) => item.id === proposalPackage.customerId) ?? proposalPackage.customerSnapshot;
-        const customerName = customer?.name || customer?.businessName || "Unknown customer";
+        const customerName = proposalCustomerName(customer, quote?.description);
         const categoryLabel = quote?.description || (proposalPackage.productCategory ? `${proposalPackage.productCategory} proposal` : "Proposal");
         return {
           quote,
@@ -375,6 +375,35 @@ function canDeleteProposal(quote: QuoteRecord) {
 function isAdminMember(member: { role: string } | null | undefined) {
   return member?.role.trim().toLowerCase() === "admin";
 }
+
+function proposalCustomerName(customer: Customer | undefined, quoteDescription?: string) {
+  const savedName = customer?.name?.trim() || customer?.businessName?.trim();
+  if (savedName) return savedName;
+  const fallbackName = quoteDescription?.trim();
+  if (fallbackName && !isGenericProposalDescription(fallbackName)) return fallbackName;
+  return "Unknown customer";
+}
+
+function isGenericProposalDescription(value: string) {
+  const normalized = value.toLowerCase().replace(/\s+/g, " ");
+  return genericProposalDescriptions.has(normalized) || normalized.endsWith(" proposal") || /^q-\d+$/i.test(normalized);
+}
+
+const genericProposalDescriptions = new Set([
+  "proposal",
+  "quote",
+  "aircon",
+  "air conditioner",
+  "air conditioning",
+  "heat pump",
+  "hot water",
+  "solar",
+  "solar panel",
+  "solar panels",
+  "solar battery",
+  "battery",
+  "inverter",
+]);
 
 function matchesStatusFilter(row: ProposalRow, statusFilter: string) {
   if (statusFilter === "All") return true;
