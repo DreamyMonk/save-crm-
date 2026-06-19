@@ -149,38 +149,41 @@ function normalizeProposalPackages(state: CrmState) {
 }
 
 function packageFromQuote(quote: QuoteRecord, existingPackage: ProposalPackage | undefined, state: CrmState): ProposalPackage {
-  const customer = (state.customers ?? initialCrmState.customers).find((item) => item.id === quote.customerId);
-  const status = quote.customerSignedAt
+  const effectiveQuote = latestQuote([quote, existingPackage?.quoteSnapshot]) ?? quote;
+  const customer = (state.customers ?? initialCrmState.customers).find((item) => item.id === effectiveQuote.customerId) ?? existingPackage?.customerSnapshot;
+  const status = effectiveQuote.customerSignedAt
     ? "Signed"
-    : quote.proposalChangeRequestHtml
+    : effectiveQuote.proposalChangeRequestHtml
       ? "Changes requested"
-      : quote.proposalOpenedAt
+      : effectiveQuote.proposalOpenedAt
         ? "Opened"
-        : quote.proposalSentAt
+        : effectiveQuote.proposalSentAt
           ? "Sent"
           : "Draft";
 
   return {
-    id: existingPackage?.id ?? `PP-${quote.id}`,
-    quoteId: quote.id,
+    id: existingPackage?.id ?? `PP-${effectiveQuote.id}`,
+    quoteId: effectiveQuote.id,
     invoiceId: existingPackage?.invoiceId,
-    customerId: quote.customerId,
+    customerId: effectiveQuote.customerId,
     leadId: customer?.leadId,
-    productCategory: quote.productCategory,
-    templateType: templateTypeForCategory(quote.productCategory),
-    publicToken: existingPackage?.publicToken ?? quote.id,
+    productCategory: effectiveQuote.productCategory,
+    templateType: templateTypeForCategory(effectiveQuote.productCategory),
+    publicToken: existingPackage?.publicToken ?? effectiveQuote.id,
     status,
     assignedAgent: customer?.salesAgent || existingPackage?.assignedAgent || "vinay dhanekula",
     substituteAgent: customer?.secondSalesAgent || existingPackage?.substituteAgent,
-    sentBy: quote.proposalSentBy ?? existingPackage?.sentBy,
-    sentAt: quote.proposalSentAt,
-    openedAt: quote.proposalOpenedAt,
-    openCount: quote.proposalOpenCount ?? 0,
-    signedAt: quote.customerSignedAt,
-    signatureDataUrl: quote.customerSignatureDataUrl,
-    changeRequestHtml: quote.proposalChangeRequestHtml,
-    changeRequestedAt: quote.proposalChangeRequestedAt,
-    lastActivityAt: quote.customerSignedAt ?? quote.proposalChangeRequestedAt ?? quote.proposalOpenedAt ?? quote.proposalSentAt ?? quote.activityDate,
+    sentBy: effectiveQuote.proposalSentBy ?? existingPackage?.sentBy,
+    sentAt: effectiveQuote.proposalSentAt,
+    openedAt: effectiveQuote.proposalOpenedAt,
+    openCount: effectiveQuote.proposalOpenCount ?? 0,
+    signedAt: effectiveQuote.customerSignedAt,
+    signatureDataUrl: effectiveQuote.customerSignatureDataUrl,
+    changeRequestHtml: effectiveQuote.proposalChangeRequestHtml,
+    changeRequestedAt: effectiveQuote.proposalChangeRequestedAt,
+    lastActivityAt: effectiveQuote.customerSignedAt ?? effectiveQuote.proposalChangeRequestedAt ?? effectiveQuote.proposalOpenedAt ?? effectiveQuote.proposalSentAt ?? effectiveQuote.activityDate,
+    quoteSnapshot: effectiveQuote,
+    customerSnapshot: customer ?? existingPackage?.customerSnapshot,
   };
 }
 
@@ -557,6 +560,12 @@ function mergeQuotesByLatestProposalActivity(remoteItems: QuoteRecord[], localIt
     }
   }
   return Array.from(items.values());
+}
+
+function latestQuote(quotes: Array<QuoteRecord | undefined>) {
+  return quotes
+    .filter((quote): quote is QuoteRecord => Boolean(quote))
+    .sort((left, right) => quoteActivityTimestamp(right) - quoteActivityTimestamp(left))[0];
 }
 
 function mergeProposalPackagesByLatestActivity(remoteItems: ProposalPackage[], localItems: ProposalPackage[]) {

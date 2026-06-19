@@ -247,6 +247,8 @@ export type ProposalPackage = {
   changeRequestHtml?: string;
   changeRequestedAt?: string;
   lastActivityAt?: string;
+  quoteSnapshot?: QuoteRecord;
+  customerSnapshot?: Customer;
 };
 
 export type Customer = {

@@ -49,6 +49,7 @@ function ProposalWorkspace({ publicView = false, allowAnonymous = false }: { pub
   const searchParams = useSearchParams();
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const openTrackedRef = useRef(false);
+  const downloadStartedRef = useRef(false);
   const { state, setState, ready } = useCrmStore();
   const [user, setUser] = useState<User | null>(null);
   const [authChecked, setAuthChecked] = useState(!allowAnonymous);
@@ -62,21 +63,29 @@ function ProposalWorkspace({ publicView = false, allowAnonymous = false }: { pub
   const [proposalSending, setProposalSending] = useState(false);
   const [changeRequestDrafts, setChangeRequestDrafts] = useState<Record<string, string>>({});
   const proposalSnapshot = useMemo(() => decodeProposalSnapshot(searchParams.get("snapshot")), [searchParams]);
+  const downloadRequested = searchParams.get("download") === "1";
+  const trackOpenRequested = searchParams.get("trackOpen") === "1";
   const effectivePublicView = publicView || (allowAnonymous && authChecked && !user);
   const quote = useMemo(() => {
     const fromState = state.quotes.find((item) => item.id === id);
-    if (fromState) return fromState;
-    if (proposalSnapshot?.quote.id === id) return proposalSnapshot.quote;
-    if (typeof window === "undefined") return undefined;
+    const packageSnapshot = state.proposalPackages.find((item) => item.quoteId === id || item.publicToken === id)?.quoteSnapshot;
+    const snapshotQuote = proposalSnapshot?.quote.id === id ? proposalSnapshot.quote : undefined;
+    let savedQuote: QuoteRecord | undefined;
+    if (typeof window === "undefined") return latestQuote([fromState, packageSnapshot, snapshotQuote]);
     const saved = window.localStorage.getItem(`saveplanet-quote-${id}`);
-    if (!saved) return undefined;
-    try {
-      return JSON.parse(saved) as QuoteRecord;
-    } catch {
-      return undefined;
+    if (saved) {
+      try {
+        savedQuote = JSON.parse(saved) as QuoteRecord;
+      } catch {
+        savedQuote = undefined;
+      }
     }
-  }, [id, proposalSnapshot, state.quotes]);
-  const customer = proposalSnapshot?.quote.id === id ? proposalSnapshot.customer : state.customers.find((item) => item.id === quote?.customerId);
+    return latestQuote([fromState, packageSnapshot, snapshotQuote, savedQuote]);
+  }, [id, proposalSnapshot, state.proposalPackages, state.quotes]);
+  const customer =
+    state.customers.find((item) => item.id === quote?.customerId) ??
+    state.proposalPackages.find((item) => item.quoteId === id || item.publicToken === id)?.customerSnapshot ??
+    (proposalSnapshot?.quote.id === id ? proposalSnapshot.customer : undefined);
   const quoteCategory = quote ? resolveQuoteCategory(quote, state.products) : "Aircon";
   const calculations = useMemo(() => {
     if (!quote) return undefined;
@@ -84,16 +93,22 @@ function ProposalWorkspace({ publicView = false, allowAnonymous = false }: { pub
   }, [quote]);
   const hasSavedSignature = Boolean(quote?.customerSignatureDataUrl || quote?.customerSignedAt);
   const changeRequestHtml = quote ? (changeRequestDrafts[quote.id] ?? quote.proposalChangeRequestHtml ?? "") : "";
-  const persistQuoteUpdate = useCallback((updatedQuote: QuoteRecord, invoiceAmount?: number) => {
+  const persistQuoteUpdate = useCallback((updatedQuote: QuoteRecord, invoiceAmount?: number, options: { mergeExistingTracking?: boolean } = {}) => {
     setState((currentState) => {
-      const nextCustomer = currentState.customers.find((item) => item.id === updatedQuote.customerId);
       const packageRecord = currentState.proposalPackages.find((item) => item.quoteId === updatedQuote.id || item.publicToken === updatedQuote.id);
+      const currentQuote = currentState.quotes.find((item) => item.id === updatedQuote.id);
+      const mergedQuote = options.mergeExistingTracking
+        ? mergeQuoteTracking(latestQuote([currentQuote, packageRecord?.quoteSnapshot]), updatedQuote)
+        : updatedQuote;
+      const nextCustomer = currentState.customers.find((item) => item.id === mergedQuote.customerId) ?? packageRecord?.customerSnapshot;
       const invoice = invoiceAmount === undefined
         ? undefined
-        : invoiceFromQuote(updatedQuote, nextCustomer, invoiceAmount, updatedQuote.proposalSentBy || packageRecord?.sentBy || nextCustomer?.salesAgent || "SavePlanet Team");
-      return syncProposalCollections(currentState, updatedQuote, nextCustomer, invoice);
+        : invoiceFromQuote(mergedQuote, nextCustomer, invoiceAmount, mergedQuote.proposalSentBy || packageRecord?.sentBy || nextCustomer?.salesAgent || "SavePlanet Team");
+      if (typeof window !== "undefined") {
+        window.localStorage.setItem(`saveplanet-quote-${mergedQuote.id}`, JSON.stringify(mergedQuote));
+      }
+      return syncProposalCollections(currentState, mergedQuote, nextCustomer, invoice);
     });
-    window.localStorage.setItem(`saveplanet-quote-${updatedQuote.id}`, JSON.stringify(updatedQuote));
   }, [setState]);
 
   useEffect(() => {
@@ -113,6 +128,16 @@ function ProposalWorkspace({ publicView = false, allowAnonymous = false }: { pub
   }, [quote, customer, calculations, quoteCategory]);
 
   useEffect(() => {
+    if (!downloadRequested || !proposalHtml || downloadStartedRef.current) return;
+    downloadStartedRef.current = true;
+    const timeout = window.setTimeout(() => {
+      iframeRef.current?.contentWindow?.focus();
+      iframeRef.current?.contentWindow?.print();
+    }, 700);
+    return () => window.clearTimeout(timeout);
+  }, [downloadRequested, proposalHtml]);
+
+  useEffect(() => {
     if (!allowAnonymous) return;
     return onAuthStateChanged(getFirebaseAuth(), (currentUser) => {
       setUser(currentUser);
@@ -121,7 +146,7 @@ function ProposalWorkspace({ publicView = false, allowAnonymous = false }: { pub
   }, [allowAnonymous]);
 
   useEffect(() => {
-    if (!effectivePublicView || !quote || openTrackedRef.current) return;
+    if ((!effectivePublicView && !trackOpenRequested) || !quote || openTrackedRef.current) return;
     openTrackedRef.current = true;
     const openedAt = new Date().toISOString();
     const updatedQuote: QuoteRecord = {
@@ -129,8 +154,8 @@ function ProposalWorkspace({ publicView = false, allowAnonymous = false }: { pub
       proposalOpenedAt: openedAt,
       proposalOpenCount: (quote.proposalOpenCount ?? 0) + 1,
     };
-    persistQuoteUpdate(updatedQuote);
-  }, [effectivePublicView, persistQuoteUpdate, quote]);
+    persistQuoteUpdate(updatedQuote, undefined, { mergeExistingTracking: true });
+  }, [effectivePublicView, persistQuoteUpdate, quote, trackOpenRequested]);
 
   if ((allowAnonymous && !authChecked) || !ready) {
     return (
@@ -199,7 +224,7 @@ function ProposalWorkspace({ publicView = false, allowAnonymous = false }: { pub
       customerSignatureDataUrl: undefined,
       customerSignedAt: undefined,
     };
-    persistQuoteUpdate(updatedQuote);
+    persistQuoteUpdate(updatedQuote, undefined, { mergeExistingTracking: true });
     setMessage("Proposal saved as draft. Customer signature and send tracking were cleared for this revision.");
   }
 
@@ -263,7 +288,7 @@ function ProposalWorkspace({ publicView = false, allowAnonymous = false }: { pub
     const signedAt = new Date().toISOString();
     const firstSignature = !quote.customerSignedAt;
     const updatedQuote: QuoteRecord = { ...quote, customerSignatureDataUrl: signatureToSave, customerSignedAt: signedAt };
-    persistQuoteUpdate(updatedQuote);
+    persistQuoteUpdate(updatedQuote, undefined, { mergeExistingTracking: true });
     setSignatureDoneOpen(true);
     setNotice({
       title: "Signature completed",
@@ -524,6 +549,55 @@ function decodeProposalSnapshot(value: string | null): { quote: QuoteRecord; cus
   } catch {
     return null;
   }
+}
+
+function latestQuote(quotes: Array<QuoteRecord | undefined>) {
+  return quotes
+    .filter((quote): quote is QuoteRecord => Boolean(quote))
+    .sort((left, right) => quoteActivityTime(right) - quoteActivityTime(left))[0];
+}
+
+function mergeQuoteTracking(baseQuote: QuoteRecord | undefined, updatedQuote: QuoteRecord) {
+  if (!baseQuote) return updatedQuote;
+  return {
+    ...updatedQuote,
+    proposalSentAt: latestDateValue(updatedQuote.proposalSentAt, baseQuote.proposalSentAt),
+    proposalSentBy: updatedQuote.proposalSentBy ?? baseQuote.proposalSentBy,
+    proposalOpenedAt: latestDateValue(updatedQuote.proposalOpenedAt, baseQuote.proposalOpenedAt),
+    proposalOpenCount: Math.max(updatedQuote.proposalOpenCount ?? 0, baseQuote.proposalOpenCount ?? 0),
+    proposalUpdatedAt: latestDateValue(updatedQuote.proposalUpdatedAt, baseQuote.proposalUpdatedAt),
+    proposalChangeRequestHtml: latestDateValue(updatedQuote.proposalChangeRequestedAt, baseQuote.proposalChangeRequestedAt) === baseQuote.proposalChangeRequestedAt
+      ? baseQuote.proposalChangeRequestHtml
+      : updatedQuote.proposalChangeRequestHtml,
+    proposalChangeRequestedAt: latestDateValue(updatedQuote.proposalChangeRequestedAt, baseQuote.proposalChangeRequestedAt),
+    customerSignatureDataUrl: latestDateValue(updatedQuote.customerSignedAt, baseQuote.customerSignedAt) === baseQuote.customerSignedAt
+      ? baseQuote.customerSignatureDataUrl
+      : updatedQuote.customerSignatureDataUrl,
+    customerSignedAt: latestDateValue(updatedQuote.customerSignedAt, baseQuote.customerSignedAt),
+  };
+}
+
+function latestDateValue(left?: string, right?: string) {
+  if (!left) return right;
+  if (!right) return left;
+  return Date.parse(left) >= Date.parse(right) ? left : right;
+}
+
+function quoteActivityTime(quote: QuoteRecord) {
+  return Math.max(
+    dateTime(quote.customerSignedAt),
+    dateTime(quote.proposalChangeRequestedAt),
+    dateTime(quote.proposalOpenedAt),
+    dateTime(quote.proposalSentAt),
+    dateTime(quote.proposalUpdatedAt),
+    dateTime(quote.activityDate),
+  );
+}
+
+function dateTime(value?: string) {
+  if (!value) return 0;
+  const parsed = Date.parse(value);
+  return Number.isFinite(parsed) ? parsed : 0;
 }
 
 function findSenderMember(state: CrmState, quote: QuoteRecord, customer: Customer | undefined, user: User | null) {

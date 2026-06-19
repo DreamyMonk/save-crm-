@@ -15,27 +15,30 @@ export function templateTypeForCategory(category?: ProductCategory): ProposalPac
 }
 
 export function proposalPackageFromQuote(quote: QuoteRecord, customer?: Customer, existingPackage?: ProposalPackage): ProposalPackage {
+  const effectiveQuote = latestQuote([quote, existingPackage?.quoteSnapshot]) ?? quote;
   return {
-    id: existingPackage?.id ?? `PP-${quote.id}`,
-    quoteId: quote.id,
+    id: existingPackage?.id ?? `PP-${effectiveQuote.id}`,
+    quoteId: effectiveQuote.id,
     invoiceId: existingPackage?.invoiceId,
-    customerId: quote.customerId,
+    customerId: effectiveQuote.customerId,
     leadId: customer?.leadId,
-    productCategory: quote.productCategory,
-    templateType: templateTypeForCategory(quote.productCategory),
-    publicToken: existingPackage?.publicToken ?? quote.id,
-    status: proposalStatusFromQuote(quote),
+    productCategory: effectiveQuote.productCategory,
+    templateType: templateTypeForCategory(effectiveQuote.productCategory),
+    publicToken: existingPackage?.publicToken ?? effectiveQuote.id,
+    status: proposalStatusFromQuote(effectiveQuote),
     assignedAgent: customer?.salesAgent || existingPackage?.assignedAgent || "vinay dhanekula",
     substituteAgent: customer?.secondSalesAgent || existingPackage?.substituteAgent,
-    sentBy: quote.proposalSentBy ?? existingPackage?.sentBy,
-    sentAt: quote.proposalSentAt,
-    openedAt: quote.proposalOpenedAt,
-    openCount: quote.proposalOpenCount ?? 0,
-    signedAt: quote.customerSignedAt,
-    signatureDataUrl: quote.customerSignatureDataUrl,
-    changeRequestHtml: quote.proposalChangeRequestHtml,
-    changeRequestedAt: quote.proposalChangeRequestedAt,
-    lastActivityAt: quote.customerSignedAt ?? quote.proposalChangeRequestedAt ?? quote.proposalOpenedAt ?? quote.proposalSentAt ?? quote.activityDate,
+    sentBy: effectiveQuote.proposalSentBy ?? existingPackage?.sentBy,
+    sentAt: effectiveQuote.proposalSentAt,
+    openedAt: effectiveQuote.proposalOpenedAt,
+    openCount: effectiveQuote.proposalOpenCount ?? 0,
+    signedAt: effectiveQuote.customerSignedAt,
+    signatureDataUrl: effectiveQuote.customerSignatureDataUrl,
+    changeRequestHtml: effectiveQuote.proposalChangeRequestHtml,
+    changeRequestedAt: effectiveQuote.proposalChangeRequestedAt,
+    lastActivityAt: effectiveQuote.customerSignedAt ?? effectiveQuote.proposalChangeRequestedAt ?? effectiveQuote.proposalOpenedAt ?? effectiveQuote.proposalSentAt ?? effectiveQuote.activityDate,
+    quoteSnapshot: effectiveQuote,
+    customerSnapshot: customer ?? existingPackage?.customerSnapshot,
   };
 }
 
@@ -174,4 +177,27 @@ function proposalActivityOutcome(status: ProposalPackage["status"]) {
 
 function proposalActivityDate(quote: QuoteRecord) {
   return quote.customerSignedAt ?? quote.proposalChangeRequestedAt ?? quote.proposalOpenedAt ?? quote.proposalSentAt ?? quote.proposalUpdatedAt;
+}
+
+function latestQuote(quotes: Array<QuoteRecord | undefined>) {
+  return quotes
+    .filter((item): item is QuoteRecord => Boolean(item))
+    .sort((left, right) => quoteActivityTime(right) - quoteActivityTime(left))[0];
+}
+
+function quoteActivityTime(quote: QuoteRecord) {
+  return Math.max(
+    timestamp(quote.customerSignedAt),
+    timestamp(quote.proposalChangeRequestedAt),
+    timestamp(quote.proposalOpenedAt),
+    timestamp(quote.proposalSentAt),
+    timestamp(quote.proposalUpdatedAt),
+    timestamp(quote.activityDate),
+  );
+}
+
+function timestamp(value?: string) {
+  if (!value) return 0;
+  const parsed = Date.parse(value);
+  return Number.isFinite(parsed) ? parsed : 0;
 }

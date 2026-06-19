@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ExternalLink, Search, Trash2, X } from "lucide-react";
+import { Download, ExternalLink, Search, Trash2, X } from "lucide-react";
 import { useMemo, useState } from "react";
 import { CrmShell, PageHeader } from "@/components/crm-shell";
 import { ProposalPackage, QuoteRecord } from "@/lib/crm-data";
@@ -42,41 +42,44 @@ export default function ProposalsPage() {
     const packageByQuote = new Map(state.proposalPackages.map((proposalPackage) => [proposalPackage.quoteId, proposalPackage]));
     const quoteIds = new Set(state.quotes.map((quote) => quote.id));
     const quoteRows: ProposalRow[] = state.quotes.map((quote) => {
-      const customer = state.customers.find((item) => item.id === quote.customerId);
       const proposalPackage = packageByQuote.get(quote.id);
-      const agent = quote.proposalSentBy || proposalPackage?.sentBy || proposalPackage?.assignedAgent || customer?.salesAgent || "Not sent";
+      const displayQuote = latestQuote([quote, proposalPackage?.quoteSnapshot]) ?? quote;
+      const customer = state.customers.find((item) => item.id === displayQuote.customerId) ?? proposalPackage?.customerSnapshot;
+      const agent = displayQuote.proposalSentBy || proposalPackage?.sentBy || proposalPackage?.assignedAgent || customer?.salesAgent || "Not sent";
       const customerName = customer?.name || customer?.businessName || "Unknown customer";
-      const proposalName = quote.description || quote.id;
+      const proposalName = displayQuote.description || displayQuote.id;
       return {
-        quote,
+        quote: displayQuote,
         proposalPackage,
-        quoteId: quote.id,
+        quoteId: displayQuote.id,
         agent,
         customerName,
         proposalName,
-        status: proposalPackage?.status ?? proposalStatus(quote),
-        sentAt: quote.proposalSentAt ?? proposalPackage?.sentAt,
-        openedAt: quote.proposalOpenedAt ?? proposalPackage?.openedAt,
-        openCount: quote.proposalOpenCount ?? proposalPackage?.openCount ?? 0,
-        signedAt: quote.customerSignedAt ?? proposalPackage?.signedAt,
-        changeRequestHtml: quote.proposalChangeRequestHtml ?? proposalPackage?.changeRequestHtml,
-        changeRequestedAt: quote.proposalChangeRequestedAt ?? proposalPackage?.changeRequestedAt,
-        activityDate: proposalActivityDate(quote) ?? proposalPackage?.lastActivityAt,
+        status: proposalStatus(displayQuote),
+        sentAt: displayQuote.proposalSentAt ?? proposalPackage?.sentAt,
+        openedAt: displayQuote.proposalOpenedAt ?? proposalPackage?.openedAt,
+        openCount: displayQuote.proposalOpenCount ?? proposalPackage?.openCount ?? 0,
+        signedAt: displayQuote.customerSignedAt ?? proposalPackage?.signedAt,
+        changeRequestHtml: displayQuote.proposalChangeRequestHtml ?? proposalPackage?.changeRequestHtml,
+        changeRequestedAt: displayQuote.proposalChangeRequestedAt ?? proposalPackage?.changeRequestedAt,
+        activityDate: proposalActivityDate(displayQuote) ?? proposalPackage?.lastActivityAt,
       };
     });
     const packageRows: ProposalRow[] = state.proposalPackages
       .filter((proposalPackage) => !quoteIds.has(proposalPackage.quoteId))
       .map((proposalPackage) => {
-        const customer = state.customers.find((item) => item.id === proposalPackage.customerId);
+        const quote = proposalPackage.quoteSnapshot;
+        const customer = state.customers.find((item) => item.id === proposalPackage.customerId) ?? proposalPackage.customerSnapshot;
         const customerName = customer?.name || customer?.businessName || "Unknown customer";
-        const categoryLabel = proposalPackage.productCategory ? `${proposalPackage.productCategory} proposal` : "Proposal";
+        const categoryLabel = quote?.description || (proposalPackage.productCategory ? `${proposalPackage.productCategory} proposal` : "Proposal");
         return {
+          quote,
           proposalPackage,
           quoteId: proposalPackage.quoteId,
           customerName,
           agent: proposalPackage.sentBy || proposalPackage.assignedAgent || customer?.salesAgent || "Not sent",
           proposalName: categoryLabel,
-          status: proposalPackage.status,
+          status: quote ? proposalStatus(quote) : proposalPackage.status,
           sentAt: proposalPackage.sentAt,
           openedAt: proposalPackage.openedAt,
           openCount: proposalPackage.openCount ?? 0,
@@ -86,10 +89,12 @@ export default function ProposalsPage() {
           activityDate: proposalPackage.lastActivityAt,
         };
       });
-    return [...quoteRows, ...packageRows].filter((row) => {
-      const matchesSearch = !term || [row.quoteId, row.proposalName, row.agent, row.customerName].join(" ").toLowerCase().includes(term);
-      return matchesSearch && matchesStatusFilter(row, statusFilter) && matchesDateFilter(row, dateFilter, rangeStart, rangeEnd);
-    });
+    return [...quoteRows, ...packageRows]
+      .filter((row) => {
+        const matchesSearch = !term || [row.quoteId, row.proposalName, row.agent, row.customerName].join(" ").toLowerCase().includes(term);
+        return matchesSearch && matchesStatusFilter(row, statusFilter) && matchesDateFilter(row, dateFilter, rangeStart, rangeEnd);
+      })
+      .sort((left, right) => rowActivityTime(right) - rowActivityTime(left));
   }, [dateFilter, proposalSearch, rangeEnd, rangeStart, state.customers, state.proposalPackages, state.quotes, statusFilter]);
   const selectedRow = proposalRows.find((row) => row.quoteId === selectedQuoteId) ?? proposalRows[0];
   const packageRows = state.proposalPackages.length
@@ -218,9 +223,14 @@ export default function ProposalsPage() {
                             View
                           </button>
                           {row.quote ? (
-                            <Link href={`/quotes/${row.quoteId}/proposal`} className="inline-flex h-9 items-center gap-2 rounded-lg bg-[#003CBB] px-3 text-xs font-semibold text-white">
-                              <ExternalLink size={14} /> Open proposal
-                            </Link>
+                            <>
+                              <Link href={`/quotes/${row.quoteId}/proposal?trackOpen=1`} className="inline-flex h-9 items-center gap-2 rounded-lg bg-[#003CBB] px-3 text-xs font-semibold text-white">
+                                <ExternalLink size={14} /> Open proposal
+                              </Link>
+                              <Link href={`/quotes/${row.quoteId}/proposal?download=1`} className="inline-flex h-9 items-center gap-2 rounded-lg border border-[#c7d3e8] bg-white px-3 text-xs font-semibold text-[#003CBB]">
+                                <Download size={14} /> Download
+                              </Link>
+                            </>
                           ) : (
                             <span className="inline-flex h-9 items-center rounded-lg bg-slate-100 px-3 text-xs font-semibold text-slate-500">Saved status only</span>
                           )}
@@ -264,9 +274,14 @@ export default function ProposalsPage() {
                 <Detail label="Substitute agent" value={selectedRow.proposalPackage?.substituteAgent || "Not assigned"} />
                 <Detail label="Status" value={selectedRow.status} />
                 {selectedRow.quote ? (
-                  <Link href={`/quotes/${selectedRow.quoteId}/proposal`} className="inline-flex h-10 items-center gap-2 rounded-lg bg-[#003CBB] px-4 text-sm font-semibold text-white">
-                    <ExternalLink size={16} /> Open proposal
-                  </Link>
+                  <div className="flex flex-wrap gap-2">
+                    <Link href={`/quotes/${selectedRow.quoteId}/proposal?trackOpen=1`} className="inline-flex h-10 items-center gap-2 rounded-lg bg-[#003CBB] px-4 text-sm font-semibold text-white">
+                      <ExternalLink size={16} /> Open proposal
+                    </Link>
+                    <Link href={`/quotes/${selectedRow.quoteId}/proposal?download=1`} className="inline-flex h-10 items-center gap-2 rounded-lg border border-[#c7d3e8] bg-white px-4 text-sm font-semibold text-[#003CBB]">
+                      <Download size={16} /> Download PDF
+                    </Link>
+                  </div>
                 ) : (
                   <p className="rounded-lg border border-dashed border-[#c7d3e8] bg-[#f8fbff] p-3 text-sm text-[#657267]">
                     Proposal status is saved, but the quote detail is not available on this device yet.
@@ -394,6 +409,39 @@ function matchesDateFilter(row: ProposalRow, dateFilter: string, rangeStart: str
 
 function proposalActivityDate(quote: QuoteRecord) {
   return quote.proposalChangeRequestedAt || quote.customerSignedAt || quote.proposalOpenedAt || quote.proposalSentAt || quote.activityDate;
+}
+
+function latestQuote(quotes: Array<QuoteRecord | undefined>) {
+  return quotes
+    .filter((quote): quote is QuoteRecord => Boolean(quote))
+    .sort((left, right) => quoteActivityTime(right) - quoteActivityTime(left))[0];
+}
+
+function rowActivityTime(row: ProposalRow) {
+  return Math.max(
+    dateTime(row.signedAt),
+    dateTime(row.changeRequestedAt),
+    dateTime(row.openedAt),
+    dateTime(row.sentAt),
+    dateTime(row.activityDate),
+  );
+}
+
+function quoteActivityTime(quote: QuoteRecord) {
+  return Math.max(
+    dateTime(quote.customerSignedAt),
+    dateTime(quote.proposalChangeRequestedAt),
+    dateTime(quote.proposalOpenedAt),
+    dateTime(quote.proposalSentAt),
+    dateTime(quote.proposalUpdatedAt),
+    dateTime(quote.activityDate),
+  );
+}
+
+function dateTime(value?: string) {
+  if (!value) return 0;
+  const parsed = Date.parse(value);
+  return Number.isFinite(parsed) ? parsed : 0;
 }
 
 function isSameLocalDay(timestamp: number, day: Date) {
