@@ -8,8 +8,8 @@ import { CrmState, Lead, LeadSalesPhase, LeadSource, ModuleKey, ProductCategory,
 import { getFirebaseDb } from "./firebase";
 
 const legacyStorageKey = "saveplanet-crm-state-v2";
-const legacyCrmCacheKeys = [legacyStorageKey, "saveplanet-last-quote-number"];
-const legacyCrmCachePrefixes = ["saveplanet-quote-", "saveplanet-proposal-customer-"];
+const legacyQuoteStoragePrefix = "saveplanet-quote-";
+const legacyProposalCustomerStoragePrefix = "saveplanet-proposal-customer-";
 const crmDocumentPath = ["crmWorkspaces", "default"] as const;
 const crmChunksPath = ["crmWorkspaces", "default", "stateChunks"] as const;
 const stateChunkSize = 650_000;
@@ -270,9 +270,6 @@ export function useCrmStore() {
           setBaseState(nextState);
           stateRef.current = nextState;
         }
-        if (legacyState) {
-          clearLegacyCrmCache();
-        }
         unsubscribe = onSnapshot(ref, async (remoteSnapshot) => {
           if (!active || !remoteSnapshot.exists()) return;
           const remoteState = await stateFromWorkspaceSnapshot(remoteSnapshot.data());
@@ -380,7 +377,7 @@ function readLegacySavedQuotes() {
   const quotes: QuoteRecord[] = [];
   for (let index = 0; index < window.localStorage.length; index += 1) {
     const key = window.localStorage.key(index);
-    if (!key || !key.startsWith("saveplanet-quote-")) continue;
+    if (!key || !key.startsWith(legacyQuoteStoragePrefix)) continue;
     const quote = parseLegacyJson<QuoteRecord>(window.localStorage.getItem(key));
     if (quote?.id) quotes.push(quote);
   }
@@ -392,7 +389,7 @@ function readLegacyProposalCustomers() {
   const customers: CrmState["customers"] = [];
   for (let index = 0; index < window.localStorage.length; index += 1) {
     const key = window.localStorage.key(index);
-    if (!key || !key.startsWith("saveplanet-proposal-customer-")) continue;
+    if (!key || !key.startsWith(legacyProposalCustomerStoragePrefix)) continue;
     const customer = parseLegacyJson<CrmState["customers"][number] | null>(window.localStorage.getItem(key));
     if (customer?.id) customers.push(customer);
   }
@@ -405,17 +402,6 @@ function parseLegacyJson<T>(value: string | null) {
     return JSON.parse(value) as T;
   } catch {
     return null;
-  }
-}
-
-function clearLegacyCrmCache() {
-  if (typeof window === "undefined") return;
-  legacyCrmCacheKeys.forEach((key) => window.localStorage.removeItem(key));
-  for (let index = window.localStorage.length - 1; index >= 0; index -= 1) {
-    const key = window.localStorage.key(index);
-    if (key && legacyCrmCachePrefixes.some((prefix) => key.startsWith(prefix))) {
-      window.localStorage.removeItem(key);
-    }
   }
 }
 
@@ -730,16 +716,18 @@ async function readRemoteState() {
 
 async function stateFromWorkspaceSnapshot(data: Record<string, unknown>) {
   if (data.chunked === true) {
-    return readChunkedState();
+    return readChunkedState(data);
   }
   return normalizeState(data as CrmState);
 }
 
-async function readChunkedState() {
+async function readChunkedState(workspaceData: Record<string, unknown>) {
+  const chunkCount = Number(workspaceData.chunkCount ?? 0);
   const snapshot = await getDocs(collection(getFirebaseDb(), ...crmChunksPath));
   const chunks = snapshot.docs
     .filter((item) => item.id.startsWith("chunk-"))
     .sort((left, right) => left.id.localeCompare(right.id))
+    .slice(0, chunkCount > 0 ? chunkCount : undefined)
     .map((item) => String(item.data().value ?? ""));
   if (!chunks.length) return initialCrmState;
   return normalizeState(JSON.parse(chunks.join("")) as CrmState);
