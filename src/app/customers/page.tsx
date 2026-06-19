@@ -60,7 +60,8 @@ export default function CustomersPage() {
       : currentMember?.name
         ? [currentMember.name]
         : [];
-    return activeMembers.length ? activeMembers : ["vinay dhanekula"];
+    const uniqueMembers = Array.from(new Set(activeMembers));
+    return uniqueMembers.length ? uniqueMembers : ["vinay dhanekula"];
   }, [canManageCustomers, currentMember, state.team]);
 
   const customers = useMemo(() => {

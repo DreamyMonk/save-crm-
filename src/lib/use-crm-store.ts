@@ -268,7 +268,7 @@ export function useCrmStore() {
         const ref = doc(getFirebaseDb(), ...crmDocumentPath);
         const savedRemoteState = await readRemoteState();
         if (!active) return;
-        const localState = mergeLocalCollections(normalizeState(stateRef.current), readLocalState());
+        const localState = mergeLocalCollections(normalizeState(stateRef.current), readLocalState(), { includeLocalDeletes: true });
         if (savedRemoteState) {
           const remoteState = mergeLocalCollections(savedRemoteState, localState);
           if (JSON.stringify(remoteState) !== JSON.stringify(savedRemoteState)) {
@@ -363,15 +363,19 @@ function readLocalState() {
   }
 }
 
-function mergeLocalCollections(remoteState: CrmState, localState: CrmState | null) {
+function mergeLocalCollections(remoteState: CrmState, localState: CrmState | null, options: { includeLocalDeletes?: boolean } = {}) {
   if (!localState) return remoteState;
-  const deletedTeamMemberKeys = mergeDeletedTeamMemberKeys(remoteState, localState);
-  const deletedCustomerIds = mergeDeletedIds(remoteState.deletedCustomerIds, localState.deletedCustomerIds);
-  const deletedProductIds = mergeDeletedIds(remoteState.deletedProductIds, localState.deletedProductIds);
-  const deletedLeadIds = mergeDeletedIds(remoteState.deletedLeadIds, localState.deletedLeadIds);
-  const deletedQuoteIds = mergeDeletedIds(remoteState.deletedQuoteIds, localState.deletedQuoteIds);
-  const deletedProposalPackageIds = mergeDeletedIds(remoteState.deletedProposalPackageIds, localState.deletedProposalPackageIds);
-  const deletedInvoiceIds = mergeDeletedIds(remoteState.deletedInvoiceIds, localState.deletedInvoiceIds);
+  const includeLocalDeletes = options.includeLocalDeletes ?? false;
+  // Browser caches can be stale across devices, so only trust local tombstones when seeding a missing workspace.
+  const deletedTeamMemberKeys = includeLocalDeletes
+    ? mergeDeletedTeamMemberKeys(remoteState, localState)
+    : removeLiveMemberKeysFromDeletedKeys(remoteState.deletedTeamMemberKeys ?? [], remoteState.team);
+  const deletedCustomerIds = mergeDeletedIds(remoteState.deletedCustomerIds, includeLocalDeletes ? localState.deletedCustomerIds : undefined, localState.customers);
+  const deletedProductIds = mergeDeletedIds(remoteState.deletedProductIds, includeLocalDeletes ? localState.deletedProductIds : undefined, localState.products);
+  const deletedLeadIds = mergeDeletedIds(remoteState.deletedLeadIds, includeLocalDeletes ? localState.deletedLeadIds : undefined, localState.leads);
+  const deletedQuoteIds = mergeDeletedIds(remoteState.deletedQuoteIds, includeLocalDeletes ? localState.deletedQuoteIds : undefined, localState.quotes);
+  const deletedProposalPackageIds = mergeDeletedIds(remoteState.deletedProposalPackageIds, includeLocalDeletes ? localState.deletedProposalPackageIds : undefined, localState.proposalPackages);
+  const deletedInvoiceIds = mergeDeletedIds(remoteState.deletedInvoiceIds, includeLocalDeletes ? localState.deletedInvoiceIds : undefined, localState.invoices);
   return {
     ...remoteState,
     deletedTeamMemberKeys,
@@ -411,18 +415,18 @@ function mergeByUpdatedAccess(remoteTeam: CrmState["team"], localTeam: CrmState[
   const deletedKeys = new Set(deletedTeamMemberKeys);
   const mergedByKey = new Map<string, CrmState["team"][number]>();
   for (const member of [...remoteTeam, ...localTeam]) {
-    const key = accessMemberKey(member);
     if (accessMemberKeys(member).some((memberKey) => deletedKeys.has(memberKey)) && !isProtectedAdmin(member)) continue;
-    const existing = mergedByKey.get(key);
+    const memberKeys = accessMemberKeys(member);
+    const existing = memberKeys.map((key) => mergedByKey.get(key)).find((item): item is CrmState["team"][number] => Boolean(item));
     if (!existing || timestamp(member.accessUpdatedAt) >= timestamp(existing.accessUpdatedAt)) {
-      mergedByKey.set(key, member);
+      if (existing) {
+        accessMemberKeys(existing).forEach((key) => mergedByKey.delete(key));
+      }
+      const nextMember = existing ? { ...existing, ...member, id: existing.id || member.id, uid: member.uid || existing.uid } : member;
+      accessMemberKeys(nextMember).forEach((key) => mergedByKey.set(key, nextMember));
     }
   }
-  return ensureProtectedAdmins(Array.from(mergedByKey.values()));
-}
-
-function accessMemberKey(member: CrmState["team"][number]) {
-  return member.email?.trim().toLowerCase() || member.uid || member.id;
+  return ensureProtectedAdmins(Array.from(new Set(mergedByKey.values())));
 }
 
 function accessMemberKeys(member: CrmState["team"][number]) {
@@ -540,8 +544,9 @@ function mergeProductsByLatestUpdate(remoteItems: CrmState["products"], localIte
   return [...replacementProducts, ...mergeByLatestUpdate(remoteProducts, localProducts)];
 }
 
-function mergeDeletedIds(remoteIds: string[] | undefined, localIds: string[] | undefined) {
-  return Array.from(new Set([...(remoteIds ?? []), ...(localIds ?? [])]));
+function mergeDeletedIds<T extends { id: string }>(remoteIds: string[] | undefined, localIds: string[] | undefined, liveItems: T[] = []) {
+  const liveIds = new Set(liveItems.map((item) => item.id));
+  return Array.from(new Set([...(remoteIds ?? []), ...(localIds ?? [])])).filter((id) => !liveIds.has(id));
 }
 
 function mergeInvoicesWithDeletedIds(remoteItems: CrmState["invoices"], localItems: CrmState["invoices"], deletedInvoiceIds: string[]) {
@@ -633,12 +638,12 @@ async function saveMergedState(state: CrmState) {
     Array.from(new Set([...(remoteState.deletedTeamMemberKeys ?? []), ...(state.deletedTeamMemberKeys ?? [])])),
     state.team,
   );
-  const deletedCustomerIds = mergeDeletedIds(remoteState.deletedCustomerIds, state.deletedCustomerIds);
-  const deletedProductIds = mergeDeletedIds(remoteState.deletedProductIds, state.deletedProductIds);
-  const deletedLeadIds = mergeDeletedIds(remoteState.deletedLeadIds, state.deletedLeadIds);
-  const deletedQuoteIds = mergeDeletedIds(remoteState.deletedQuoteIds, state.deletedQuoteIds);
-  const deletedProposalPackageIds = mergeDeletedIds(remoteState.deletedProposalPackageIds, state.deletedProposalPackageIds);
-  const deletedInvoiceIds = mergeDeletedIds(remoteState.deletedInvoiceIds, state.deletedInvoiceIds);
+  const deletedCustomerIds = mergeDeletedIds(remoteState.deletedCustomerIds, state.deletedCustomerIds, state.customers);
+  const deletedProductIds = mergeDeletedIds(remoteState.deletedProductIds, state.deletedProductIds, state.products);
+  const deletedLeadIds = mergeDeletedIds(remoteState.deletedLeadIds, state.deletedLeadIds, state.leads);
+  const deletedQuoteIds = mergeDeletedIds(remoteState.deletedQuoteIds, state.deletedQuoteIds, state.quotes);
+  const deletedProposalPackageIds = mergeDeletedIds(remoteState.deletedProposalPackageIds, state.deletedProposalPackageIds, state.proposalPackages);
+  const deletedInvoiceIds = mergeDeletedIds(remoteState.deletedInvoiceIds, state.deletedInvoiceIds, state.invoices);
   const mergedState = {
     ...state,
     deletedTeamMemberKeys,
