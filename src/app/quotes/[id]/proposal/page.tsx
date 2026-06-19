@@ -70,17 +70,7 @@ function ProposalWorkspace({ publicView = false, allowAnonymous = false }: { pub
     const fromState = state.quotes.find((item) => item.id === id);
     const packageSnapshot = state.proposalPackages.find((item) => item.quoteId === id || item.publicToken === id)?.quoteSnapshot;
     const snapshotQuote = proposalSnapshot?.quote.id === id ? proposalSnapshot.quote : undefined;
-    let savedQuote: QuoteRecord | undefined;
-    if (typeof window === "undefined") return latestQuote([fromState, packageSnapshot, snapshotQuote]);
-    const saved = window.localStorage.getItem(`saveplanet-quote-${id}`);
-    if (saved) {
-      try {
-        savedQuote = JSON.parse(saved) as QuoteRecord;
-      } catch {
-        savedQuote = undefined;
-      }
-    }
-    return latestQuote([fromState, packageSnapshot, snapshotQuote, savedQuote]);
+    return latestQuote([fromState, packageSnapshot, snapshotQuote]);
   }, [id, proposalSnapshot, state.proposalPackages, state.quotes]);
   const customer =
     state.customers.find((item) => item.id === quote?.customerId) ??
@@ -104,9 +94,6 @@ function ProposalWorkspace({ publicView = false, allowAnonymous = false }: { pub
       const invoice = invoiceAmount === undefined
         ? undefined
         : invoiceFromQuote(mergedQuote, nextCustomer, invoiceAmount, mergedQuote.proposalSentBy || packageRecord?.sentBy || nextCustomer?.salesAgent || "SavePlanet Team");
-      if (typeof window !== "undefined") {
-        window.localStorage.setItem(`saveplanet-quote-${mergedQuote.id}`, JSON.stringify(mergedQuote));
-      }
       return syncProposalCollections(currentState, mergedQuote, nextCustomer, invoice);
     });
   }, [setState]);
@@ -242,7 +229,7 @@ function ProposalWorkspace({ publicView = false, allowAnonymous = false }: { pub
       const resettingSignature = Boolean(quote.customerSignedAt || quote.customerSignatureDataUrl);
       const isUpdatedProposal = Boolean(quote.proposalUpdatedAt || resettingSignature);
       const updatedQuote = markProposalSent({ resetSignature: resettingSignature }) ?? quote;
-      await publishProposalSnapshot(updatedQuote, customer);
+      await waitForProposalSync();
       const link = publicProposalLink(updatedQuote, customer);
       const customerEmailHtml = await proposalEmailHtml(quoteCategory, customer, updatedQuote, link, calculations, isUpdatedProposal);
       const customerEmailSent = await sendResendEmail(state, {
@@ -515,11 +502,7 @@ async function sendResendEmail(
   }
 }
 
-async function publishProposalSnapshot(quote: QuoteRecord, customer: Customer | undefined) {
-  if (typeof window !== "undefined") {
-    window.localStorage.setItem(`saveplanet-quote-${quote.id}`, JSON.stringify(quote));
-    window.localStorage.setItem(`saveplanet-proposal-customer-${quote.id}`, JSON.stringify(customer ?? null));
-  }
+async function waitForProposalSync() {
   await new Promise((resolve) => setTimeout(resolve, 900));
 }
 

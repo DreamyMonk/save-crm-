@@ -7,7 +7,9 @@ import { withDefaultProductImage } from "./aircon-product-images";
 import { CrmState, Lead, LeadSalesPhase, LeadSource, ModuleKey, ProductCategory, ProposalPackage, QuoteRecord, initialCrmState } from "./crm-data";
 import { getFirebaseDb } from "./firebase";
 
-const storageKey = "saveplanet-crm-state-v2";
+const legacyStorageKey = "saveplanet-crm-state-v2";
+const legacyCrmCacheKeys = [legacyStorageKey, "saveplanet-last-quote-number"];
+const legacyCrmCachePrefixes = ["saveplanet-quote-", "saveplanet-proposal-customer-"];
 const crmDocumentPath = ["crmWorkspaces", "default"] as const;
 const crmChunksPath = ["crmWorkspaces", "default", "stateChunks"] as const;
 const stateChunkSize = 650_000;
@@ -224,20 +226,7 @@ function ensureProtectedAdmins(team: CrmState["team"]) {
 }
 
 export function useCrmStore() {
-  const [state, setBaseState] = useState<CrmState>(() => {
-    if (typeof window === "undefined") {
-      return initialCrmState;
-    }
-    const saved = window.localStorage.getItem(storageKey);
-    if (!saved) {
-      return initialCrmState;
-    }
-    try {
-      return normalizeState(JSON.parse(saved) as CrmState);
-    } catch {
-      return initialCrmState;
-    }
-  });
+  const [state, setBaseState] = useState<CrmState>(initialCrmState);
   const [ready, setReady] = useState(false);
   const [syncState, setSyncState] = useState<SyncState>("loading");
   const [syncError, setSyncError] = useState<string | null>(null);
@@ -248,9 +237,6 @@ export function useCrmStore() {
     setBaseState((currentState) => {
       const nextState = typeof value === "function" ? (value as (previousState: CrmState) => CrmState)(currentState) : value;
       stateRef.current = nextState;
-      if (typeof window !== "undefined") {
-        window.localStorage.setItem(storageKey, JSON.stringify(nextState));
-      }
       return nextState;
     });
   }, []);
@@ -265,20 +251,17 @@ export function useCrmStore() {
 
     async function loadRemoteState() {
       try {
+        clearLegacyCrmCache();
         const ref = doc(getFirebaseDb(), ...crmDocumentPath);
         const savedRemoteState = await readRemoteState();
         if (!active) return;
-        const localState = mergeLocalCollections(normalizeState(stateRef.current), readLocalState(), { includeLocalDeletes: true });
         if (savedRemoteState) {
-          const remoteState = mergeLocalCollections(savedRemoteState, localState);
-          if (JSON.stringify(remoteState) !== JSON.stringify(savedRemoteState)) {
-            await writeRemoteState(remoteState);
-          }
+          const remoteState = savedRemoteState;
           lastSavedState.current = JSON.stringify(remoteState);
           setBaseState(remoteState);
           stateRef.current = remoteState;
         } else {
-          const nextState = localState;
+          const nextState = normalizeState(initialCrmState);
           await writeRemoteState(nextState);
           lastSavedState.current = JSON.stringify(nextState);
           setBaseState(nextState);
@@ -292,7 +275,6 @@ export function useCrmStore() {
           const serializedState = JSON.stringify(mergedState);
           if (serializedState === JSON.stringify(stateRef.current)) return;
           lastSavedState.current = serializedState;
-          window.localStorage.setItem(storageKey, serializedState);
           setBaseState(mergedState);
           stateRef.current = mergedState;
           setSyncState("firebase");
@@ -326,7 +308,6 @@ export function useCrmStore() {
   useEffect(() => {
     if (!ready) return;
     const serializedState = JSON.stringify(state);
-    window.localStorage.setItem(storageKey, serializedState);
 
     if (syncState !== "firebase") return;
     if (serializedState === lastSavedState.current) return;
@@ -352,14 +333,14 @@ export function useCrmStore() {
   return { state, setState, ready, syncState, syncError };
 }
 
-function readLocalState() {
-  if (typeof window === "undefined") return null;
-  const saved = window.localStorage.getItem(storageKey);
-  if (!saved) return null;
-  try {
-    return normalizeState(JSON.parse(saved) as CrmState);
-  } catch {
-    return null;
+function clearLegacyCrmCache() {
+  if (typeof window === "undefined") return;
+  legacyCrmCacheKeys.forEach((key) => window.localStorage.removeItem(key));
+  for (let index = window.localStorage.length - 1; index >= 0; index -= 1) {
+    const key = window.localStorage.key(index);
+    if (key && legacyCrmCachePrefixes.some((prefix) => key.startsWith(prefix))) {
+      window.localStorage.removeItem(key);
+    }
   }
 }
 

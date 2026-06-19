@@ -26,9 +26,6 @@ const baselineOptions = ["GAS Ducted Heater NO Air Con", "Gas heater + existing 
 const roomOptions = ["Bedroom 1", "Bedroom 2", "Bedroom 3", "Bedroom 4", "Bedroom 5", "Guest Room", "Dining Room", "Family Room", "Kitchen"];
 const areaRangeOptions = ["0 - 4m2", "5 - 10m2", "11 - 15m2", "16 - 20m2", "21 - 25m2", "26 - 30m2", "31 - 35m2", "36 - 40m2", "41 - 45m2"];
 const indoorSystemTypes = ["Multi Head", "VRF"];
-const quoteCounterStorageKey = "saveplanet-last-quote-number";
-const crmStateStorageKey = "saveplanet-crm-state-v2";
-const savedQuoteStoragePrefix = "saveplanet-quote-";
 const supplementalVrfIndoorHeads: Product[] = [
   makeMideaVrfIndoorHead("AIR-MIDEA-VRF-IDU-28", "MIH34GHN18(AU)-A", "2.8"),
   makeMideaVrfIndoorHead("AIR-MIDEA-VRF-IDU-36", "MIH42GHN18(AU)-A", "3.6"),
@@ -556,7 +553,6 @@ function QuotesWorkspace() {
       const nextCustomer = currentState.customers.find((item) => item.id === customer.id) ?? customer;
       return syncProposalCollections(currentState, quote, nextCustomer);
     });
-    window.localStorage.setItem(`saveplanet-quote-${quote.id}`, JSON.stringify(quote));
     setCurrentQuoteId(quote.id);
     setMessage(status === "Draft" ? "Draft proposal saved. Signature and send tracking were cleared for this revision." : existingQuote ? "Quote updated." : forceNew ? "New quote saved." : "Quote saved.");
     if (openProposal) {
@@ -920,10 +916,7 @@ function productsWithCategoryFallback(products: Product[], categories: string[],
 }
 
 function reserveNextQuoteId(state: CrmState) {
-  const highest = Math.max(highestKnownQuoteNumber(state), readReservedQuoteNumber());
-  const nextNumber = highest + 1;
-  writeReservedQuoteNumber(nextNumber);
-  return `Q-${nextNumber}`;
+  return `Q-${highestKnownQuoteNumber(state) + 1}`;
 }
 
 function highestKnownQuoteNumber(state: CrmState) {
@@ -931,52 +924,8 @@ function highestKnownQuoteNumber(state: CrmState) {
     ...state.quotes.map((quote) => quoteNumberFromId(quote.id)),
     ...(state.proposalPackages ?? []).map((proposalPackage) => quoteNumberFromId(proposalPackage.quoteId)),
     ...(state.deletedQuoteIds ?? []).map(quoteNumberFromId),
-    ...quoteNumbersFromLocalStorage(),
   ];
   return Math.max(1000, ...numbers.filter((number): number is number => Number.isFinite(number)));
-}
-
-function quoteNumbersFromLocalStorage() {
-  if (typeof window === "undefined") return [];
-  const numbers: number[] = [];
-  for (let index = 0; index < window.localStorage.length; index += 1) {
-    const key = window.localStorage.key(index);
-    if (!key?.startsWith(savedQuoteStoragePrefix)) continue;
-    const quoteId = key.slice(savedQuoteStoragePrefix.length);
-    const number = quoteNumberFromId(quoteId);
-    if (Number.isFinite(number)) numbers.push(number);
-  }
-  const savedState = window.localStorage.getItem(crmStateStorageKey);
-  if (!savedState) return numbers;
-  try {
-    const parsed = JSON.parse(savedState) as Partial<CrmState>;
-    parsed.quotes?.forEach((quote) => {
-      const number = quoteNumberFromId(quote.id);
-      if (Number.isFinite(number)) numbers.push(number);
-    });
-    parsed.proposalPackages?.forEach((proposalPackage) => {
-      const number = quoteNumberFromId(proposalPackage.quoteId);
-      if (Number.isFinite(number)) numbers.push(number);
-    });
-    parsed.deletedQuoteIds?.forEach((quoteId) => {
-      const number = quoteNumberFromId(quoteId);
-      if (Number.isFinite(number)) numbers.push(number);
-    });
-  } catch {
-    return numbers;
-  }
-  return numbers;
-}
-
-function readReservedQuoteNumber() {
-  if (typeof window === "undefined") return 1000;
-  const value = Number(window.localStorage.getItem(quoteCounterStorageKey));
-  return Number.isFinite(value) ? value : 1000;
-}
-
-function writeReservedQuoteNumber(value: number) {
-  if (typeof window === "undefined") return;
-  window.localStorage.setItem(quoteCounterStorageKey, String(value));
 }
 
 function quoteNumberFromId(id?: string) {
