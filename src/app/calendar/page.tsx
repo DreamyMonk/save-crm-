@@ -20,7 +20,7 @@ export default function CalendarPage() {
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[#003CBB]">{appointment.status}</p>
                   <h2 className="mt-1 text-lg font-semibold">{appointment.title}</h2>
-                  <p className="mt-1 text-sm text-[#657267]">{lead?.company ?? appointment.leadId} · {appointment.meetingType}</p>
+                  <p className="mt-1 text-sm text-[#657267]">{lead?.company ?? appointment.leadId} {"\u00b7"} {appointment.meetingType}</p>
                 </div>
                 <CalendarDays className="text-[#003CBB]" size={20} />
               </div>
@@ -29,7 +29,7 @@ export default function CalendarPage() {
                 <span>{appointment.time}</span>
                 <span>{appointment.duration} min</span>
               </div>
-              {appointment.meetingLink ? <a href={appointment.meetingLink} target="_blank" className="mt-3 block truncate text-sm font-semibold text-[#0f172a]">{appointment.meetingLink}</a> : null}
+              {appointment.meetingLink ? <a href={appointment.meetingLink} target="_blank" rel="noreferrer" className="mt-3 block truncate text-sm font-semibold text-[#0f172a]">{appointment.meetingLink}</a> : null}
               <p className="mt-3 text-sm text-[#657267]">Email: {appointment.emailStatus}</p>
               {lead ? <Link href={`/leads/${lead.id}`} className="mt-4 inline-flex text-sm font-semibold">Open lead</Link> : null}
             </article>

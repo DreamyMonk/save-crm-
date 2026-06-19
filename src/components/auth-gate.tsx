@@ -24,7 +24,13 @@ export function AuthGate({ children }: { children: (user: CrmAuthUser) => React.
   const [checking, setChecking] = useState(true);
 
   useEffect(() => {
-    return onAuthStateChanged(getFirebaseAuth(), (currentUser) => {
+    let active = true;
+    const fallbackTimeout = window.setTimeout(() => {
+      if (active) setChecking(false);
+    }, 3500);
+    const unsubscribe = onAuthStateChanged(getFirebaseAuth(), (currentUser) => {
+      if (!active) return;
+      window.clearTimeout(fallbackTimeout);
       const hardcodedAdmin = readHardcodedAdminUser();
       const localAccessUser = readLocalAccessUser();
       if (currentUser && currentUser.email?.trim().toLowerCase() !== hardcodedAdminEmail) {
@@ -36,6 +42,11 @@ export function AuthGate({ children }: { children: (user: CrmAuthUser) => React.
       }
       setChecking(false);
     });
+    return () => {
+      active = false;
+      window.clearTimeout(fallbackTimeout);
+      unsubscribe();
+    };
   }, []);
 
   if (checking) {

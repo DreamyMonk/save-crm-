@@ -24,10 +24,21 @@ export function useCurrentTeamMember(team: TeamMember[]) {
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    return onAuthStateChanged(getFirebaseAuth(), (user) => {
+    let active = true;
+    const fallbackTimeout = window.setTimeout(() => {
+      if (active) setReady(true);
+    }, 3500);
+    const unsubscribe = onAuthStateChanged(getFirebaseAuth(), (user) => {
+      if (!active) return;
+      window.clearTimeout(fallbackTimeout);
       setIdentity(readAuthIdentity(user));
       setReady(true);
     });
+    return () => {
+      active = false;
+      window.clearTimeout(fallbackTimeout);
+      unsubscribe();
+    };
   }, []);
 
   const member = useMemo(() => {
