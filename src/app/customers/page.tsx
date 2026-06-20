@@ -47,13 +47,15 @@ const customerTemplateHeaders = [
 ];
 
 export default function CustomersPage() {
-  const { state, setState } = useCrmStore();
+  const { state, saveStateNow, syncState } = useCrmStore();
   const [search, setSearch] = useState("");
   const [message, setMessage] = useState("");
+  const [savingCustomer, setSavingCustomer] = useState(false);
   const [newCustomerType, setNewCustomerType] = useState<Customer["customerType"]>("Business");
   const [editingCustomerId, setEditingCustomerId] = useState<string | null>(null);
   const { member: currentMember, ready: memberReady } = useCurrentTeamMember(state.team);
   const canManageCustomers = canManageLeads(currentMember);
+  const isSavingCustomer = savingCustomer || syncState === "saving";
   const assigneeOptions = useMemo(() => {
     const activeMembers = canManageCustomers
       ? state.team.filter((member) => member.active).map((member) => member.name).filter(Boolean)
@@ -67,55 +69,84 @@ export default function CustomersPage() {
   const customers = useMemo(() => {
     const term = search.toLowerCase();
     if (!memberReady) return [];
-    return state.customers.filter((customer) => canAccessCustomer(currentMember, customer, state.leads) && customerSearchText(customer).toLowerCase().includes(term));
+    return state.customers
+      .filter((customer) => canAccessCustomer(currentMember, customer, state.leads) && customerSearchText(customer).toLowerCase().includes(term))
+      .sort((left, right) => customerSortTime(right) - customerSortTime(left));
   }, [currentMember, memberReady, search, state.customers, state.leads]);
   const editingCustomer = useMemo(() => state.customers.find((customer) => customer.id === editingCustomerId) ?? null, [editingCustomerId, state.customers]);
 
-  function addCustomer(event: FormEvent<HTMLFormElement>) {
+  async function addCustomer(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const form = new FormData(event.currentTarget);
+    if (isSavingCustomer) return;
+    const formElement = event.currentTarget;
+    const form = new FormData(formElement);
     const customer = { ...customerFromForm(form, nextCustomerId(state.customers)), updatedAt: new Date().toISOString() };
-    setState((currentState) => ({
-      ...currentState,
-      deletedCustomerIds: (currentState.deletedCustomerIds ?? []).filter((id) => id !== customer.id),
-      customers: [...currentState.customers, customer],
-    }));
-    event.currentTarget.reset();
-    setNewCustomerType("Business");
-    setMessage(`${customer.name || customer.businessName || "Customer"} added.`);
+    setSavingCustomer(true);
+    setMessage("Please wait, saving customer...");
+    try {
+      await saveStateNow((currentState) => ({
+        ...currentState,
+        deletedCustomerIds: (currentState.deletedCustomerIds ?? []).filter((id) => id !== customer.id),
+        customers: [customer, ...currentState.customers.filter((existingCustomer) => existingCustomer.id !== customer.id)],
+      }));
+      formElement.reset();
+      setNewCustomerType("Business");
+      setMessage(`${customer.name || customer.businessName || "Customer"} added.`);
+    } catch (error) {
+      setMessage(error instanceof Error ? `Could not save customer: ${error.message}` : "Could not save customer to Firebase. Please try again.");
+    } finally {
+      setSavingCustomer(false);
+    }
   }
 
-  function saveCustomerEdit(event: FormEvent<HTMLFormElement>) {
+  async function saveCustomerEdit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!editingCustomer) return;
+    if (!editingCustomer || isSavingCustomer) return;
     const form = new FormData(event.currentTarget);
     const updatedCustomer = { ...customerFromForm(form, editingCustomer.id), updatedAt: new Date().toISOString() };
-    setState((currentState) => {
-      return {
-        ...currentState,
-        customers: currentState.customers.map((customer) =>
-          customer.id === editingCustomer.id
-            ? {
-                ...customer,
-                ...updatedCustomer,
-                id: customer.id,
-                leadId: customer.leadId,
-              }
-            : customer,
-        ),
-      };
-    });
-    setEditingCustomerId(null);
-    setMessage(`${updatedCustomer.name || updatedCustomer.businessName || "Customer"} updated.`);
+    setSavingCustomer(true);
+    setMessage("Please wait, saving customer...");
+    try {
+      await saveStateNow((currentState) => {
+        return {
+          ...currentState,
+          customers: currentState.customers.map((customer) =>
+            customer.id === editingCustomer.id
+              ? {
+                  ...customer,
+                  ...updatedCustomer,
+                  id: customer.id,
+                  leadId: customer.leadId,
+                }
+              : customer,
+          ),
+        };
+      });
+      setEditingCustomerId(null);
+      setMessage(`${updatedCustomer.name || updatedCustomer.businessName || "Customer"} updated.`);
+    } catch (error) {
+      setMessage(error instanceof Error ? `Could not save customer: ${error.message}` : "Could not save customer to Firebase. Please try again.");
+    } finally {
+      setSavingCustomer(false);
+    }
   }
 
-  function deleteCustomer(customerId: string) {
-    setState((currentState) => ({
-      ...currentState,
-      deletedCustomerIds: Array.from(new Set([...(currentState.deletedCustomerIds ?? []), customerId])),
-      customers: currentState.customers.filter((customer) => customer.id !== customerId),
-    }));
-    setMessage("Customer deleted.");
+  async function deleteCustomer(customerId: string) {
+    if (isSavingCustomer) return;
+    setSavingCustomer(true);
+    setMessage("Please wait, deleting customer...");
+    try {
+      await saveStateNow((currentState) => ({
+        ...currentState,
+        deletedCustomerIds: Array.from(new Set([...(currentState.deletedCustomerIds ?? []), customerId])),
+        customers: currentState.customers.filter((customer) => customer.id !== customerId),
+      }));
+      setMessage("Customer deleted.");
+    } catch (error) {
+      setMessage(error instanceof Error ? `Could not delete customer: ${error.message}` : "Could not delete customer from Firebase. Please try again.");
+    } finally {
+      setSavingCustomer(false);
+    }
   }
 
   function downloadTemplate() {
@@ -123,22 +154,32 @@ export default function CustomersPage() {
   }
 
   async function uploadCustomers(event: React.ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0];
+    const inputElement = event.currentTarget;
+    const file = inputElement.files?.[0];
     if (!file) return;
-    const rows = parseCsv(await file.text());
-    const [headers, ...body] = rows;
-    let nextCustomerNumber = highestCustomerNumber(state.customers) + 1;
-    const imported = body
-      .filter((row) => row.some(Boolean))
-      .map((row) => ({ ...customerFromCsv(headers, row, `C-${nextCustomerNumber++}`), updatedAt: new Date().toISOString() }));
-    const importedIds = new Set(imported.map((customer) => customer.id));
-    setState((currentState) => ({
-      ...currentState,
-      deletedCustomerIds: (currentState.deletedCustomerIds ?? []).filter((id) => !importedIds.has(id)),
-      customers: [...currentState.customers, ...imported],
-    }));
-    setMessage(`${imported.length} customers imported.`);
-    event.currentTarget.value = "";
+    if (isSavingCustomer) return;
+    setSavingCustomer(true);
+    setMessage("Please wait, importing customers...");
+    try {
+      const rows = parseCsv(await file.text());
+      const [headers, ...body] = rows;
+      let nextCustomerNumber = highestCustomerNumber(state.customers) + 1;
+      const imported = body
+        .filter((row) => row.some(Boolean))
+        .map((row) => ({ ...customerFromCsv(headers, row, `C-${nextCustomerNumber++}`), updatedAt: new Date().toISOString() }));
+      const importedIds = new Set(imported.map((customer) => customer.id));
+      await saveStateNow((currentState) => ({
+        ...currentState,
+        deletedCustomerIds: (currentState.deletedCustomerIds ?? []).filter((id) => !importedIds.has(id)),
+        customers: [...imported, ...currentState.customers.filter((customer) => !importedIds.has(customer.id))],
+      }));
+      setMessage(`${imported.length} customers imported.`);
+    } catch (error) {
+      setMessage(error instanceof Error ? `Could not import customers: ${error.message}` : "Could not import customers to Firebase. Please try again.");
+    } finally {
+      inputElement.value = "";
+      setSavingCustomer(false);
+    }
   }
 
   return (
@@ -156,10 +197,10 @@ export default function CustomersPage() {
                 <Download size={16} />
                 Template
               </button>
-              <label className="inline-flex h-10 cursor-pointer items-center gap-2 rounded-lg bg-[#003CBB] px-3 text-sm font-semibold text-white">
+              <label className={`inline-flex h-10 items-center gap-2 rounded-lg px-3 text-sm font-semibold text-white ${isSavingCustomer ? "cursor-not-allowed bg-[#7f96cf]" : "cursor-pointer bg-[#003CBB]"}`}>
                 <Upload size={16} />
                 Bulk upload
-                <input type="file" accept=".csv" onChange={uploadCustomers} className="hidden" />
+                <input type="file" accept=".csv" onChange={uploadCustomers} disabled={isSavingCustomer} className="hidden" />
               </label>
             </div>
           </div>
@@ -227,9 +268,9 @@ export default function CustomersPage() {
 
           {message ? <p className="mx-4 rounded-lg bg-[#eef4ff] p-3 text-sm font-medium text-[#003CBB]">{message}</p> : null}
           <div className="p-4">
-            <button className="inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-[#003CBB] px-4 text-sm font-semibold text-white">
+            <button disabled={isSavingCustomer} className="inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-[#003CBB] px-4 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:bg-[#7f96cf]">
               <Save size={16} />
-              Save
+              {isSavingCustomer ? "Please wait, saving..." : "Save"}
             </button>
           </div>
         </form>
@@ -283,11 +324,11 @@ export default function CustomersPage() {
                     </td>
                     <td className="px-2 py-2">
                       <div className="flex items-center gap-2">
-                        <button onClick={() => setEditingCustomerId(customer.id)} className="grid size-8 place-items-center rounded-lg border border-[#c7d3e8] bg-white text-[#003CBB]" title="Edit customer">
+                        <button disabled={isSavingCustomer} onClick={() => setEditingCustomerId(customer.id)} className="grid size-8 place-items-center rounded-lg border border-[#c7d3e8] bg-white text-[#003CBB] disabled:cursor-not-allowed disabled:opacity-50" title="Edit customer">
                           <Pencil size={14} />
                         </button>
-                        <button onClick={() => deleteCustomer(customer.id)} className="grid size-8 place-items-center rounded-lg bg-rose-600 text-white" title="Delete customer">
-                        <Trash2 size={14} />
+                        <button disabled={isSavingCustomer} onClick={() => void deleteCustomer(customer.id)} className="grid size-8 place-items-center rounded-lg bg-rose-600 text-white disabled:cursor-not-allowed disabled:bg-rose-300" title="Delete customer">
+                          <Trash2 size={14} />
                         </button>
                       </div>
                     </td>
@@ -305,6 +346,7 @@ export default function CustomersPage() {
           products={state.products.map((product) => product.productName)}
           onClose={() => setEditingCustomerId(null)}
           onSubmit={saveCustomerEdit}
+          saving={isSavingCustomer}
         />
       ) : null}
     </CrmShell>
@@ -449,12 +491,14 @@ function CustomerEditDrawer({
   products,
   onClose,
   onSubmit,
+  saving,
 }: {
   customer: Customer;
   assigneeOptions: string[];
   products: string[];
   onClose: () => void;
-  onSubmit: (event: FormEvent<HTMLFormElement>) => void;
+  onSubmit: (event: FormEvent<HTMLFormElement>) => void | Promise<void>;
+  saving: boolean;
 }) {
   return (
     <div className="fixed inset-0 z-50 bg-[#0f172a]/30">
@@ -523,12 +567,12 @@ function CustomerEditDrawer({
           </FormSection>
 
           <div className="sticky bottom-0 flex justify-end gap-3 border-t border-[#e5edf7] bg-white p-4">
-            <button type="button" onClick={onClose} className="h-11 rounded-lg border border-[#c7d3e8] bg-white px-4 text-sm font-semibold text-[#0f172a]">
+            <button type="button" disabled={saving} onClick={onClose} className="h-11 rounded-lg border border-[#c7d3e8] bg-white px-4 text-sm font-semibold text-[#0f172a] disabled:cursor-not-allowed disabled:opacity-50">
               Cancel
             </button>
-            <button className="inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-[#003CBB] px-5 text-sm font-semibold text-white">
+            <button disabled={saving} className="inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-[#003CBB] px-5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:bg-[#7f96cf]">
               <Save size={16} />
-              Save changes
+              {saving ? "Please wait, saving..." : "Save changes"}
             </button>
           </div>
         </form>
@@ -594,6 +638,11 @@ function customerSearchText(customer: Customer) {
     customer.salesAgent,
     customer.abn,
   ].join(" ");
+}
+
+function customerSortTime(customer: Customer) {
+  const time = Date.parse(customer.updatedAt ?? "");
+  return Number.isFinite(time) ? time : 0;
 }
 
 function normalizeHeader(value: string) {
