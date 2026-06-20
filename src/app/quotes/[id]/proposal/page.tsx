@@ -50,7 +50,7 @@ function ProposalWorkspace({ publicView = false, allowAnonymous = false }: { pub
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const openTrackedRef = useRef(false);
   const downloadStartedRef = useRef(false);
-  const { state, setState, ready } = useCrmStore();
+  const { state, saveStateNow, ready, syncState } = useCrmStore();
   const [user, setUser] = useState<User | null>(null);
   const [authChecked, setAuthChecked] = useState(!allowAnonymous);
   const [message, setMessage] = useState("");
@@ -60,6 +60,7 @@ function ProposalWorkspace({ publicView = false, allowAnonymous = false }: { pub
   const [autoSignFont, setAutoSignFont] = useState(signatureFonts[0].value);
   const [signatureDoneOpen, setSignatureDoneOpen] = useState(false);
   const [notice, setNotice] = useState<{ title: string; body: string } | null>(null);
+  const [proposalSaving, setProposalSaving] = useState(false);
   const [proposalSending, setProposalSending] = useState(false);
   const [changeRequestDrafts, setChangeRequestDrafts] = useState<Record<string, string>>({});
   const proposalSnapshot = useMemo(() => decodeProposalSnapshot(searchParams.get("snapshot")), [searchParams]);
@@ -83,8 +84,9 @@ function ProposalWorkspace({ publicView = false, allowAnonymous = false }: { pub
   }, [quote]);
   const hasSavedSignature = Boolean(quote?.customerSignatureDataUrl || quote?.customerSignedAt);
   const changeRequestHtml = quote ? (changeRequestDrafts[quote.id] ?? quote.proposalChangeRequestHtml ?? "") : "";
-  const persistQuoteUpdate = useCallback((updatedQuote: QuoteRecord, invoiceAmount?: number, options: { mergeExistingTracking?: boolean } = {}) => {
-    setState((currentState) => {
+  const proposalBusy = proposalSaving || proposalSending || syncState === "saving";
+  const persistQuoteUpdate = useCallback(async (updatedQuote: QuoteRecord, invoiceAmount?: number, options: { mergeExistingTracking?: boolean } = {}) => {
+    await saveStateNow((currentState) => {
       const packageRecord = currentState.proposalPackages.find((item) => item.quoteId === updatedQuote.id || item.publicToken === updatedQuote.id);
       const currentQuote = currentState.quotes.find((item) => item.id === updatedQuote.id);
       const mergedQuote = options.mergeExistingTracking
@@ -96,7 +98,7 @@ function ProposalWorkspace({ publicView = false, allowAnonymous = false }: { pub
         : invoiceFromQuote(mergedQuote, nextCustomer, invoiceAmount, mergedQuote.proposalSentBy || packageRecord?.sentBy || nextCustomer?.salesAgent || "SavePlanet Team");
       return syncProposalCollections(currentState, mergedQuote, nextCustomer, invoice);
     });
-  }, [setState]);
+  }, [saveStateNow]);
 
   useEffect(() => {
     if (!quote || !calculations) return;
@@ -141,7 +143,7 @@ function ProposalWorkspace({ publicView = false, allowAnonymous = false }: { pub
       proposalOpenedAt: openedAt,
       proposalOpenCount: (quote.proposalOpenCount ?? 0) + 1,
     };
-    persistQuoteUpdate(updatedQuote, undefined, { mergeExistingTracking: true });
+    void persistQuoteUpdate(updatedQuote, undefined, { mergeExistingTracking: true });
   }, [effectivePublicView, persistQuoteUpdate, quote, trackOpenRequested]);
 
   if ((allowAnonymous && !authChecked) || !ready) {
@@ -176,7 +178,7 @@ function ProposalWorkspace({ publicView = false, allowAnonymous = false }: { pub
     iframeRef.current?.contentWindow?.print();
   }
 
-  function markProposalSent({ resetSignature = false }: { resetSignature?: boolean } = {}) {
+  async function markProposalSent({ resetSignature = false }: { resetSignature?: boolean } = {}) {
     if (!quote || !calculations) return;
     const sentAt = new Date().toISOString();
     const sender = findSenderMember(state, quote, customer, user);
@@ -192,12 +194,12 @@ function ProposalWorkspace({ publicView = false, allowAnonymous = false }: { pub
       customerSignedAt: resetSignature ? undefined : quote.customerSignedAt,
       status: "Saved" as const,
     };
-    persistQuoteUpdate(updatedQuote, calculations.finalPriceIncGst);
+    await persistQuoteUpdate(updatedQuote, calculations.finalPriceIncGst);
     return updatedQuote;
   }
 
-  function saveProposalDraft() {
-    if (!quote) return;
+  async function saveProposalDraft() {
+    if (!quote || proposalBusy) return;
     const updatedQuote: QuoteRecord = {
       ...quote,
       status: "Draft",
@@ -211,12 +213,20 @@ function ProposalWorkspace({ publicView = false, allowAnonymous = false }: { pub
       customerSignatureDataUrl: undefined,
       customerSignedAt: undefined,
     };
-    persistQuoteUpdate(updatedQuote, undefined, { mergeExistingTracking: true });
-    setMessage("Proposal saved as draft. Customer signature and send tracking were cleared for this revision.");
+    setProposalSaving(true);
+    setMessage("Please wait, saving proposal...");
+    try {
+      await persistQuoteUpdate(updatedQuote, undefined, { mergeExistingTracking: true });
+      setMessage("Proposal saved as draft. Customer signature and send tracking were cleared for this revision.");
+    } catch {
+      setMessage("Could not save proposal to Firebase. Please wait a moment and try again.");
+    } finally {
+      setProposalSaving(false);
+    }
   }
 
   async function sendProposalEmail() {
-    if (!quote || !calculations || proposalSending) return;
+    if (!quote || !calculations || proposalBusy) return;
 
     if (!customer?.email) {
       setMessage("Customer email is missing, so no proposal email was sent.");
@@ -224,12 +234,12 @@ function ProposalWorkspace({ publicView = false, allowAnonymous = false }: { pub
     }
 
     setProposalSending(true);
-    setMessage("");
+    setMessage("Please wait, saving proposal...");
     try {
       const resettingSignature = Boolean(quote.customerSignedAt || quote.customerSignatureDataUrl);
       const isUpdatedProposal = Boolean(quote.proposalUpdatedAt || resettingSignature);
-      const updatedQuote = markProposalSent({ resetSignature: resettingSignature }) ?? quote;
-      await waitForProposalSync();
+      const updatedQuote = await markProposalSent({ resetSignature: resettingSignature }) ?? quote;
+      setMessage("Please wait, sending proposal email...");
       const link = publicProposalLink(updatedQuote, customer);
       const customerEmailHtml = await proposalEmailHtml(quoteCategory, customer, updatedQuote, link, calculations, isUpdatedProposal);
       const customerEmailSent = await sendResendEmail(state, {
@@ -256,6 +266,8 @@ function ProposalWorkspace({ publicView = false, allowAnonymous = false }: { pub
       }
 
       setMessage(customerEmailSent ? "Customer email sent, but admin or sales agent notification failed." : "Proposal email failed. Please check Resend settings.");
+    } catch {
+      setMessage("Could not save or send the proposal. Please wait a moment and try again.");
     } finally {
       setProposalSending(false);
     }
@@ -275,7 +287,16 @@ function ProposalWorkspace({ publicView = false, allowAnonymous = false }: { pub
     const signedAt = new Date().toISOString();
     const firstSignature = !quote.customerSignedAt;
     const updatedQuote: QuoteRecord = { ...quote, customerSignatureDataUrl: signatureToSave, customerSignedAt: signedAt };
-    persistQuoteUpdate(updatedQuote, undefined, { mergeExistingTracking: true });
+    setProposalSaving(true);
+    setMessage("Please wait, saving signature...");
+    try {
+      await persistQuoteUpdate(updatedQuote, undefined, { mergeExistingTracking: true });
+    } catch {
+      setProposalSaving(false);
+      setMessage("Could not save signature to Firebase. Please wait a moment and try again.");
+      return;
+    }
+    setProposalSaving(false);
     setSignatureDoneOpen(true);
     setNotice({
       title: "Signature completed",
@@ -313,7 +334,16 @@ function ProposalWorkspace({ publicView = false, allowAnonymous = false }: { pub
       proposalChangeRequestHtml: changeRequestHtml,
       proposalChangeRequestedAt: requestedAt,
     };
-    persistQuoteUpdate(updatedQuote);
+    setProposalSaving(true);
+    setMessage("Please wait, saving changes...");
+    try {
+      await persistQuoteUpdate(updatedQuote);
+    } catch {
+      setProposalSaving(false);
+      setMessage("Could not save changes to Firebase. Please wait a moment and try again.");
+      return;
+    }
+    setProposalSaving(false);
     const recipients = proposalNotificationRecipients(state, updatedQuote, customer, user);
     const emailSent = recipients.length
       ? await sendResendEmail(state, {
@@ -343,11 +373,11 @@ function ProposalWorkspace({ publicView = false, allowAnonymous = false }: { pub
             <Link href={`/quotes?edit=${quote.id}`} className="inline-flex h-10 flex-1 items-center justify-center gap-2 rounded-lg border border-[#c7d3e8] bg-white px-4 text-sm font-semibold text-[#003CBB] sm:flex-none">
               <PenLine size={16} /> Edit Proposal
             </Link>
-            <button onClick={saveProposalDraft} className="inline-flex h-10 flex-1 items-center justify-center gap-2 rounded-lg border border-[#c7d3e8] bg-white px-4 text-sm font-semibold text-[#003CBB] sm:flex-none">
-              <Save size={16} /> Save as Draft
+            <button onClick={() => void saveProposalDraft()} disabled={proposalBusy} className="inline-flex h-10 flex-1 items-center justify-center gap-2 rounded-lg border border-[#c7d3e8] bg-white px-4 text-sm font-semibold text-[#003CBB] disabled:cursor-not-allowed disabled:opacity-60 sm:flex-none">
+              <Save size={16} /> {proposalSaving ? "Please wait, saving..." : "Save as Draft"}
             </button>
-            <button onClick={sendProposalEmail} disabled={proposalSending} className="inline-flex h-10 flex-1 items-center justify-center gap-2 rounded-lg bg-[#003CBB] px-4 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:bg-[#9bb3ee] sm:flex-none">
-              <Send size={16} /> {proposalSending ? "Sending..." : hasSavedSignature ? "Send Back to Re-sign" : quote.proposalSentAt ? "Resend Mail" : "Send Mail"}
+            <button onClick={() => void sendProposalEmail()} disabled={proposalBusy} className="inline-flex h-10 flex-1 items-center justify-center gap-2 rounded-lg bg-[#003CBB] px-4 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:bg-[#9bb3ee] sm:flex-none">
+              <Send size={16} /> {proposalSending ? "Please wait, sending..." : proposalSaving ? "Please wait, saving..." : hasSavedSignature ? "Send Back to Re-sign" : quote.proposalSentAt ? "Resend Mail" : "Send Mail"}
             </button>
             <button onClick={downloadPdf} className="inline-flex h-10 flex-1 items-center justify-center gap-2 rounded-lg bg-[#0f172a] px-4 text-sm font-semibold text-white sm:flex-none">
               <Download size={16} /> Download PDF
@@ -415,8 +445,8 @@ function ProposalWorkspace({ publicView = false, allowAnonymous = false }: { pub
             )}
           </div>
           {!hasSavedSignature ? <div className="flex flex-col justify-end gap-2">
-            <button onClick={saveSignature} className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-[#003CBB] px-4 text-sm font-semibold text-white">
-              <Save size={16} /> Save signature
+            <button onClick={() => void saveSignature()} disabled={proposalBusy} className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-[#003CBB] px-4 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:bg-[#9bb3ee]">
+              <Save size={16} /> {proposalSaving ? "Please wait, saving..." : "Save signature"}
             </button>
           </div> : null}
         </section> : null}
@@ -437,8 +467,8 @@ function ProposalWorkspace({ publicView = false, allowAnonymous = false }: { pub
               minHeight={180}
             />
           </div>
-          <button onClick={saveChangeRequest} className="mt-4 inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-[#003CBB] px-4 text-sm font-semibold text-white">
-            <Send size={16} /> Send changes
+          <button onClick={() => void saveChangeRequest()} disabled={proposalBusy} className="mt-4 inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-[#003CBB] px-4 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:bg-[#9bb3ee]">
+            <Send size={16} /> {proposalSaving ? "Please wait, saving..." : "Send changes"}
           </button>
         </section> : null}
         </main>
@@ -500,10 +530,6 @@ async function sendResendEmail(
   } catch {
     return false;
   }
-}
-
-async function waitForProposalSync() {
-  await new Promise((resolve) => setTimeout(resolve, 900));
 }
 
 function publicProposalLink(quote: QuoteRecord, customer: Customer | undefined) {

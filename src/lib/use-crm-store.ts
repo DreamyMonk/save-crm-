@@ -241,6 +241,30 @@ export function useCrmStore() {
     });
   }, []);
 
+  const saveStateNow = useCallback(async (value?: SetStateAction<CrmState>) => {
+    const nextState = value === undefined
+      ? stateRef.current
+      : typeof value === "function"
+        ? (value as (previousState: CrmState) => CrmState)(stateRef.current)
+        : value;
+    stateRef.current = nextState;
+    setBaseState(nextState);
+    setSyncState("saving");
+    try {
+      const savedState = await saveMergedState(nextState);
+      lastSavedState.current = JSON.stringify(savedState);
+      setBaseState(savedState);
+      stateRef.current = savedState;
+      setSyncState("firebase");
+      setSyncError(null);
+      return savedState;
+    } catch (error) {
+      setSyncState("local");
+      setSyncError(error instanceof Error ? error.message : "Firebase save failed");
+      throw error;
+    }
+  }, []);
+
   useEffect(() => {
     stateRef.current = state;
   }, [state]);
@@ -333,7 +357,7 @@ export function useCrmStore() {
     return () => window.clearTimeout(timeout);
   }, [ready, state, syncState]);
 
-  return { state, setState, ready, syncState, syncError };
+  return { state, setState, saveStateNow, ready, syncState, syncError };
 }
 
 function readLegacyCrmState() {

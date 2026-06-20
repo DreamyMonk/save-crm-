@@ -67,7 +67,7 @@ export default function QuotesPage() {
 }
 
 function QuotesWorkspace() {
-  const { state, setState, ready } = useCrmStore();
+  const { state, saveStateNow, ready, syncState } = useCrmStore();
   const router = useRouter();
   const searchParams = useSearchParams();
   const loadedEditQuoteIdRef = useRef("");
@@ -138,6 +138,7 @@ function QuotesWorkspace() {
   const [addonPrice, setAddonPrice] = useState(0);
   const [message, setMessage] = useState("");
   const [currentQuoteId, setCurrentQuoteId] = useState("");
+  const [savingQuote, setSavingQuote] = useState(false);
   const editQuoteId = searchParams.get("edit") ?? "";
   const isEditingQuote = Boolean(editQuoteId);
   const activeSelectedCustomerId = customers.some((item) => item.id === selectedCustomerId) ? selectedCustomerId : (customers[0]?.id ?? "");
@@ -193,6 +194,7 @@ function QuotesWorkspace() {
   const activeHeatPumpProduct = heatPumpProducts.some((product) => product.id === heatPumpProduct) ? heatPumpProduct : (heatPumpProducts[0]?.id ?? "");
   const activeQuoteTab = quoteTabs.find((tab) => tab.categories.includes(productCategory)) ?? quoteTabs[0];
   const quoteDraft = buildQuoteDraft();
+  const isSavingQuote = savingQuote || syncState === "saving";
   const calculations = calculateQuote(quoteDraft.items, addons, {
     certificateRate: quoteDraft.certificateRate,
     minimumContributionAdjustment,
@@ -511,7 +513,8 @@ function QuotesWorkspace() {
     };
   }
 
-  function saveQuote(status: QuoteRecord["status"], openProposal = false, forceNew = false) {
+  async function saveQuote(status: QuoteRecord["status"], openProposal = false, forceNew = false) {
+    if (isSavingQuote) return;
     if (!customer) {
       setMessage("Select a customer first.");
       return;
@@ -550,14 +553,22 @@ function QuotesWorkspace() {
           customerSignedAt: status === "Draft" ? undefined : existingQuote.customerSignedAt,
         }
       : builtQuote;
-    setState((currentState) => {
-      const nextCustomer = currentState.customers.find((item) => item.id === customer.id) ?? customer;
-      return syncProposalCollections(currentState, quote, nextCustomer);
-    });
-    setCurrentQuoteId(quote.id);
-    setMessage(status === "Draft" ? "Draft proposal saved. Signature and send tracking were cleared for this revision." : existingQuote ? "Quote updated." : forceNew ? "New quote saved." : "Quote saved.");
-    if (openProposal) {
-      router.push(`/quotes/${quote.id}/proposal`);
+    setSavingQuote(true);
+    setMessage("Please wait, saving to Firebase...");
+    try {
+      await saveStateNow((currentState) => {
+        const nextCustomer = currentState.customers.find((item) => item.id === customer.id) ?? customer;
+        return syncProposalCollections(currentState, quote, nextCustomer);
+      });
+      setCurrentQuoteId(quote.id);
+      setMessage(status === "Draft" ? "Draft proposal saved. Signature and send tracking were cleared for this revision." : existingQuote ? "Quote updated." : forceNew ? "New quote saved." : "Quote saved.");
+      if (openProposal) {
+        router.push(`/quotes/${quote.id}/proposal`);
+      }
+    } catch {
+      setMessage("Could not save to Firebase. Please wait a moment and try again.");
+    } finally {
+      setSavingQuote(false);
     }
   }
 
@@ -784,8 +795,8 @@ function QuotesWorkspace() {
             </div>
             {message ? <p className="mt-3 rounded-lg bg-[#eef4ff] p-3 text-sm font-semibold text-[#003CBB]">{message}</p> : null}
             <div className="mt-4 grid gap-2">
-              <button onClick={() => saveQuote("Draft", false)} className="inline-flex h-11 items-center justify-center gap-2 rounded-lg border border-[#c7d3e8] bg-white px-4 text-sm font-semibold text-[#003CBB]"><Save size={16} /> Save as Draft</button>
-              <button onClick={() => saveQuote("Saved", true)} className="inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-[#003CBB] px-4 text-sm font-semibold text-white"><Save size={16} /> Generate Proposal</button>
+              <button onClick={() => void saveQuote("Draft", false)} disabled={isSavingQuote} className="inline-flex h-11 items-center justify-center gap-2 rounded-lg border border-[#c7d3e8] bg-white px-4 text-sm font-semibold text-[#003CBB] disabled:cursor-not-allowed disabled:opacity-60"><Save size={16} /> {isSavingQuote ? "Please wait, saving..." : "Save as Draft"}</button>
+              <button onClick={() => void saveQuote("Saved", true)} disabled={isSavingQuote} className="inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-[#003CBB] px-4 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:bg-[#9bb3ee]"><Save size={16} /> {isSavingQuote ? "Please wait, saving..." : "Generate Proposal"}</button>
             </div>
           </aside>
         </section>
