@@ -109,6 +109,7 @@ function QuotesWorkspace() {
   }, [activeProductConfiguration, productSearch, typeCatalog]);
   const quoteProducts = filteredProducts;
   const [selectedCustomerId, setSelectedCustomerId] = useState(customers[0]?.id ?? "");
+  const [customerSearch, setCustomerSearch] = useState("");
   const [description, setDescription] = useState(customers[0]?.name ?? "");
   const [activityDate, setActivityDate] = useState("2026-05-02");
   const [baseline, setBaseline] = useState(baselineOptions[0]);
@@ -238,6 +239,7 @@ function QuotesWorkspace() {
   function selectCustomer(customerId: string) {
     const nextCustomer = customers.find((item) => item.id === customerId);
     setSelectedCustomerId(customerId);
+    setCustomerSearch("");
     setDescription(nextCustomer?.name || nextCustomer?.businessName || "");
     if (!isEditingQuote) setCurrentQuoteId("");
   }
@@ -598,16 +600,13 @@ function QuotesWorkspace() {
           <div className="space-y-5">
             <ModuleCard title="Quote Details" badge="Required">
               <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-                <label className="space-y-1 text-sm">
-                  <span className="font-medium text-[#657267]">Customer</span>
-                  <select value={activeSelectedCustomerId} onChange={(event) => selectCustomer(event.target.value)} className="h-11 w-full rounded-lg border border-[#d7dfd0] bg-white px-3 outline-none">
-                    {customers.map((item) => (
-                      <option key={item.id} value={item.id}>
-                        {customerOptionLabel(item)}
-                      </option>
-                    ))}
-                  </select>
-                </label>
+                <CustomerSearchSelect
+                  customers={customers}
+                  query={customerSearch}
+                  selectedCustomerId={activeSelectedCustomerId}
+                  onQueryChange={setCustomerSearch}
+                  onSelect={selectCustomer}
+                />
                 <Select label="Category" value={productCategory} options={productCategories.filter((item) => item !== "All")} onChange={changeProductCategory} />
                 <Select label="Scheme" value={activeScheme} options={schemeOptions} onChange={setScheme} />
                 <Input label="Activity Date" type="date" value={activityDate} onChange={(event) => setActivityDate(event.target.value)} />
@@ -1013,6 +1012,21 @@ function customerOptionLabel(customer: Customer) {
   return `[${customer.id.replace("C-", "")}] ${name}${contact ? ` - ${contact}` : ""}`;
 }
 
+function customerSearchText(customer: Customer) {
+  return [
+    customer.id,
+    customer.name,
+    customer.businessName,
+    customer.email,
+    customer.phone,
+    customer.mobile,
+    customer.address,
+    customer.wantedProduct,
+  ]
+    .join(" ")
+    .toLowerCase();
+}
+
 function airconProductLabel(product: Product | undefined, role: "outdoor" | "indoor") {
   if (!product) return "";
   const model = product.model ?? product.productName;
@@ -1054,6 +1068,79 @@ function CustomerDetail({ label, value, muted = false }: { label: string; value:
     <div className="min-w-0">
       <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[#657267]">{label}</p>
       <p className={`mt-1 truncate text-sm font-semibold ${muted ? "text-amber-700" : "text-[#0f172a]"}`}>{value}</p>
+    </div>
+  );
+}
+
+function CustomerSearchSelect({
+  customers,
+  query,
+  selectedCustomerId,
+  onQueryChange,
+  onSelect,
+}: {
+  customers: Customer[];
+  query: string;
+  selectedCustomerId: string;
+  onQueryChange: (value: string) => void;
+  onSelect: (customerId: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const selectedCustomer = customers.find((customer) => customer.id === selectedCustomerId);
+  const displayValue = open || query ? query : selectedCustomer ? customerOptionLabel(selectedCustomer) : "";
+  const filteredCustomers = useMemo(() => {
+    const term = query.trim().toLowerCase();
+    if (!term) return customers.slice(0, 50);
+    return customers
+      .filter((customer) => customerSearchText(customer).includes(term))
+      .slice(0, 50);
+  }, [customers, query]);
+
+  function chooseCustomer(customerId: string) {
+    onSelect(customerId);
+    setOpen(false);
+  }
+
+  return (
+    <div className="relative space-y-1 text-sm">
+      <span className="font-medium text-[#657267]">Customer</span>
+      <input
+        value={displayValue}
+        onBlur={() => {
+          setOpen(false);
+          onQueryChange("");
+        }}
+        onChange={(event) => {
+          onQueryChange(event.target.value);
+          setOpen(true);
+        }}
+        onFocus={() => setOpen(true)}
+        placeholder="Search customer name, email, phone, or ID"
+        className="h-11 w-full rounded-lg border border-[#d7dfd0] bg-white px-3 outline-none focus:border-[#003CBB]"
+      />
+      {open ? (
+        <div className="absolute left-0 right-0 top-full z-40 mt-1 max-h-72 overflow-auto rounded-lg border border-[#c7d3e8] bg-white shadow-xl">
+          {filteredCustomers.map((customer) => (
+            <button
+              key={customer.id}
+              type="button"
+              onMouseDown={(event) => {
+                event.preventDefault();
+                chooseCustomer(customer.id);
+              }}
+              className={`block w-full border-b border-[#edf2e9] px-3 py-2 text-left last:border-b-0 hover:bg-[#eef4ff] ${customer.id === selectedCustomerId ? "bg-[#dbeafe]" : "bg-white"}`}
+            >
+              <span className="block truncate font-semibold text-[#0f172a]">{customer.name || customer.businessName || "Unnamed customer"}</span>
+              <span className="mt-0.5 block truncate text-xs text-[#657267]">
+                [{customer.id.replace("C-", "")}] {[customer.email, customer.phone || customer.mobile].filter(Boolean).join(" | ") || "No contact saved"}
+              </span>
+            </button>
+          ))}
+          {filteredCustomers.length === 0 ? (
+            <p className="px-3 py-4 text-sm font-medium text-[#657267]">No customers found.</p>
+          ) : null}
+        </div>
+      ) : null}
     </div>
   );
 }
