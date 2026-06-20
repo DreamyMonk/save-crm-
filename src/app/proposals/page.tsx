@@ -149,15 +149,16 @@ export default function ProposalsPage() {
               <p className="text-sm font-medium text-[#657267]">Proposal history</p>
               <h2 className="text-xl font-semibold">Previously sent proposals</h2>
             </div>
-            <div className="relative w-full max-w-md">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-[#657267]" size={17} />
+            <label className="relative w-full max-w-md space-y-1 text-sm">
+              <span className="font-medium text-[#657267]">Proposal name</span>
+              <Search className="absolute left-3 top-[2.15rem] text-[#657267]" size={17} />
               <input
                 value={proposalSearch}
                 onChange={(event) => setProposalSearch(event.target.value)}
-                placeholder="Search proposal, agent, or customer"
+                placeholder="Search proposal name, quote no, customer, or agent"
                 className="h-11 w-full rounded-lg border border-[#d7dfd0] bg-white pl-10 pr-3 text-sm outline-none focus:border-[#003CBB]"
               />
-            </div>
+            </label>
           </div>
           <div className="grid gap-3 border-b border-[#e5edf7] p-5 md:grid-cols-2 xl:grid-cols-4">
             <FilterSelect label="Status" value={statusFilter} options={["All", "Signed", "Opened", "Not opened", "Changes requested", "Sent", "Draft"]} onChange={setStatusFilter} />

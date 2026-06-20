@@ -45,12 +45,14 @@ const customerTemplateHeaders = [
   "Mobile Number",
   "Product They Wanted",
 ];
+const customerPageSize = 25;
 
 export default function CustomersPage() {
   const { state, saveStateNow, syncState } = useCrmStore();
   const [search, setSearch] = useState("");
   const [message, setMessage] = useState("");
   const [savingCustomer, setSavingCustomer] = useState(false);
+  const [currentCustomerPage, setCurrentCustomerPage] = useState(1);
   const [newCustomerType, setNewCustomerType] = useState<Customer["customerType"]>("Business");
   const [editingCustomerId, setEditingCustomerId] = useState<string | null>(null);
   const { member: currentMember, ready: memberReady } = useCurrentTeamMember(state.team);
@@ -74,6 +76,14 @@ export default function CustomersPage() {
       .sort((left, right) => customerSortTime(right) - customerSortTime(left));
   }, [currentMember, memberReady, search, state.customers, state.leads]);
   const editingCustomer = useMemo(() => state.customers.find((customer) => customer.id === editingCustomerId) ?? null, [editingCustomerId, state.customers]);
+  const totalCustomerPages = Math.max(1, Math.ceil(customers.length / customerPageSize));
+  const safeCustomerPage = Math.min(currentCustomerPage, totalCustomerPages);
+  const visibleCustomers = useMemo(() => {
+    const start = (safeCustomerPage - 1) * customerPageSize;
+    return customers.slice(start, start + customerPageSize);
+  }, [customers, safeCustomerPage]);
+  const firstCustomerNumber = customers.length ? (safeCustomerPage - 1) * customerPageSize + 1 : 0;
+  const lastCustomerNumber = Math.min(safeCustomerPage * customerPageSize, customers.length);
 
   async function addCustomer(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -91,6 +101,7 @@ export default function CustomersPage() {
       }));
       formElement.reset();
       setNewCustomerType("Business");
+      setCurrentCustomerPage(1);
       setMessage(`${customer.name || customer.businessName || "Customer"} added.`);
     } catch (error) {
       setMessage(error instanceof Error ? `Could not save customer: ${error.message}` : "Could not save customer to Firebase. Please try again.");
@@ -122,6 +133,7 @@ export default function CustomersPage() {
           ),
         };
       });
+      setCurrentCustomerPage(1);
       setEditingCustomerId(null);
       setMessage(`${updatedCustomer.name || updatedCustomer.businessName || "Customer"} updated.`);
     } catch (error) {
@@ -173,6 +185,7 @@ export default function CustomersPage() {
         deletedCustomerIds: (currentState.deletedCustomerIds ?? []).filter((id) => !importedIds.has(id)),
         customers: [...imported, ...currentState.customers.filter((customer) => !importedIds.has(customer.id))],
       }));
+      setCurrentCustomerPage(1);
       setMessage(`${imported.length} customers imported.`);
     } catch (error) {
       setMessage(error instanceof Error ? `Could not import customers: ${error.message}` : "Could not import customers to Firebase. Please try again.");
@@ -280,7 +293,15 @@ export default function CustomersPage() {
             <h2 className="font-semibold">Added customers</h2>
             <label className="relative">
               <Search className="absolute left-3 top-2.5 text-[#657267]" size={16} />
-              <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search customers" className="h-10 w-72 rounded-lg border border-[#d9e2f2] bg-white pl-10 pr-3 text-sm outline-none" />
+              <input
+                value={search}
+                onChange={(event) => {
+                  setSearch(event.target.value);
+                  setCurrentCustomerPage(1);
+                }}
+                placeholder="Search customers"
+                className="h-10 w-72 rounded-lg border border-[#d9e2f2] bg-white pl-10 pr-3 text-sm outline-none"
+              />
             </label>
           </div>
           <div className="overflow-x-auto">
@@ -300,7 +321,7 @@ export default function CustomersPage() {
                 </tr>
               </thead>
               <tbody>
-                {customers.map((customer) => (
+                {visibleCustomers.map((customer) => (
                   <tr key={customer.id} className="border-t border-[#e5edf7]">
                     <Td>{customer.id}</Td>
                     <td className="whitespace-nowrap px-3 py-3">{customer.customerType ?? "Business"}</td>
@@ -334,8 +355,51 @@ export default function CustomersPage() {
                     </td>
                   </tr>
                 ))}
+                {customers.length === 0 ? (
+                  <tr className="border-t border-[#e5edf7]">
+                    <td colSpan={10} className="p-8 text-center text-[#657267]">No customers match this search.</td>
+                  </tr>
+                ) : null}
               </tbody>
             </table>
+          </div>
+          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[#e5edf7] p-4 text-sm">
+            <p className="text-[#657267]">
+              Showing <span className="font-semibold text-[#0f172a]">{firstCustomerNumber}</span> to <span className="font-semibold text-[#0f172a]">{lastCustomerNumber}</span> of <span className="font-semibold text-[#0f172a]">{customers.length}</span> customers
+            </p>
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                disabled={safeCustomerPage <= 1}
+                onClick={() => setCurrentCustomerPage((page) => Math.max(1, page - 1))}
+                className="h-9 rounded-lg border border-[#c7d3e8] bg-white px-3 font-semibold text-[#003CBB] disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Previous
+              </button>
+              <label className="flex items-center gap-2 text-[#657267]">
+                Page
+                <select
+                  value={safeCustomerPage}
+                  onChange={(event) => setCurrentCustomerPage(Number(event.target.value))}
+                  className="h-9 rounded-lg border border-[#d9e2f2] bg-white px-2 font-semibold text-[#0f172a] outline-none"
+                >
+                  {Array.from({ length: totalCustomerPages }, (_, index) => index + 1).map((page) => (
+                    <option key={page} value={page}>
+                      {page}
+                    </option>
+                  ))}
+                </select>
+                of {totalCustomerPages}
+              </label>
+              <button
+                type="button"
+                disabled={safeCustomerPage >= totalCustomerPages}
+                onClick={() => setCurrentCustomerPage((page) => Math.min(totalCustomerPages, page + 1))}
+                className="h-9 rounded-lg border border-[#c7d3e8] bg-white px-3 font-semibold text-[#003CBB] disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Next
+              </button>
+            </div>
           </div>
         </section>
       </div>
