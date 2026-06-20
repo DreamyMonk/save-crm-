@@ -142,6 +142,7 @@ function QuotesWorkspace() {
   const isEditingQuote = Boolean(editQuoteId);
   const activeSelectedCustomerId = customers.some((item) => item.id === selectedCustomerId) ? selectedCustomerId : (customers[0]?.id ?? "");
   const customer = customers.find((item) => item.id === activeSelectedCustomerId);
+  const customerPhone = customer ? customer.phone || customer.mobile : "";
   const isAirconCategory = productCategory === "Aircon";
   const outdoorUnitProducts = useMemo(() => quoteProducts.filter(isAirconOutdoorUnit), [quoteProducts]);
   const indoorHeadProducts = useMemo(() => {
@@ -591,7 +592,7 @@ function QuotesWorkspace() {
                   <select value={activeSelectedCustomerId} onChange={(event) => selectCustomer(event.target.value)} className="h-11 w-full rounded-lg border border-[#d7dfd0] bg-white px-3 outline-none">
                     {customers.map((item) => (
                       <option key={item.id} value={item.id}>
-                        [{item.id.replace("C-", "")}] {item.name || item.businessName}
+                        {customerOptionLabel(item)}
                       </option>
                     ))}
                   </select>
@@ -601,6 +602,16 @@ function QuotesWorkspace() {
                 <Input label="Activity Date" type="date" value={activityDate} onChange={(event) => setActivityDate(event.target.value)} />
                 <NumberInput label="Deposit Amount (AUD)" value={customDepositAmount} onChange={setCustomDepositAmount} />
               </div>
+              {customer ? (
+                <div className="grid gap-3 rounded-lg border border-[#d9e2f2] bg-[#f8fbff] p-3 md:grid-cols-2 xl:grid-cols-4">
+                  <CustomerDetail label="Contact" value={customer.name || customer.businessName || "Unnamed customer"} />
+                  <CustomerDetail label="Email" value={customer.email || "No email saved"} muted={!customer.email} />
+                  <CustomerDetail label="Phone" value={customerPhone || "No phone saved"} muted={!customerPhone} />
+                  <CustomerDetail label="Address" value={customer.address || customer.description || "No address saved"} muted={!customer.address && !customer.description} />
+                </div>
+              ) : (
+                <p className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm font-medium text-amber-800">No customer selected.</p>
+              )}
               <Input label="Description" value={description} onChange={(event) => setDescription(event.target.value)} />
             </ModuleCard>
 
@@ -985,6 +996,12 @@ function productLabel(product?: Product) {
   return product ? `${product.brandName} ${product.model ?? product.productName}` : "";
 }
 
+function customerOptionLabel(customer: Customer) {
+  const name = customer.name || customer.businessName || "Unnamed customer";
+  const contact = [customer.email, customer.phone || customer.mobile].filter(Boolean).join(" | ");
+  return `[${customer.id.replace("C-", "")}] ${name}${contact ? ` - ${contact}` : ""}`;
+}
+
 function airconProductLabel(product: Product | undefined, role: "outdoor" | "indoor") {
   if (!product) return "";
   const model = product.model ?? product.productName;
@@ -1017,6 +1034,15 @@ function ModuleCard({ title, badge, children }: { title: string; badge: string; 
         <span className="rounded-full bg-[#eef4ff] px-2.5 py-1 text-xs font-semibold text-[#003CBB]">{badge}</span>
       </div>
       <div className="grid gap-3">{children}</div>
+    </div>
+  );
+}
+
+function CustomerDetail({ label, value, muted = false }: { label: string; value: string; muted?: boolean }) {
+  return (
+    <div className="min-w-0">
+      <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[#657267]">{label}</p>
+      <p className={`mt-1 truncate text-sm font-semibold ${muted ? "text-amber-700" : "text-[#0f172a]"}`}>{value}</p>
     </div>
   );
 }
