@@ -38,7 +38,7 @@ export default function NewLeadPage() {
     const assignedMember = state.team.find((member) => member.id === assignedTo);
     const substituteMember = state.team.find((member) => member.id === substituteAssignedTo);
     const leadId = nextLeadId(state.leads);
-    const customerId = nextCustomerId(state.customers);
+    const customerId = nextCustomerId(state.customers, state.deletedCustomerIds);
     const customer = {
       ...customerFromForm(form, customerId, assignedMember?.name, substituteMember?.name),
       leadId,
@@ -294,8 +294,8 @@ function nextLeadId(leads: Lead[]) {
   return uniqueId("L", new Set(leads.map((lead) => lead.id)));
 }
 
-function nextCustomerId(customers: Customer[]) {
-  return uniqueId("C", new Set(customers.map((customer) => customer.id)));
+function nextCustomerId(customers: Customer[], deletedCustomerIds: string[] = []) {
+  return uniqueId("C", new Set([...customers.map((customer) => customer.id), ...deletedCustomerIds]));
 }
 
 function uniqueId(prefix: string, existingIds: Set<string>): string {

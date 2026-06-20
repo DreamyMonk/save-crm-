@@ -90,7 +90,7 @@ export default function CustomersPage() {
     if (isSavingCustomer) return;
     const formElement = event.currentTarget;
     const form = new FormData(formElement);
-    const customer = { ...customerFromForm(form, nextCustomerId(state.customers)), updatedAt: new Date().toISOString() };
+    const customer = { ...customerFromForm(form, nextCustomerId(state.customers, state.deletedCustomerIds)), updatedAt: new Date().toISOString() };
     setSavingCustomer(true);
     setMessage("Please wait, saving customer...");
     try {
@@ -175,10 +175,10 @@ export default function CustomersPage() {
     try {
       const rows = parseCsv(await file.text());
       const [headers, ...body] = rows;
-      let nextCustomerNumber = highestCustomerNumber(state.customers) + 1;
+      const usedCustomerIds = new Set([...state.customers.map((customer) => customer.id), ...(state.deletedCustomerIds ?? [])]);
       const imported = body
         .filter((row) => row.some(Boolean))
-        .map((row) => ({ ...customerFromCsv(headers, row, `C-${nextCustomerNumber++}`), updatedAt: new Date().toISOString() }));
+        .map((row) => ({ ...customerFromCsv(headers, row, nextCustomerId(usedCustomerIds)), updatedAt: new Date().toISOString() }));
       const importedIds = new Set(imported.map((customer) => customer.id));
       await saveStateNow((currentState) => ({
         ...currentState,
@@ -528,16 +528,17 @@ function customerFromCsv(headers: string[], row: string[], id: string): Customer
   };
 }
 
-function nextCustomerId(customers: Customer[]) {
-  return `C-${highestCustomerNumber(customers) + 1}`;
-}
-
-function highestCustomerNumber(customers: Customer[]) {
-  return customers.reduce((highest, customer) => {
-    const match = /^C-(\d+)$/.exec(customer.id);
-    if (!match) return highest;
-    return Math.max(highest, Number(match[1]));
-  }, 1000);
+function nextCustomerId(customers: Customer[] | Set<string>, deletedCustomerIds: string[] = []): string {
+  const existingIds = customers instanceof Set
+    ? customers
+    : new Set([...customers.map((customer) => customer.id), ...deletedCustomerIds]);
+  const randomPart = typeof crypto !== "undefined" && "randomUUID" in crypto
+    ? crypto.randomUUID().slice(0, 8)
+    : Math.random().toString(36).slice(2, 10);
+  const id = `C-${Date.now().toString(36).toUpperCase()}-${randomPart.toUpperCase()}`;
+  if (existingIds.has(id)) return nextCustomerId(existingIds);
+  existingIds.add(id);
+  return id;
 }
 
 function FormSection({ title, children }: { title: string; children: React.ReactNode }) {

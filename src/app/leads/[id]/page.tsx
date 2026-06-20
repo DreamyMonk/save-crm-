@@ -127,7 +127,7 @@ export default function LeadDetailPage() {
     const updatedAt = new Date().toISOString();
 
     setState((currentState) => {
-      const customerId = nextCustomerId(currentState.customers);
+      const customerId = nextCustomerId(currentState.customers, currentState.deletedCustomerIds);
       return {
         ...currentState,
         deletedCustomerIds: (currentState.deletedCustomerIds ?? []).filter((id) => id !== customerId),
@@ -355,13 +355,13 @@ function formatActivityDate(value: string) {
   return date.toLocaleString("en-AU", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" });
 }
 
-function nextCustomerId(customers: { id: string }[]) {
-  const highest = customers.reduce((currentHighest, customer) => {
-    const match = /^C-(\d+)$/.exec(customer.id);
-    if (!match) return currentHighest;
-    return Math.max(currentHighest, Number(match[1]));
-  }, 1000);
-  return `C-${highest + 1}`;
+function nextCustomerId(customers: { id: string }[], deletedCustomerIds: string[] = []): string {
+  const existingIds = new Set([...customers.map((customer) => customer.id), ...deletedCustomerIds]);
+  const randomPart = typeof crypto !== "undefined" && "randomUUID" in crypto
+    ? crypto.randomUUID().slice(0, 8)
+    : Math.random().toString(36).slice(2, 10);
+  const id = `C-${Date.now().toString(36).toUpperCase()}-${randomPart.toUpperCase()}`;
+  return existingIds.has(id) ? nextCustomerId(customers, deletedCustomerIds) : id;
 }
 
 function Field({ label, value, type = "text", onChange }: { label: string; value: string | number; type?: string; onChange: (value: string) => void }) {
