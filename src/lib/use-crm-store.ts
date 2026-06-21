@@ -29,7 +29,7 @@ function normalizeState(state: CrmState): CrmState {
         modules: normalizeMemberModules(member.modules),
       })),
   );
-  const deletedTeamMemberKeys = removeLiveMemberKeysFromDeletedKeys(state.deletedTeamMemberKeys ?? [], rawNormalizedTeam);
+  const deletedTeamMemberKeys = removeProtectedMemberKeysFromDeletedKeys(state.deletedTeamMemberKeys ?? [], rawNormalizedTeam);
   const deletedCustomerIds = Array.from(new Set(state.deletedCustomerIds ?? []));
   const deletedProductIds = Array.from(new Set(state.deletedProductIds ?? []));
   const deletedLeadIds = Array.from(new Set(state.deletedLeadIds ?? []));
@@ -435,7 +435,7 @@ function mergeLocalCollections(remoteState: CrmState, localState: CrmState | nul
   // Browser caches can be stale across devices, so only trust local tombstones when seeding a missing workspace.
   const deletedTeamMemberKeys = includeLocalDeletes
     ? mergeDeletedTeamMemberKeys(remoteState, localState)
-    : removeLiveMemberKeysFromDeletedKeys(remoteState.deletedTeamMemberKeys ?? [], remoteState.team);
+    : removeReaddedMemberKeysFromDeletedKeys(remoteState.deletedTeamMemberKeys ?? [], remoteState.team);
   const deletedCustomerIds = mergeDeletedIds(remoteState.deletedCustomerIds, includeLocalDeletes ? localState.deletedCustomerIds : undefined, localState.customers);
   const deletedProductIds = mergeDeletedIds(remoteState.deletedProductIds, includeLocalDeletes ? localState.deletedProductIds : undefined, localState.products);
   const deletedLeadIds = mergeDeletedIds(remoteState.deletedLeadIds, includeLocalDeletes ? localState.deletedLeadIds : undefined, localState.leads);
@@ -501,15 +501,17 @@ function accessMemberKeys(member: CrmState["team"][number]) {
 
 function mergeDeletedTeamMemberKeys(remoteState: CrmState, localState: CrmState) {
   const protectedKeys = new Set([...remoteState.team, ...localState.team].filter(isProtectedAdmin).flatMap(accessMemberKeys));
-  return removeLiveMemberKeysFromDeletedKeys(
-    Array.from(new Set([...(remoteState.deletedTeamMemberKeys ?? []), ...(localState.deletedTeamMemberKeys ?? [])])).filter((key) => !protectedKeys.has(key)),
-    localState.team,
-  );
+  return Array.from(new Set([...(remoteState.deletedTeamMemberKeys ?? []), ...(localState.deletedTeamMemberKeys ?? [])])).filter((key) => !protectedKeys.has(key));
 }
 
-function removeLiveMemberKeysFromDeletedKeys(deletedKeys: string[], team: CrmState["team"]) {
+function removeProtectedMemberKeysFromDeletedKeys(deletedKeys: string[], team: CrmState["team"]) {
+  const protectedKeys = new Set(team.filter(isProtectedAdmin).flatMap(accessMemberKeys));
+  return Array.from(new Set(deletedKeys)).filter((key) => !protectedKeys.has(key));
+}
+
+function removeReaddedMemberKeysFromDeletedKeys(deletedKeys: string[], team: CrmState["team"]) {
   const liveKeys = new Set(team.filter((member) => !isDeprecatedTeamMember(member)).flatMap(accessMemberKeys));
-  return deletedKeys.filter((key) => !liveKeys.has(key));
+  return removeProtectedMemberKeysFromDeletedKeys(deletedKeys, team).filter((key) => !liveKeys.has(key));
 }
 
 function isProtectedAdmin(member: CrmState["team"][number]) {
@@ -701,7 +703,7 @@ function timestamp(value?: string) {
 
 async function saveMergedState(state: CrmState) {
   const remoteState = await readRemoteState() ?? initialCrmState;
-  const deletedTeamMemberKeys = removeLiveMemberKeysFromDeletedKeys(
+  const deletedTeamMemberKeys = removeReaddedMemberKeysFromDeletedKeys(
     Array.from(new Set([...(remoteState.deletedTeamMemberKeys ?? []), ...(state.deletedTeamMemberKeys ?? [])])),
     state.team,
   );
