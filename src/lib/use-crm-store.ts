@@ -51,8 +51,8 @@ function normalizeState(state: CrmState): CrmState {
     deletedInvoiceIds,
     leads: (state.leads ?? initialCrmState.leads).map((lead) => ({
       ...lead,
-      assignedTo: deprecatedTeamKeys.has(lead.assignedTo) ? "admin" : lead.assignedTo,
-      substituteAssignedTo: lead.substituteAssignedTo && deprecatedTeamKeys.has(lead.substituteAssignedTo) ? "" : lead.substituteAssignedTo ?? "",
+      assignedTo: normalizeLeadMemberReference(lead.assignedTo, normalizedTeam, deprecatedTeamKeys, "admin"),
+      substituteAssignedTo: normalizeLeadMemberReference(lead.substituteAssignedTo, normalizedTeam, deprecatedTeamKeys, ""),
       leadSource: normalizeLeadSource(lead.leadSource ?? lead.source),
       salesPhase: normalizeSalesPhase(lead.salesPhase, lead.stageId),
       ticketSize: lead.ticketSize ?? lead.amount,
@@ -199,6 +199,13 @@ function templateTypeForCategory(category: QuoteRecord["productCategory"]): Prop
 function normalizeMemberModules(modules: CrmState["team"][number]["modules"]) {
   const validModules = new Set(Object.keys(initialCrmStateModuleLabels()) as ModuleKey[]);
   return Array.from(new Set((modules ?? []).filter((module): module is ModuleKey => validModules.has(module))));
+}
+
+function normalizeLeadMemberReference(value: string | undefined, team: CrmState["team"], deprecatedTeamKeys: Set<string>, fallback: string) {
+  const normalizedValue = normalizeAccessValue(value);
+  if (!normalizedValue) return fallback;
+  if (deprecatedTeamKeys.has(value ?? "") || deprecatedTeamKeys.has(normalizedValue) || isDeprecatedTeamName(value)) return fallback;
+  return team.find((member) => accessMemberKeys(member).includes(normalizedValue) || normalizeAccessValue(member.name) === normalizedValue)?.id ?? value ?? fallback;
 }
 
 function ensureProtectedAdmins(team: CrmState["team"]) {
@@ -496,7 +503,11 @@ function mergeByUpdatedAccess(remoteTeam: CrmState["team"], localTeam: CrmState[
 }
 
 function accessMemberKeys(member: CrmState["team"][number]) {
-  return [member.email?.trim().toLowerCase(), member.uid, member.id].filter((key): key is string => Boolean(key));
+  return [member.email, member.uid, member.id].map(normalizeAccessValue).filter(Boolean);
+}
+
+function normalizeAccessValue(value?: string | null) {
+  return (value ?? "").trim().toLowerCase().replace(/\s+/g, " ");
 }
 
 function mergeDeletedTeamMemberKeys(remoteState: CrmState, localState: CrmState) {

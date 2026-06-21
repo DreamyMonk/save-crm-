@@ -4,9 +4,9 @@ import Link from "next/link";
 import type { DragEvent } from "react";
 import { ClipboardList, Plus, Search, Settings2, Trash2 } from "lucide-react";
 import { ButtonLink, CrmShell, PageHeader } from "@/components/crm-shell";
-import { Lead, LeadSource, currency } from "@/lib/crm-data";
+import { Lead, LeadSource, TeamMember, currency } from "@/lib/crm-data";
 import { isDeliverableEmail, sendResendEmail } from "@/lib/send-email";
-import { canAccessLead, canManageLeads, useCurrentTeamMember } from "@/lib/use-current-team-member";
+import { canAccessLead, canManageLeads, memberMatchesAssignment, useCurrentTeamMember } from "@/lib/use-current-team-member";
 import { useCrmStore } from "@/lib/use-crm-store";
 import { useEffect, useMemo, useRef, useState } from "react";
 
@@ -48,15 +48,16 @@ export default function LeadsPage() {
   const visibleLeads = useMemo(() => {
     return scopedLeads.filter((lead) => {
       const text = `${lead.title} ${lead.company} ${lead.contact}`.toLowerCase();
+      const selectedOwner = owner === "all" ? null : state.team.find((member) => member.id === owner);
       return (
         lead.pipelineId === activePipeline?.id &&
         text.includes(search.toLowerCase()) &&
-        (owner === "all" || lead.assignedTo === owner) &&
+        (owner === "all" || lead.assignedTo === owner || memberMatchesAssignment(selectedOwner, lead.assignedTo)) &&
         (source === "all" || (lead.leadSource ?? lead.source) === source) &&
         (priority === "all" || lead.priority === priority)
       );
     });
-  }, [activePipeline?.id, owner, priority, scopedLeads, search, source]);
+  }, [activePipeline?.id, owner, priority, scopedLeads, search, source, state.team]);
 
   function moveLead(leadId: string, stageId: string) {
     const targetLead = state.leads.find((lead) => lead.id === leadId);
@@ -263,7 +264,7 @@ export default function LeadsPage() {
                 </div>
                 <div className="space-y-3 p-3">
                   {stageLeads.map((lead) => (
-                    <LeadCard key={lead.id} lead={lead} owner={state.team.find((member) => member.id === lead.assignedTo)?.name ?? "Unassigned"} members={assignable} canAssign={canManageAllLeads} canDelete={canDeleteLeads} onAssign={assignLead} onDelete={deleteLead} onDragStart={startLeadDrag} onDragEnd={stopLeadDrag} />
+                    <LeadCard key={lead.id} lead={lead} owner={displayLeadOwner(state.team, lead.assignedTo)} members={assignable} canAssign={canManageAllLeads} canDelete={canDeleteLeads} onAssign={assignLead} onDelete={deleteLead} onDragStart={startLeadDrag} onDragEnd={stopLeadDrag} />
                   ))}
                 </div>
               </section>
@@ -289,6 +290,10 @@ function isLeadAssignableMember(member: { active: boolean; name: string; role: s
 
 function isAdminMember(member: { role: string } | null | undefined) {
   return member?.role.trim().toLowerCase() === "admin";
+}
+
+function displayLeadOwner(team: Pick<TeamMember, "id" | "uid" | "email" | "name">[], assignedTo: string) {
+  return team.find((member) => memberMatchesAssignment(member, assignedTo))?.name ?? (assignedTo || "Unassigned");
 }
 
 function scrollVelocity(distanceIntoEdge: number, edgeSize: number) {

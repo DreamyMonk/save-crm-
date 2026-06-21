@@ -65,7 +65,21 @@ export function canManageLeads(member: TeamMember | null | undefined) {
 export function canAccessLead(member: TeamMember | null | undefined, lead: Lead | null | undefined) {
   if (!member || !lead) return false;
   if (canManageLeads(member)) return true;
-  return lead.assignedTo === member.id || lead.substituteAssignedTo === member.id;
+  return memberMatchesAssignment(member, lead.assignedTo) || memberMatchesAssignment(member, lead.substituteAssignedTo);
+}
+
+export function memberMatchesAssignment(member: Pick<TeamMember, "id" | "uid" | "email" | "name"> | null | undefined, value?: string) {
+  if (!member || !value) return false;
+  const normalizedValue = normalizeIdentityValue(value);
+  return memberIdentityValues(member).some((identity) => identity === normalizedValue);
+}
+
+export function memberIdentityValues(member: Pick<TeamMember, "id" | "uid" | "email" | "name">) {
+  return [member.id, member.uid, member.email, member.name].map(normalizeIdentityValue).filter(Boolean);
+}
+
+function normalizeIdentityValue(value?: string | null) {
+  return (value ?? "").trim().toLowerCase().replace(/\s+/g, " ");
 }
 
 function readAuthIdentity(user: User | null): AuthIdentity | null {
