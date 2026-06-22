@@ -5,7 +5,7 @@ import Link from "next/link";
 import { Download, Pencil, Save, Search, Trash2, Upload, UserPlus, X } from "lucide-react";
 import { CrmShell, PageHeader } from "@/components/crm-shell";
 import { Customer, Lead, TeamMember } from "@/lib/crm-data";
-import { canAccessLead, canManageLeads, useCurrentTeamMember } from "@/lib/use-current-team-member";
+import { canAccessLead, canManageLeads, memberMatchesAssignment, useCurrentTeamMember } from "@/lib/use-current-team-member";
 import { useCrmStore } from "@/lib/use-crm-store";
 
 const customerTemplateHeaders = [
@@ -90,7 +90,7 @@ export default function CustomersPage() {
     if (isSavingCustomer) return;
     const formElement = event.currentTarget;
     const form = new FormData(formElement);
-    const customer = { ...customerFromForm(form, nextCustomerId(state.customers, state.deletedCustomerIds)), updatedAt: new Date().toISOString() };
+    const customer = withCurrentOwner(customerFromForm(form, nextCustomerId(state.customers, state.deletedCustomerIds)), currentMember, canManageCustomers);
     setSavingCustomer(true);
     setMessage("Please wait, saving customer...");
     try {
@@ -114,7 +114,7 @@ export default function CustomersPage() {
     event.preventDefault();
     if (!editingCustomer || isSavingCustomer) return;
     const form = new FormData(event.currentTarget);
-    const updatedCustomer = { ...customerFromForm(form, editingCustomer.id), updatedAt: new Date().toISOString() };
+    const updatedCustomer = withCurrentOwner(customerFromForm(form, editingCustomer.id), currentMember, canManageCustomers);
     setSavingCustomer(true);
     setMessage("Please wait, saving customer...");
     try {
@@ -472,10 +472,21 @@ function canAccessCustomer(member: TeamMember | null | undefined, customer: Cust
   if (canManageLeads(member)) return true;
   const linkedLead = customer.leadId ? leads.find((lead) => lead.id === customer.leadId) : undefined;
   if (linkedLead && canAccessLead(member, linkedLead)) return true;
-  const memberName = member.name.trim().toLowerCase();
   return [customer.salesAgent, customer.secondSalesAgent, customer.agent]
     .filter(Boolean)
-    .some((name) => name?.trim().toLowerCase() === memberName);
+    .some((value) => memberMatchesAssignment(member, value));
+}
+
+function withCurrentOwner(customer: Customer, currentMember: TeamMember | null | undefined, canManageCustomers: boolean): Customer {
+  if (canManageCustomers || !currentMember) {
+    return { ...customer, updatedAt: new Date().toISOString() };
+  }
+  return {
+    ...customer,
+    salesAgent: currentMember.name,
+    agent: customer.agent || currentMember.email || currentMember.id,
+    updatedAt: new Date().toISOString(),
+  };
 }
 
 function customerFromCsv(headers: string[], row: string[], id: string): Customer {

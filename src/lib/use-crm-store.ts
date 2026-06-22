@@ -1,11 +1,12 @@
 "use client";
 
 import { Dispatch, SetStateAction, useCallback, useEffect, useRef, useState } from "react";
+import { signInAnonymously } from "firebase/auth";
 import { collection, doc, getDoc, getDocs, onSnapshot, writeBatch } from "firebase/firestore";
 import { fullAccessModules, isProtectedAdminEmail, isProtectedAdminMember, protectedAdminMemberForEmail } from "./admin-access";
 import { withDefaultProductImage } from "./aircon-product-images";
 import { CrmState, Lead, LeadSalesPhase, LeadSource, ModuleKey, ProductCategory, ProposalPackage, QuoteRecord, initialCrmState } from "./crm-data";
-import { getFirebaseDb } from "./firebase";
+import { getFirebaseAuth, getFirebaseDb } from "./firebase";
 
 const legacyStorageKey = "saveplanet-crm-state-v2";
 const legacyQuoteStoragePrefix = "saveplanet-quote-";
@@ -771,6 +772,7 @@ async function readChunkedState(workspaceData: Record<string, unknown>) {
 }
 
 async function writeRemoteState(state: CrmState) {
+  await ensureFirebaseWriteSession();
   const serialized = JSON.stringify(state);
   const chunks = serialized.match(new RegExp(`.{1,${stateChunkSize}}`, "g")) ?? [serialized];
   const db = getFirebaseDb();
@@ -792,6 +794,14 @@ async function writeRemoteState(state: CrmState) {
     updatedAt: new Date().toISOString(),
   });
   await batch.commit();
+}
+
+async function ensureFirebaseWriteSession() {
+  if (typeof window === "undefined") return;
+  const auth = getFirebaseAuth();
+  if (auth.currentUser) return;
+  if (!window.localStorage.getItem("saveplanet-local-access-user")) return;
+  await signInAnonymously(auth).catch(() => undefined);
 }
 
 function chunkId(index: number) {

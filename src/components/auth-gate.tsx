@@ -3,7 +3,7 @@
 import { FormEvent, useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { createUserWithEmailAndPassword, onAuthStateChanged, signInWithEmailAndPassword, signOut, User } from "firebase/auth";
+import { createUserWithEmailAndPassword, onAuthStateChanged, signInAnonymously, signInWithEmailAndPassword, signOut, User } from "firebase/auth";
 import { LockKeyhole, LogOut, Sparkles } from "lucide-react";
 import { getFirebaseAuth } from "@/lib/firebase";
 import { useCrmStore } from "@/lib/use-crm-store";
@@ -33,7 +33,7 @@ export function AuthGate({ children }: { children: (user: CrmAuthUser) => React.
       window.clearTimeout(fallbackTimeout);
       const hardcodedAdmin = readHardcodedAdminUser();
       const localAccessUser = readLocalAccessUser();
-      if (currentUser && currentUser.email?.trim().toLowerCase() !== hardcodedAdminEmail) {
+      if (currentUser?.email && currentUser.email.trim().toLowerCase() !== hardcodedAdminEmail) {
         window.localStorage.removeItem(localAdminStorageKey);
         window.localStorage.removeItem(localAccessStorageKey);
         setUser(currentUser);
@@ -93,6 +93,7 @@ export function UserLoginModule() {
       const localUser = localAccessLogin(state.team, email, password);
       if (localUser) {
         window.localStorage.setItem(localAccessStorageKey, JSON.stringify(localUser));
+        await signInAnonymously(getFirebaseAuth()).catch(() => undefined);
         window.location.assign("/");
         return;
       }
