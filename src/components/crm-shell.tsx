@@ -3,7 +3,6 @@
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
 import {
   BarChart3,
   CalendarDays,
@@ -56,15 +55,9 @@ export function CrmShell({ children }: { children: React.ReactNode }) {
 function ShellFrame({ children, email, uid }: { children: React.ReactNode; email: string | null; uid: string }) {
   const pathname = usePathname();
   const { state, ready } = useCrmStore();
-  const [accessWaitExpired, setAccessWaitExpired] = useState(false);
-  useEffect(() => {
-    if (ready) return;
-    const timeout = window.setTimeout(() => setAccessWaitExpired(true), 2500);
-    return () => window.clearTimeout(timeout);
-  }, [ready]);
   const normalizedEmail = email?.trim().toLowerCase();
-  const canUseCachedAccess = ready || accessWaitExpired;
   const protectedAdmin = protectedAdminMemberForEmail(normalizedEmail, uid);
+  const canUseCachedAccess = ready || Boolean(protectedAdmin);
   const matchedMember = canUseCachedAccess
     ? state.team.find((item) => item.active && normalizedEmail && item.email?.trim().toLowerCase() === normalizedEmail) ??
       state.team.find((item) => item.active && item.uid === uid)

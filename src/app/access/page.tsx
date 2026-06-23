@@ -14,7 +14,7 @@ const defaultModules: ModuleKey[] = ["dashboard", "leads"];
 const savePlanetLogoUrl = "https://saveplanet.com.au/images/SAVEPLANET-LOGO-7%20(1).webp";
 
 export default function AccessPage() {
-  const { state, setState } = useCrmStore();
+  const { state, setState, saveStateNow } = useCrmStore();
   const [message, setMessage] = useState("");
   const [creatingUser, setCreatingUser] = useState(false);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -49,7 +49,7 @@ export default function AccessPage() {
       const secondaryAuth = getAuth(secondaryApp);
       const credential = await createUserWithEmailAndPassword(secondaryAuth, email, password);
       await secondaryAuth.signOut();
-      upsertAccessMember({
+      await upsertAccessMember({
         id: existingMemberId(state.team, email) ?? credential.user.uid,
         uid: credential.user.uid,
         name,
@@ -74,7 +74,7 @@ export default function AccessPage() {
     } catch (error) {
       const code = firebaseErrorCode(error);
       if (code === "auth/email-already-in-use") {
-        upsertAccessMember({
+        await upsertAccessMember({
           id: existingMemberId(state.team, email) ?? fallbackMemberId(email),
           name,
           email,
@@ -104,9 +104,9 @@ export default function AccessPage() {
     }
   }
 
-  function upsertAccessMember(member: TeamMember) {
+  async function upsertAccessMember(member: TeamMember) {
     const existingId = existingMemberId(state.team, member.email ?? "");
-    setState((currentState) => {
+    await saveStateNow((currentState) => {
       const currentExistingId = existingMemberId(currentState.team, member.email ?? "") ?? existingId;
       const memberKeys = accessMemberKeys(member);
       return {
@@ -119,7 +119,7 @@ export default function AccessPage() {
     });
   }
 
-  function toggleModule(memberId: string, module: ModuleKey) {
+  async function toggleModule(memberId: string, module: ModuleKey) {
     const targetMember = state.team.find((member) => member.id === memberId);
     if (targetMember && isProtectedAdmin(targetMember)) {
       setMessage("The built-in admin keeps full access and cannot be changed.");
@@ -129,7 +129,8 @@ export default function AccessPage() {
       setMessage("You cannot remove your own Access module while signed in.");
       return;
     }
-    setState((currentState) => {
+    try {
+      await saveStateNow((currentState) => {
       const nextState = {
         ...currentState,
         team: currentState.team.map((member) =>
@@ -142,9 +143,12 @@ export default function AccessPage() {
             : member,
         ),
       };
-      setMessage("Module access updated and will be enforced on next navigation.");
       return nextState;
     });
+      setMessage("Module access saved and will be enforced on next navigation.");
+    } catch (error) {
+      setMessage(error instanceof Error ? `Could not save module access: ${error.message}` : "Could not save module access. Please try again.");
+    }
   }
 
   function updateMember(memberId: string, updates: Partial<TeamMember>) {
@@ -167,7 +171,28 @@ export default function AccessPage() {
     });
   }
 
-  function removeAccess(memberId: string) {
+  async function saveMemberUpdate(memberId: string, updates: Partial<TeamMember>) {
+    const targetMember = state.team.find((member) => member.id === memberId);
+    if (targetMember && isProtectedAdmin(targetMember)) {
+      setMessage("The built-in admin account cannot be edited or deactivated.");
+      return;
+    }
+    if (targetMember && isCurrentMember(targetMember, currentUser) && updates.active === false) {
+      setMessage("You cannot deactivate your own access while signed in.");
+      return;
+    }
+    try {
+      await saveStateNow((currentState) => ({
+        ...currentState,
+        team: currentState.team.map((member) => (member.id === memberId ? { ...member, ...updates, accessUpdatedAt: new Date().toISOString() } : member)),
+      }));
+      setMessage("Access profile saved.");
+    } catch (error) {
+      setMessage(error instanceof Error ? `Could not save access: ${error.message}` : "Could not save access. Please try again.");
+    }
+  }
+
+  async function removeAccess(memberId: string) {
     const targetMember = state.team.find((member) => member.id === memberId);
     if (targetMember && isProtectedAdmin(targetMember)) {
       setMessage("The built-in admin account cannot be removed.");
@@ -179,7 +204,8 @@ export default function AccessPage() {
     }
     if (!targetMember) return;
     const removedKeys = accessMemberKeys(targetMember);
-    setState((currentState) => {
+    try {
+      await saveStateNow((currentState) => {
       return {
         ...currentState,
         deletedTeamMemberKeys: Array.from(new Set([...(currentState.deletedTeamMemberKeys ?? []), ...removedKeys])),
@@ -191,7 +217,10 @@ export default function AccessPage() {
         })),
       };
     });
-    setMessage("CRM access removed. Firebase Auth account deletion needs server Admin SDK.");
+      setMessage("CRM access removed. Firebase Auth account deletion needs server Admin SDK.");
+    } catch (error) {
+      setMessage(error instanceof Error ? `Could not remove access: ${error.message}` : "Could not remove access. Please try again.");
+    }
   }
 
   return (
@@ -256,7 +285,7 @@ export default function AccessPage() {
                     className="mt-1 w-full text-sm text-[#657267] outline-none"
                     placeholder="email"
                   />
-                  <select value={member.role} onChange={(event) => updateMember(member.id, { role: event.target.value })} disabled={protectedAdmin} className="mt-3 h-9 w-full rounded-lg border border-[#d7dfd0] px-2 text-sm outline-none disabled:bg-[#f6f8fc]">
+                  <select value={member.role} onChange={(event) => void saveMemberUpdate(member.id, { role: event.target.value })} disabled={protectedAdmin} className="mt-3 h-9 w-full rounded-lg border border-[#d7dfd0] px-2 text-sm outline-none disabled:bg-[#f6f8fc]">
                     <option>Admin</option>
                     <option>Sales Agent</option>
                     <option>Accounts</option>
@@ -267,7 +296,7 @@ export default function AccessPage() {
                   {(Object.keys(moduleLabels) as ModuleKey[]).map((module) => (
                     <button
                       key={module}
-                      onClick={() => toggleModule(member.id, module)}
+                      onClick={() => void toggleModule(member.id, module)}
                       disabled={protectedAdmin || (self && module === "access" && member.modules.includes("access"))}
                       className={`inline-flex h-9 items-center gap-2 rounded-lg border px-3 text-sm font-medium ${
                         member.modules.includes(module) ? "border-[#12201b] bg-[#003CBB] text-white" : "border-[#d7dfd0] bg-white text-[#657267]"
@@ -279,13 +308,13 @@ export default function AccessPage() {
                 </div>
                 <div className="flex flex-col gap-2">
                   <button
-                    onClick={() => updateMember(member.id, { active: !member.active })}
+                    onClick={() => void saveMemberUpdate(member.id, { active: !member.active })}
                     disabled={protectedAdmin || (self && member.active)}
                     className="h-9 rounded-lg border border-[#d7dfd0] px-3 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     {member.active ? "Active" : "Inactive"}
                   </button>
-                  <button disabled={protectedAdmin || self} onClick={() => removeAccess(member.id)} className="inline-flex h-9 items-center justify-center gap-2 rounded-lg bg-rose-600 px-3 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:bg-rose-300">
+                  <button disabled={protectedAdmin || self} onClick={() => void removeAccess(member.id)} className="inline-flex h-9 items-center justify-center gap-2 rounded-lg bg-rose-600 px-3 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:bg-rose-300">
                     <Trash2 size={15} /> Remove
                   </button>
                 </div>
