@@ -240,7 +240,20 @@ export default function NewLeadPage() {
           </div>
         </form>
       )}
+      {savingLead || syncState === "saving" ? <SavingOverlay /> : null}
     </CrmShell>
+  );
+}
+
+function SavingOverlay() {
+  return (
+    <div className="fixed inset-0 z-50 grid place-items-center bg-[#0f172a]/35 p-4 backdrop-blur-sm">
+      <div className="w-full max-w-sm rounded-lg border border-[#dce3d5] bg-white p-6 text-center shadow-2xl">
+        <div className="mx-auto size-11 animate-spin rounded-full border-4 border-[#dbe7ff] border-t-[#003CBB]" />
+        <h2 className="mt-4 text-lg font-semibold text-[#0f172a]">Saving lead</h2>
+        <p className="mt-2 text-sm leading-6 text-[#657267]">Please wait while the lead and customer are saved for admin and assigned users.</p>
+      </div>
+    </div>
   );
 }
 
