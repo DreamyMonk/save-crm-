@@ -13,9 +13,11 @@ const productCategories: ProductCategory[] = ["Aircon", "Solar", "Inverter", "He
 const leadSources: LeadSource[] = ["Manual", "Meta Ads", "Google Ads", "Website", "Referral", "Walk-in", "Campaign"];
 
 export default function NewLeadPage() {
-  const { state, setState } = useCrmStore();
+  const { state, saveStateNow, syncState } = useCrmStore();
   const router = useRouter();
   const [nextAction, setNextAction] = useState("");
+  const [savingLead, setSavingLead] = useState(false);
+  const [message, setMessage] = useState("");
   const [newCustomerType, setNewCustomerType] = useState<Customer["customerType"]>("Business");
   const [selectedPipelineId, setSelectedPipelineId] = useState(state.pipelines[0]?.id ?? "");
   const selectedPipeline = state.pipelines.find((item) => item.id === selectedPipelineId) ?? state.pipelines[0];
@@ -27,8 +29,9 @@ export default function NewLeadPage() {
   }, [canManageAssignments, currentMember, state.team]);
   const defaultAssignee = canManageAssignments ? state.team.find((member) => member.id === "admin") ?? state.team.find((member) => member.role === "Admin") ?? members[0] : currentMember;
 
-  function createLead(event: FormEvent<HTMLFormElement>) {
+  async function createLead(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (savingLead || syncState === "saving") return;
     const form = new FormData(event.currentTarget);
     const pipelineId = String(form.get("pipelineId") || selectedPipeline?.id || state.pipelines[0]?.id || "");
     const targetPipeline = state.pipelines.find((item) => item.id === pipelineId) ?? state.pipelines[0];
@@ -40,7 +43,7 @@ export default function NewLeadPage() {
     const leadId = nextLeadId(state.leads);
     const customerId = nextCustomerId(state.customers, state.deletedCustomerIds);
     const customer = {
-      ...customerFromForm(form, customerId, assignedMember?.name, substituteMember?.name),
+      ...customerFromForm(form, customerId, assignedMember?.name, substituteMember?.name, assignedMember?.email || assignedMember?.id),
       leadId,
       updatedAt: new Date().toISOString(),
     };
@@ -88,13 +91,21 @@ export default function NewLeadPage() {
       mails: [],
     };
 
-    setState((currentState) => ({
-      ...currentState,
-      deletedCustomerIds: (currentState.deletedCustomerIds ?? []).filter((id) => id !== customer.id),
-      customers: [customer, ...currentState.customers],
-      leads: [lead, ...currentState.leads],
-    }));
-    router.push(`/leads?pipeline=${encodeURIComponent(pipelineId)}`);
+    setSavingLead(true);
+    setMessage("Please wait, saving lead and customer...");
+    try {
+      await saveStateNow((currentState) => ({
+        ...currentState,
+        deletedCustomerIds: (currentState.deletedCustomerIds ?? []).filter((id) => id !== customer.id),
+        deletedLeadIds: (currentState.deletedLeadIds ?? []).filter((id) => id !== lead.id),
+        customers: [customer, ...currentState.customers.filter((item) => item.id !== customer.id)],
+        leads: [lead, ...currentState.leads.filter((item) => item.id !== lead.id)],
+      }));
+      router.push(`/leads?pipeline=${encodeURIComponent(pipelineId)}`);
+    } catch (error) {
+      setMessage(error instanceof Error ? `Could not save lead: ${error.message}` : "Could not save lead/customer. Please try again.");
+      setSavingLead(false);
+    }
   }
 
   return (
@@ -220,10 +231,11 @@ export default function NewLeadPage() {
             </label>
           </section>
 
+          {message ? <p className="mx-4 rounded-lg bg-[#eef4ff] p-3 text-sm font-medium text-[#003CBB]">{message}</p> : null}
           <div className="p-4">
-            <button className="inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-[#003CBB] px-4 text-sm font-semibold text-white">
+            <button disabled={savingLead || syncState === "saving"} className="inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-[#003CBB] px-4 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:bg-[#7f96cf]">
               <Save size={16} />
-              Save lead
+              {savingLead || syncState === "saving" ? "Please wait, saving..." : "Save lead"}
             </button>
           </div>
         </form>
@@ -232,7 +244,7 @@ export default function NewLeadPage() {
   );
 }
 
-function customerFromForm(form: FormData, id: string, assignedAgent?: string, secondAgent?: string): Customer {
+function customerFromForm(form: FormData, id: string, assignedAgent?: string, secondAgent?: string, assignedAgentKey?: string): Customer {
   const firstName = String(form.get("firstName") || "");
   const lastName = String(form.get("lastName") || "");
   const businessName = String(form.get("businessName") || "");
@@ -263,7 +275,7 @@ function customerFromForm(form: FormData, id: string, assignedAgent?: string, se
     salesSource: String(form.get("salesSource") || ""),
     leadGenerator: String(form.get("leadGenerator") || ""),
     salesAgent: assignedAgent || "vinay dhanekula",
-    agent: String(form.get("agent") || ""),
+    agent: String(form.get("agent") || assignedAgentKey || ""),
     secondSalesAgent: secondAgent || "",
     abn: String(form.get("abn") || ""),
     industryType: String(form.get("industryType") || ""),
